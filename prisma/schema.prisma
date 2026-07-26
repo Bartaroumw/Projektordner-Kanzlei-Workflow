@@ -1,0 +1,47 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Client {
+  id            Int             @id @default(autoincrement())
+  clientNumber  String          @unique
+  name          String
+  processor     String?
+  reviewer      String?
+  team          String?
+  cadence       String
+  active        Boolean         @default(true)
+  internalNote  String?
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  annualProfiles AnnualProfile[]
+
+  @@index([name])
+  @@index([active])
+}
+
+model AnnualProfile {
+  id                         Int      @id @default(autoincrement())
+  clientId                   Int
+  calendarYear               Int
+  legalFormGroup             String
+  profitDeterminationMethod  String
+  hasCashRegister            Boolean  @default(false)
+  hasPayroll                 Boolean  @default(false)
+  hasFixedAssets             Boolean  @default(false)
+  hasReceivablesPayables     Boolean  @default(false)
+  hasLoans                   Boolean  @default(false)
+  subjectToVat               Boolean  @default(false)
+  hasPermanentExtension      Boolean  @default(false)
+  createdAt                  DateTime @default(now())
+  updatedAt                  DateTime @updatedAt
+  client                     Client   @relation(fields: [clientId], references: [id], onDelete: Restrict)
+
+  @@unique([clientId, calendarYear])
+  @@index([calendarYear])
+}

@@ -1,0 +1,2 @@
+# Diese Datei wird von Prisma verwaltet.
+provider = "sqlite"

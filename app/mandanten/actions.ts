@@ -1,0 +1,165 @@
+"use server";
+
+import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
+import {
+  createAnnualProfile,
+  createClient,
+  DomainError,
+  updateAnnualProfile,
+  updateClient,
+} from "@/lib/client-service";
+import {
+  annualProfileSchema,
+  clientSchema,
+  type AnnualProfileInput,
+  type ClientInput,
+} from "@/lib/validation";
+
+export type FormState = {
+  error?: string;
+  fieldErrors?: Record<string, string[] | undefined>;
+};
+
+function booleanValue(formData: FormData, field: string) {
+  return formData.get(field) === "on" || formData.get(field) === "true";
+}
+
+function clientInput(formData: FormData):
+  | { success: true; data: ClientInput }
+  | { success: false; state: FormState } {
+  const result = clientSchema.safeParse({
+    clientNumber: formData.get("clientNumber"),
+    name: formData.get("name"),
+    processor: formData.get("processor") ?? "",
+    reviewer: formData.get("reviewer") ?? "",
+    team: formData.get("team") ?? "",
+    cadence: formData.get("cadence"),
+    active: booleanValue(formData, "active"),
+    internalNote: formData.get("internalNote") ?? "",
+  });
+  return result.success
+    ? { success: true, data: result.data }
+    : { success: false, state: {
+        error: "Bitte prüfen Sie die markierten Angaben.",
+        fieldErrors: result.error.flatten().fieldErrors,
+      } };
+}
+
+function annualInput(formData: FormData):
+  | { success: true; data: AnnualProfileInput }
+  | { success: false; state: FormState } {
+  const result = annualProfileSchema.safeParse({
+    calendarYear: Number(formData.get("calendarYear")),
+    legalFormGroup: formData.get("legalFormGroup"),
+    profitDeterminationMethod: formData.get("profitDeterminationMethod"),
+    hasCashRegister: booleanValue(formData, "hasCashRegister"),
+    hasPayroll: booleanValue(formData, "hasPayroll"),
+    hasFixedAssets: booleanValue(formData, "hasFixedAssets"),
+    hasReceivablesPayables: booleanValue(formData, "hasReceivablesPayables"),
+    hasLoans: booleanValue(formData, "hasLoans"),
+    subjectToVat: booleanValue(formData, "subjectToVat"),
+    hasPermanentExtension: booleanValue(formData, "hasPermanentExtension"),
+  });
+  if (formData.get("confirmed") !== "on") {
+    return { success: false, state: {
+      error: "Bitte bestätigen Sie, dass Sie die Angaben geprüft haben.",
+      fieldErrors: { confirmed: ["Die Bestätigung ist erforderlich."] },
+    } };
+  }
+  return result.success
+    ? { success: true, data: result.data }
+    : { success: false, state: {
+        error: "Bitte prüfen Sie die markierten Angaben.",
+        fieldErrors: result.error.flatten().fieldErrors,
+      } };
+}
+
+function friendlyError(error: unknown): FormState {
+  if (error instanceof DomainError) {
+    return { error: error.message };
+  }
+  console.error(error);
+  return {
+    error:
+      "Die Angaben konnten nicht gespeichert werden. Bitte versuchen Sie es erneut.",
+  };
+}
+
+export async function createClientAction(
+  _previousState: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  const input = clientInput(formData);
+  if (!input.success) return input.state;
+  try {
+    const client = await createClient(input.data);
+    revalidatePath("/mandanten");
+    redirect(`/mandanten/${client.id}?erfolg=angelegt`);
+  } catch (error) {
+    if (isRedirectError(error)) throw error;
+    return friendlyError(error);
+  }
+}
+
+export async function updateClientAction(
+  id: number,
+  _previousState: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  const input = clientInput(formData);
+  if (!input.success) return input.state;
+  try {
+    await updateClient(id, input.data);
+    revalidatePath("/mandanten");
+    revalidatePath(`/mandanten/${id}`);
+    redirect(`/mandanten/${id}?erfolg=gespeichert`);
+  } catch (error) {
+    if (isRedirectError(error)) throw error;
+    return friendlyError(error);
+  }
+}
+
+export async function createAnnualProfileAction(
+  clientId: number,
+  _previousState: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  const input = annualInput(formData);
+  if (!input.success) return input.state;
+  try {
+    await createAnnualProfile(clientId, input.data);
+    revalidatePath(`/mandanten/${clientId}`);
+    redirect(`/mandanten/${clientId}?erfolg=jahresprofil-angelegt`);
+  } catch (error) {
+    if (isRedirectError(error)) throw error;
+    return friendlyError(error);
+  }
+}
+
+export async function updateAnnualProfileAction(
+  profileId: number,
+  clientId: number,
+  _previousState: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  const input = annualInput(formData);
+  if (!input.success) return input.state;
+  try {
+    await updateAnnualProfile(profileId, clientId, input.data);
+    revalidatePath(`/mandanten/${clientId}`);
+    redirect(`/mandanten/${clientId}?erfolg=jahresprofil-gespeichert`);
+  } catch (error) {
+    if (isRedirectError(error)) throw error;
+    return friendlyError(error);
+  }
+}
+
+function isRedirectError(error: unknown) {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "digest" in error &&
+    String(error.digest).startsWith("NEXT_REDIRECT")
+  );
+}

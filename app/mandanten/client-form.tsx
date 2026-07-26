@@ -4,7 +4,8 @@ import Link from "next/link";
 import { useActionState } from "react";
 import type { Client } from "@prisma/client";
 import type { FormState } from "@/app/mandanten/actions";
-import { CADENCES } from "@/lib/validation";
+import { VAT_FILING_PERIODS } from "@/lib/validation";
+import { ToastMessage } from "@/app/components/toast-message";
 
 type ClientFormProps = {
   action: (
@@ -23,6 +24,7 @@ export function ClientForm({ action, client, cancelHref }: ClientFormProps) {
 
   return (
     <form action={formAction} className="space-y-6">
+      <ToastMessage message={state.error} type="error" focusId={Object.keys(state.fieldErrors ?? {})[0]} />
       {state.error && (
         <div role="alert" className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
           {state.error}
@@ -35,20 +37,20 @@ export function ClientForm({ action, client, cancelHref }: ClientFormProps) {
         <Field label="Mandantenname" required error={errorFor("name")}>
           <input className="input" id="name" name="name" defaultValue={client?.name} required />
         </Field>
-        <Field label="Bearbeiter">
+        <Field label="Bearbeiter (vollständiger Name)">
           <input className="input" id="processor" name="processor" defaultValue={client?.processor ?? ""} />
         </Field>
-        <Field label="Prüfer">
+        <Field label="Prüfer (vollständiger Name)">
           <input className="input" id="reviewer" name="reviewer" defaultValue={client?.reviewer ?? ""} />
         </Field>
-        <Field label="Team">
-          <input className="input" id="team" name="team" defaultValue={client?.team ?? ""} />
+        <Field label="Zuständige Kanzleileitung">
+          <input className="input" id="managementName" name="managementName" defaultValue={client?.managementName ?? ""} />
         </Field>
-        <Field label="Bearbeitungsturnus" required error={errorFor("cadence")}>
-          <select className="input" id="cadence" name="cadence" defaultValue={client?.cadence ?? ""} required>
+        <Field label="USt-Voranmeldungszeitraum" required error={errorFor("vatFilingPeriod")}>
+          <select className="input" id="vatFilingPeriod" name="vatFilingPeriod" defaultValue={client?.vatFilingPeriod ?? "Monatlich"} required>
             <option value="" disabled>Bitte auswählen</option>
-            {CADENCES.map((cadence) => (
-              <option key={cadence} value={cadence}>{cadence}</option>
+            {VAT_FILING_PERIODS.map((period) => (
+              <option key={period} value={period}>{period}</option>
             ))}
           </select>
         </Field>

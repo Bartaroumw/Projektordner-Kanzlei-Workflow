@@ -16,6 +16,7 @@ let categoryId: number;
 
 beforeEach(async () => {
   await prisma.workflowHistory.deleteMany();
+  await prisma.checklistTask.deleteMany({ where: { sourceTaskId: { not: null } } });
   await prisma.checklistTask.deleteMany();
   await prisma.accountingPeriod.deleteMany();
   await prisma.customClientTask.deleteMany();
@@ -47,11 +48,13 @@ describe("Übergabe und Prüfung", () => {
   it("verhindert Übergabe ohne Bearbeiterkürzel", async () => {
     const { period, task } = await setupPeriod(true);
     await updateChecklistTask(task.id, { status: "Erledigt", processingNote: "", processorInitials: "BA", notApplicableReason: "" });
+    await prisma.accountingPeriod.update({ where: { id: period.id }, data: { processorSnapshot: null } });
     await expect(transitionPeriod(period.id, "SUBMIT_REVIEW", "")).rejects.toMatchObject({ code: "INITIALS_REQUIRED" });
   });
 
   it("verhindert Prüfungsbeginn ohne Prüferkürzel", async () => {
     const { period } = await readyForReview();
+    await prisma.accountingPeriod.update({ where: { id: period.id }, data: { reviewerSnapshot: null } });
     await expect(transitionPeriod(period.id, "BEGIN_REVIEW", "")).rejects.toMatchObject({ code: "INITIALS_REQUIRED" });
   });
 
@@ -131,7 +134,7 @@ describe("Nachbearbeitung und Abschluss", () => {
 
   it("ändert vorhandene Verlaufseinträge bei späteren Aktionen nicht", async () => {
     const { period } = await setupPeriod(false);
-    const created = await prisma.workflowHistory.findFirstOrThrow({ where: { periodId: period.id, eventType: "Periode erzeugt" } });
+    const created = await prisma.workflowHistory.findFirstOrThrow({ where: { periodId: period.id, eventType: "Monatscheckliste angelegt" } });
     await transitionPeriod(period.id, "BEGIN_PROCESSING", "BA");
     expect(await prisma.workflowHistory.findUnique({ where: { id: created.id } })).toEqual(created);
   });

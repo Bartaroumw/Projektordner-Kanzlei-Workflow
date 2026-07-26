@@ -3,8 +3,8 @@ import { AppShell } from "@/app/components/app-shell";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Kanzlei Workflow",
-  description: "Digitale Checklisten für das Rechnungswesen",
+  title: "Ordo Caroli",
+  description: "Rechnungswesen-Workflow",
 };
 
 export default function RootLayout({

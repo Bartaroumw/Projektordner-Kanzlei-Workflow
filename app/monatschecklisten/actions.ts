@@ -13,6 +13,8 @@ import {
   updateChecklistTask,
   updateCustomClientTask,
   updatePeriod,
+  updateChecklistRoles,
+  transferChecklistTask,
 } from "@/lib/monthly-checklist-service";
 
 export async function confirmPeriodAction(formData: FormData) {
@@ -20,14 +22,53 @@ export async function confirmPeriodAction(formData: FormData) {
   const year = Number(formData.get("year"));
   const month = Number(formData.get("month"));
   try {
-    const period = await createMonthlyPeriod(clientId, year, month);
+    const exception = formData.get("administrativeException") === "on" ? {
+      administrativeException: true,
+      actorName: String(formData.get("exceptionActorName") ?? ""),
+      reason: String(formData.get("exceptionReason") ?? ""),
+    } : {};
+    const period = await createMonthlyPeriod(clientId, year, month, exception);
     revalidatePath("/monatschecklisten");
     redirect(`/monatschecklisten/${period.id}?erfolg=erzeugt`);
   } catch (error) {
     if (isRedirect(error)) throw error;
-    const message = error instanceof Error ? error.message : "Die Periode konnte nicht erzeugt werden.";
+    const message = error instanceof Error ? error.message : "Die Monatscheckliste konnte nicht angelegt werden.";
     const existing = error instanceof MonthlyChecklistError ? error.existingPeriodId : undefined;
     redirect(`/monatschecklisten/neu?clientId=${clientId}&year=${year}&month=${month}&fehler=${encodeURIComponent(message)}${existing ? `&vorhanden=${existing}` : ""}`);
+  }
+}
+
+export async function updateChecklistRolesAction(periodId: number, formData: FormData) {
+  try {
+    await updateChecklistRoles(periodId, {
+      processor: String(formData.get("processor") ?? ""),
+      reviewer: String(formData.get("reviewer") ?? ""),
+      managementName: String(formData.get("managementName") ?? ""),
+      reason: String(formData.get("reason") ?? ""),
+      actorName: String(formData.get("actorName") ?? ""),
+    });
+    revalidatePath(`/monatschecklisten/${periodId}`);
+    redirect(`/monatschecklisten/${periodId}?erfolg=rollen`);
+  } catch (error) {
+    if (isRedirect(error)) throw error;
+    redirect(`/monatschecklisten/${periodId}?fehler=${encodeURIComponent(error instanceof Error ? error.message : "Die Rollen konnten nicht geändert werden.")}`);
+  }
+}
+
+export async function transferChecklistTaskAction(taskId: number, periodId: number, formData: FormData) {
+  try {
+    await transferChecklistTask(taskId, {
+      reason: String(formData.get("transferReason") ?? ""),
+      actorName: String(formData.get("transferActorName") ?? ""),
+      targetYear: Number(formData.get("transferTargetYear")),
+      targetMonth: Number(formData.get("transferTargetMonth")),
+      expectedAction: String(formData.get("transferExpectedAction") ?? ""),
+    });
+    revalidatePath(`/monatschecklisten/${periodId}`);
+    redirect(`/monatschecklisten/${periodId}?erfolg=uebertragen#aufgabe-${taskId}`);
+  } catch (error) {
+    if (isRedirect(error)) throw error;
+    redirect(`/monatschecklisten/${periodId}?fehler=${encodeURIComponent(error instanceof Error ? error.message : "Die Aufgabe konnte nicht übertragen werden.")}#aufgabe-${taskId}`);
   }
 }
 
@@ -58,15 +99,19 @@ export async function updatePeriodAction(periodId: number, formData: FormData) {
     redirect(`/monatschecklisten/${periodId}?erfolg=periode`);
   } catch (error) {
     if (isRedirect(error)) throw error;
-    redirect(`/monatschecklisten/${periodId}?fehler=${encodeURIComponent(error instanceof Error ? error.message : "Die Periode konnte nicht gespeichert werden.")}`);
+    redirect(`/monatschecklisten/${periodId}?fehler=${encodeURIComponent(error instanceof Error ? error.message : "Die Monatscheckliste konnte nicht gespeichert werden.")}`);
   }
 }
 
 export async function transitionPeriodAction(periodId: number, action: Parameters<typeof transitionPeriod>[1], formData: FormData) {
   try {
-    await transitionPeriod(periodId, action, String(formData.get("actorInitials") ?? ""));
+    const updated = await transitionPeriod(periodId, action, String(formData.get("actorInitials") ?? ""));
     revalidatePath(`/monatschecklisten/${periodId}`);
     revalidatePath("/monatschecklisten");
+    if (action === "COMPLETE_REVIEW" && formData.get("createFollowing") === "1") {
+      const next = updated.month === 12 ? { year: updated.calendarYear + 1, month: 1 } : { year: updated.calendarYear, month: updated.month + 1 };
+      redirect(`/monatschecklisten/neu?clientId=${updated.clientId}&year=${next.year}&month=${next.month}&vorschau=1`);
+    }
     redirect(`/monatschecklisten/${periodId}?erfolg=workflow`);
   } catch (error) {
     if (isRedirect(error)) throw error;

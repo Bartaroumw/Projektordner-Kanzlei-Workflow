@@ -13,8 +13,8 @@ const baseClient: ClientInput = {
   name: "Künstlicher Testmandant",
   processor: "TA",
   reviewer: "TP",
-  team: "Testteam",
-  cadence: "monatlich",
+  managementName: "Karla Leitung",
+  vatFilingPeriod: "Monatlich",
   active: true,
   internalNote: null,
 };
@@ -34,6 +34,7 @@ const baseProfile: AnnualProfileInput = {
 
 beforeEach(async () => {
   await prisma.workflowHistory.deleteMany();
+  await prisma.checklistTask.deleteMany({ where: { sourceTaskId: { not: null } } });
   await prisma.checklistTask.deleteMany();
   await prisma.accountingPeriod.deleteMany();
   await prisma.customClientTask.deleteMany();

@@ -33,8 +33,8 @@ function clientInput(formData: FormData):
     name: formData.get("name"),
     processor: formData.get("processor") ?? "",
     reviewer: formData.get("reviewer") ?? "",
-    team: formData.get("team") ?? "",
-    cadence: formData.get("cadence"),
+    managementName: formData.get("managementName") ?? "",
+    vatFilingPeriod: formData.get("vatFilingPeriod"),
     active: booleanValue(formData, "active"),
     internalNote: formData.get("internalNote") ?? "",
   });

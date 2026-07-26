@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-export const CADENCES = ["monatlich", "vierteljährlich"] as const;
+export const VAT_FILING_PERIODS = ["Monatlich", "Vierteljährlich", "Jährlich", "Keine Voranmeldung"] as const;
 export const LEGAL_FORM_GROUPS = [
   "Einzelunternehmen",
   "Personengesellschaft",
@@ -34,9 +34,9 @@ export const clientSchema = z.object({
     .max(200, "Der Mandantenname darf höchstens 200 Zeichen lang sein."),
   processor: optionalText,
   reviewer: optionalText,
-  team: optionalText,
-  cadence: z.enum(CADENCES, {
-    message: "Bitte wählen Sie einen gültigen Bearbeitungsturnus.",
+  managementName: optionalText,
+  vatFilingPeriod: z.enum(VAT_FILING_PERIODS, {
+    message: "Bitte wählen Sie einen gültigen USt-Voranmeldungszeitraum.",
   }),
   active: z.boolean(),
   internalNote: z

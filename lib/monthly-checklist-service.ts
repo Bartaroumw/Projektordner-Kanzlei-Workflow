@@ -8,7 +8,7 @@ import type {
 import { prisma } from "@/lib/prisma";
 
 export const PERIOD_STATUSES = ["Offen", "In Bearbeitung", "Zur Prüfung", "In Prüfung", "Nachbearbeitung", "Abgeschlossen"] as const;
-export const CHECKLIST_TASK_STATUSES = ["Offen", "In Bearbeitung", "Erledigt", "Nicht zutreffend"] as const;
+export const CHECKLIST_TASK_STATUSES = ["Offen", "In Bearbeitung", "Erledigt", "Nicht zutreffend", "In Folgemonat übertragen"] as const;
 export const REVIEW_STATUSES = ["Nicht geprüft", "In Prüfung", "In Ordnung", "Rückfrage", "Beanstandung", "Erledigt nach Nachbearbeitung"] as const;
 export const CUSTOM_TASK_TYPES = [
   "Wiederkehrend monatlich",
@@ -38,7 +38,11 @@ export class MonthlyChecklistError extends Error {
       | "OPEN_REVIEW_POINTS"
       | "PERIOD_CLOSED"
       | "RESPONSE_REQUIRED"
-      | "REOPEN_REASON_REQUIRED",
+      | "REOPEN_REASON_REQUIRED"
+      | "ACTIVE_CHECKLIST_EXISTS"
+      | "CHECKLIST_SEQUENCE_INVALID"
+      | "TRANSFER_REASON_REQUIRED"
+      | "TRANSFER_DUPLICATE",
     message: string,
     public existingPeriodId?: number,
   ) {
@@ -46,22 +50,13 @@ export class MonthlyChecklistError extends Error {
   }
 }
 
-export function periodLabel(cadence: string, year: number, month: number) {
-  if (cadence === "vierteljährlich") {
-    return `${month / 3}. Quartal ${year}`;
-  }
+export function periodLabel(_legacyCadence: string, year: number, month: number) {
   return `${new Intl.DateTimeFormat("de-DE", { month: "long", timeZone: "Europe/Berlin" }).format(new Date(Date.UTC(2026, month - 1, 1)))} ${year}`;
 }
 
-export function validatePeriodMonth(cadence: string, month: number) {
+export function validatePeriodMonth(_legacyCadence: string, month: number) {
   if (!Number.isInteger(month) || month < 1 || month > 12) {
     throw new MonthlyChecklistError("INVALID_INPUT", "Bitte wählen Sie einen gültigen Monat aus.");
-  }
-  if (cadence === "vierteljährlich" && ![3, 6, 9, 12].includes(month)) {
-    throw new MonthlyChecklistError(
-      "INVALID_QUARTER_MONTH",
-      "Bei vierteljährlicher Bearbeitung sind ausschließlich März, Juni, September und Dezember zulässig.",
-    );
   }
 }
 
@@ -77,13 +72,13 @@ function conditionMatches(condition: string, actual: boolean) {
 export function standardTaskMatches(
   task: StandardTaskWithCategory,
   profile: AnnualProfile,
-  cadence: string,
+  _vatFilingPeriod: string,
   month: number,
 ) {
   if (!task.active || task.checklistType !== "Monat") return false;
   if (task.rhythm === "Jährlich") return false;
   if (task.rhythm === "Quartalsweise") {
-    if (cadence !== "vierteljährlich" && ![3, 6, 9, 12].includes(month)) return false;
+    if (![3, 6, 9, 12].includes(month)) return false;
   } else if (task.rhythm === "Bestimmter Monat" && task.executionMonth !== month) {
     return false;
   }
@@ -102,7 +97,7 @@ export function standardTaskMatches(
 
 export function customTaskMatches(
   task: CustomTaskWithCategory,
-  cadence: string,
+  _vatFilingPeriod: string,
   year: number,
   month: number,
 ) {
@@ -111,7 +106,7 @@ export function customTaskMatches(
   const periodStart = new Date(Date.UTC(year, month - 1, 1));
   if (task.validFrom > periodEnd || (task.validUntil && task.validUntil < periodStart)) return false;
   if (task.taskType === "Wiederkehrend quartalsweise") {
-    return cadence === "vierteljährlich" || [3, 6, 9, 12].includes(month);
+    return [3, 6, 9, 12].includes(month);
   }
   if (task.taskType === "Einmalig") {
     return task.executionYear === year && task.executionMonth === month;
@@ -119,12 +114,30 @@ export function customTaskMatches(
   return task.taskType === "Wiederkehrend monatlich";
 }
 
-export async function previewMonthlyPeriod(clientId: number, year: number, month: number) {
+export function nextMonth(year: number, month: number) {
+  return month === 12 ? { year: year + 1, month: 1 } : { year, month: month + 1 };
+}
+
+export function previousMonth(year: number, month: number) {
+  return month === 1 ? { year: year - 1, month: 12 } : { year, month: month - 1 };
+}
+
+export async function suggestNextChecklistMonth(clientId: number) {
+  const latest = await prisma.accountingPeriod.findFirst({
+    where: { clientId, checklistType: "Monat" },
+    orderBy: [{ calendarYear: "desc" }, { month: "desc" }],
+  });
+  return latest ? { ...nextMonth(latest.calendarYear, latest.month), previous: latest } : null;
+}
+
+type ChecklistException = { administrativeException?: boolean; actorName?: string; reason?: string };
+
+export async function previewMonthlyPeriod(clientId: number, year: number, month: number, exception: ChecklistException = {}) {
   const client = await prisma.client.findUnique({
     where: { id: clientId },
     include: {
       annualProfiles: { where: { calendarYear: year } },
-      periods: { where: { calendarYear: year, month, checklistType: "Monat" } },
+      periods: { where: { checklistType: "Monat" }, orderBy: [{ calendarYear: "asc" }, { month: "asc" }] },
       customTasks: { include: { category: true } },
     },
   });
@@ -137,39 +150,75 @@ export async function previewMonthlyPeriod(clientId: number, year: number, month
       `Für den Mandanten ist für das Kalenderjahr ${year} noch kein Jahresprofil vorhanden.`,
     );
   }
-  const existing = client.periods[0];
+  const existing = client.periods.find((entry) => entry.calendarYear === year && entry.month === month);
   if (existing) {
     throw new MonthlyChecklistError(
       "PERIOD_EXISTS",
-      "Für diesen Mandanten und diese Periode besteht bereits eine Monatscheckliste.",
+      "Für diesen Mandanten und diesen Monat besteht bereits eine Monatscheckliste.",
       existing.id,
+    );
+  }
+  const active = client.periods.find((entry) => entry.processingStatus !== "Abgeschlossen");
+  const latest = client.periods.at(-1);
+  const expected = latest ? nextMonth(latest.calendarYear, latest.month) : null;
+  const validException = exception.administrativeException && exception.actorName?.trim() && exception.reason?.trim();
+  if (active && !validException) {
+    throw new MonthlyChecklistError(
+      "ACTIVE_CHECKLIST_EXISTS",
+      `Die aktive Monatscheckliste ${active.periodLabel} muss zuerst abgeschlossen werden.`,
+      active.id,
+    );
+  }
+  if (expected && (year !== expected.year || month !== expected.month) && !validException) {
+    throw new MonthlyChecklistError(
+      "CHECKLIST_SEQUENCE_INVALID",
+      `Als nächste Monatscheckliste ist ${periodLabel("", expected.year, expected.month)} vorgesehen.`,
     );
   }
   const standardTasks = await prisma.standardTask.findMany({ include: { category: true } });
   const matchingStandardTasks = standardTasks.filter((task) =>
-    standardTaskMatches(task, profile, client.cadence, month),
+    standardTaskMatches(task, profile, client.vatFilingPeriod, month),
   );
   const matchingCustomTasks = client.customTasks.filter((task) =>
-    customTaskMatches(task, client.cadence, year, month),
+    customTaskMatches(task, client.vatFilingPeriod, year, month),
   );
+  const transferredTasks = await prisma.checklistTask.findMany({
+    where: { period: { clientId }, transferTargetYear: year, transferTargetMonth: month, status: "In Folgemonat übertragen" },
+    orderBy: [{ categorySortOrder: "asc" }, { sortOrderSnapshot: "asc" }, { taskIdSnapshot: "asc" }],
+  });
+  const duplicateTaskIds = transferredTasks
+    .filter((transferred) => transferred.standardTaskId && matchingStandardTasks.some((standard) => standard.id === transferred.standardTaskId))
+    .map((task) => task.taskIdSnapshot);
   const categories = [...new Set([
     ...matchingStandardTasks.map((task) => task.category.name),
     ...matchingCustomTasks.map((task) => task.category.name),
+    ...transferredTasks.map((task) => task.categorySnapshot),
   ])].sort();
   return {
     client,
     profile,
-    label: periodLabel(client.cadence, year, month),
+    label: periodLabel("", year, month),
     standardTasks: matchingStandardTasks,
     customTasks: matchingCustomTasks,
+    transferredTasks,
+    duplicateTaskIds,
     categories,
+    exception: validException ? { actorName: exception.actorName!.trim(), reason: exception.reason!.trim() } : null,
   };
 }
 
-export async function createMonthlyPeriod(clientId: number, year: number, month: number) {
-  const preview = await previewMonthlyPeriod(clientId, year, month);
+export async function createMonthlyPeriod(clientId: number, year: number, month: number, exception: ChecklistException = {}) {
+  const preview = await previewMonthlyPeriod(clientId, year, month, exception);
   try {
     return await prisma.$transaction(async (transaction) => {
+      if (!preview.exception) {
+        const activeCount = await transaction.accountingPeriod.count({
+          where: { clientId, checklistType: "Monat", processingStatus: { not: "Abgeschlossen" } },
+        });
+        if (activeCount > 0) {
+          throw new MonthlyChecklistError("ACTIVE_CHECKLIST_EXISTS", "Für diesen Mandanten besteht bereits eine aktive Monatscheckliste.");
+        }
+      }
       const period = await transaction.accountingPeriod.create({
         data: {
           clientId,
@@ -180,6 +229,7 @@ export async function createMonthlyPeriod(clientId: number, year: number, month:
           processingStatus: "Offen",
           processorSnapshot: preview.client.processor,
           reviewerSnapshot: preview.client.reviewer,
+          managementNameSnapshot: preview.client.managementName,
           profileLegalFormGroup: preview.profile.legalFormGroup,
           profileProfitDeterminationMethod: preview.profile.profitDeterminationMethod,
           profileHasCashRegister: preview.profile.hasCashRegister,
@@ -227,14 +277,48 @@ export async function createMonthlyPeriod(clientId: number, year: number, month:
           })),
         });
       }
+      if (preview.transferredTasks.length) {
+        await transaction.checklistTask.createMany({
+          data: preview.transferredTasks.map((task) => ({
+            periodId: period.id,
+            sourceTaskId: task.id,
+            standardTaskId: task.standardTaskId,
+            customClientTaskId: task.customClientTaskId,
+            taskIdSnapshot: task.taskIdSnapshot,
+            categorySnapshot: task.categorySnapshot,
+            categorySortOrder: task.categorySortOrder,
+            subcategorySnapshot: task.subcategorySnapshot,
+            titleSnapshot: task.titleSnapshot,
+            workInstructionSnapshot: task.workInstructionSnapshot,
+            reviewInstructionSnapshot: task.reviewInstructionSnapshot,
+            mandatorySnapshot: task.mandatorySnapshot,
+            sortOrderSnapshot: task.sortOrderSnapshot,
+            professionalVersionSnapshot: task.professionalVersionSnapshot,
+            origin: "Übertrag aus Vormonat",
+            processingNote: [task.processingNote, task.transferReason, task.transferExpectedAction].filter(Boolean).join("\n\n"),
+            reviewStatus: ["Rückfrage", "Beanstandung"].includes(task.reviewStatus) ? task.reviewStatus : "Nicht geprüft",
+            reviewNote: task.reviewNote,
+          })),
+        });
+      }
       await transaction.workflowHistory.create({
         data: {
           periodId: period.id,
-          eventType: "Periode erzeugt",
+          eventType: "Monatscheckliste angelegt",
           description: "Monatscheckliste wurde aus den gültigen Aufgaben-Snapshots erzeugt.",
           newValue: "Offen",
         },
       });
+      if (preview.exception) {
+        await transaction.workflowHistory.create({
+          data: {
+            periodId: period.id,
+            eventType: "Administrative Ausnahme",
+            actorInitials: preview.exception.actorName,
+            description: `Die Monatscheckliste wurde außerhalb der normalen Reihenfolge angelegt. Begründung: ${preview.exception.reason}`,
+          },
+        });
+      }
       return period;
     });
   } catch (error) {
@@ -242,16 +326,17 @@ export async function createMonthlyPeriod(clientId: number, year: number, month:
       const existing = await prisma.accountingPeriod.findUnique({
         where: { clientId_calendarYear_month_checklistType: { clientId, calendarYear: year, month, checklistType: "Monat" } },
       });
-      throw new MonthlyChecklistError("PERIOD_EXISTS", "Diese Periode besteht bereits.", existing?.id);
+      throw new MonthlyChecklistError("PERIOD_EXISTS", "Diese Monatscheckliste besteht bereits.", existing?.id);
     }
     throw error;
   }
 }
 
 export function calculateProgress(tasks: Array<{ status: string; mandatorySnapshot: boolean }>) {
-  const completed = tasks.filter((task) => ["Erledigt", "Nicht zutreffend"].includes(task.status)).length;
+  const completedStatuses = ["Erledigt", "Nicht zutreffend", "In Folgemonat übertragen"];
+  const completed = tasks.filter((task) => completedStatuses.includes(task.status)).length;
   const mandatory = tasks.filter((task) => task.mandatorySnapshot);
-  const mandatoryCompleted = mandatory.filter((task) => ["Erledigt", "Nicht zutreffend"].includes(task.status)).length;
+  const mandatoryCompleted = mandatory.filter((task) => completedStatuses.includes(task.status)).length;
   return {
     completed,
     total: tasks.length,
@@ -273,7 +358,7 @@ export async function updateChecklistTask(
   if (!task) throw new MonthlyChecklistError("TASK_NOT_FOUND", "Die Checklistenaufgabe wurde nicht gefunden.");
   const period = await prisma.accountingPeriod.findUniqueOrThrow({ where: { id: task.periodId } });
   if (period.processingStatus === "Abgeschlossen") {
-    throw new MonthlyChecklistError("PERIOD_CLOSED", "Eine abgeschlossene Periode kann nicht bearbeitet werden.");
+    throw new MonthlyChecklistError("PERIOD_CLOSED", "Eine abgeschlossene Monatscheckliste kann nicht bearbeitet werden.");
   }
   const reason = input.notApplicableReason.trim();
   if (input.status === "Nicht zutreffend" && !reason) {
@@ -286,7 +371,7 @@ export async function updateChecklistTask(
       data: {
         status: input.status,
         processingNote: input.processingNote.trim() || null,
-        processorInitials: input.processorInitials.trim() || null,
+        processorInitials: input.processorInitials.trim() || period.processorSnapshot,
         notApplicableReason: input.status === "Nicht zutreffend" ? reason : null,
         processedAt: processed ? new Date() : null,
       },
@@ -303,7 +388,7 @@ export async function updateChecklistTask(
           periodId: task.periodId,
           checklistTaskId: task.id,
           eventType: "Aufgabenstatus geändert",
-          actorInitials: input.processorInitials.trim() || null,
+          actorInitials: input.processorInitials.trim() || period.processorSnapshot,
           description: `Bearbeitungsstatus von ${task.taskIdSnapshot} wurde geändert.`,
           previousValue: task.status,
           newValue: input.status,
@@ -316,11 +401,74 @@ export async function updateChecklistTask(
           periodId: task.periodId,
           checklistTaskId: task.id,
           eventType: "Bearbeitungsnotiz geändert",
-          actorInitials: input.processorInitials.trim() || null,
+          actorInitials: input.processorInitials.trim() || period.processorSnapshot,
           description: `Bearbeitungsnotiz zu ${task.taskIdSnapshot} wurde geändert.`,
         },
       });
     }
+    return updated;
+  });
+}
+
+export async function transferChecklistTask(
+  taskId: number,
+  input: { reason: string; actorName: string; targetYear: number; targetMonth: number; expectedAction?: string },
+) {
+  const reason = input.reason.trim();
+  const actorName = input.actorName.trim();
+  if (!reason || !actorName) {
+    throw new MonthlyChecklistError("TRANSFER_REASON_REQUIRED", "Übertragung verlangt eine Begründung und den vollständigen Namen.");
+  }
+  validatePeriodMonth("", input.targetMonth);
+  const task = await prisma.checklistTask.findUnique({
+    where: { id: taskId },
+    include: { period: true, transferredTasks: true },
+  });
+  if (!task) throw new MonthlyChecklistError("TASK_NOT_FOUND", "Die Checklistenaufgabe wurde nicht gefunden.");
+  if (task.period.processingStatus === "Abgeschlossen") {
+    throw new MonthlyChecklistError("PERIOD_CLOSED", "Eine abgeschlossene Monatscheckliste kann nicht verändert werden.");
+  }
+  const expected = nextMonth(task.period.calendarYear, task.period.month);
+  if (input.targetYear !== expected.year || input.targetMonth !== expected.month) {
+    throw new MonthlyChecklistError("CHECKLIST_SEQUENCE_INVALID", `Ziel muss der direkte Folgemonat ${periodLabel("", expected.year, expected.month)} sein.`);
+  }
+  if (
+    (task.status === "In Folgemonat übertragen" && task.transferTargetYear === input.targetYear && task.transferTargetMonth === input.targetMonth) ||
+    task.transferredTasks.length > 0
+  ) {
+    throw new MonthlyChecklistError("TRANSFER_DUPLICATE", "Diese Aufgabe wurde bereits in denselben Zielmonat übertragen.");
+  }
+  const now = new Date();
+  return prisma.$transaction(async (transaction) => {
+    const updated = await transaction.checklistTask.update({
+      where: { id: taskId },
+      data: {
+        status: "In Folgemonat übertragen",
+        transferTargetYear: input.targetYear,
+        transferTargetMonth: input.targetMonth,
+        transferReason: reason,
+        transferActorName: actorName,
+        transferExpectedAction: input.expectedAction?.trim() || null,
+        transferredAt: now,
+        processedAt: now,
+        processorInitials: actorName,
+      },
+    });
+    await transaction.accountingPeriod.updateMany({
+      where: { id: task.periodId, processingStatus: "Offen" },
+      data: { processingStatus: "In Bearbeitung" },
+    });
+    await transaction.workflowHistory.create({
+      data: {
+        periodId: task.periodId,
+        checklistTaskId: task.id,
+        eventType: "In Folgemonat übertragen",
+        actorInitials: actorName,
+        description: `${task.taskIdSnapshot} wurde mit Begründung nach ${periodLabel("", input.targetYear, input.targetMonth)} übertragen.`,
+        previousValue: task.status,
+        newValue: "In Folgemonat übertragen",
+      },
+    });
     return updated;
   });
 }
@@ -336,9 +484,9 @@ export async function updatePeriod(
     where: { id: periodId },
     include: { tasks: true },
   });
-  if (!period) throw new MonthlyChecklistError("INVALID_INPUT", "Die Periode wurde nicht gefunden.");
+  if (!period) throw new MonthlyChecklistError("INVALID_INPUT", "Die Monatscheckliste wurde nicht gefunden.");
   if (period.processingStatus === "Abgeschlossen") {
-    throw new MonthlyChecklistError("PERIOD_CLOSED", "Eine abgeschlossene Periode kann nicht bearbeitet werden.");
+    throw new MonthlyChecklistError("PERIOD_CLOSED", "Eine abgeschlossene Monatscheckliste kann nicht bearbeitet werden.");
   }
   if (input.processingStatus !== period.processingStatus) {
     throw new MonthlyChecklistError("INVALID_TRANSITION", "Statusänderungen sind ausschließlich über die vorgesehenen Workflowaktionen zulässig.");
@@ -349,6 +497,30 @@ export async function updatePeriod(
       processingStatus: input.processingStatus,
       generalNote: input.generalNote.trim() || null,
     },
+  });
+}
+
+export async function updateChecklistRoles(periodId: number, input: {
+  processor: string;
+  reviewer: string;
+  managementName: string;
+  reason: string;
+  actorName: string;
+}) {
+  const reason = input.reason.trim(), actor = input.actorName.trim();
+  if (!reason || !actor) throw new MonthlyChecklistError("REASON_REQUIRED", "Rollenänderung verlangt Begründung und handelnde Person.");
+  const checklist = await prisma.accountingPeriod.findUnique({ where: { id: periodId } });
+  if (!checklist || checklist.processingStatus === "Abgeschlossen") throw new MonthlyChecklistError("PERIOD_CLOSED", "Nur eine laufende Monatscheckliste kann Rollen ändern.");
+  const next = { processorSnapshot: input.processor.trim() || null, reviewerSnapshot: input.reviewer.trim() || null, managementNameSnapshot: input.managementName.trim() || null };
+  return prisma.$transaction(async transaction => {
+    const updated = await transaction.accountingPeriod.update({ where: { id: periodId }, data: next });
+    await transaction.workflowHistory.create({ data: {
+      periodId, eventType: "Rollenzuordnung geändert", actorInitials: actor,
+      description: `Rollen wurden geändert. Begründung: ${reason}`,
+      previousValue: `${checklist.processorSnapshot ?? "–"} | ${checklist.reviewerSnapshot ?? "–"} | ${checklist.managementNameSnapshot ?? "–"}`,
+      newValue: `${next.processorSnapshot ?? "–"} | ${next.reviewerSnapshot ?? "–"} | ${next.managementNameSnapshot ?? "–"}`,
+    }});
+    return updated;
   });
 }
 
@@ -363,10 +535,11 @@ export function workflowSummary(tasks: Array<{
     ...progress,
     done: tasks.filter((task) => task.status === "Erledigt").length,
     notApplicable: tasks.filter((task) => task.status === "Nicht zutreffend").length,
+    transferred: tasks.filter((task) => task.status === "In Folgemonat übertragen").length,
     openOptional: tasks.filter((task) => !task.mandatorySnapshot && ["Offen", "In Bearbeitung"].includes(task.status)).length,
     withNotes: tasks.filter((task) => Boolean(task.processingNote?.trim())).length,
-    openReviewPoints: tasks.filter((task) => ["Rückfrage", "Beanstandung"].includes(task.reviewStatus)).length,
-    objections: tasks.filter((task) => task.reviewStatus === "Beanstandung").length,
+    openReviewPoints: tasks.filter((task) => task.status !== "In Folgemonat übertragen" && ["Rückfrage", "Beanstandung"].includes(task.reviewStatus)).length,
+    objections: tasks.filter((task) => task.status !== "In Folgemonat übertragen" && task.reviewStatus === "Beanstandung").length,
   };
 }
 
@@ -379,9 +552,12 @@ export async function transitionPeriod(
   action: "BEGIN_PROCESSING" | "SUBMIT_REVIEW" | "BEGIN_REVIEW" | "RETURN_REWORK" | "COMPLETE_REVIEW",
   actorInitials: string,
 ) {
-  const actor = actorInitials.trim();
+  let actor = actorInitials.trim();
   const period = await prisma.accountingPeriod.findUnique({ where: { id: periodId }, include: { tasks: true } });
-  if (!period) throw new MonthlyChecklistError("INVALID_INPUT", "Die Periode wurde nicht gefunden.");
+  if (!period) throw new MonthlyChecklistError("INVALID_INPUT", "Die Monatscheckliste wurde nicht gefunden.");
+  actor ||= ["BEGIN_REVIEW", "RETURN_REWORK", "COMPLETE_REVIEW"].includes(action)
+    ? period.reviewerSnapshot ?? ""
+    : period.processorSnapshot ?? "";
   const summary = workflowSummary(period.tasks);
   let nextStatus: string;
   let eventType: string;
@@ -392,25 +568,25 @@ export async function transitionPeriod(
   if (action === "BEGIN_PROCESSING" && period.processingStatus === "Offen") {
     nextStatus = "In Bearbeitung"; eventType = "Bearbeitung begonnen"; description = "Die Bearbeitung wurde begonnen.";
   } else if (action === "SUBMIT_REVIEW" && ["In Bearbeitung", "Nachbearbeitung"].includes(period.processingStatus)) {
-    if (!actor) throw new MonthlyChecklistError("INITIALS_REQUIRED", "Für die Übergabe ist ein Bearbeiterkürzel erforderlich.");
-    if (summary.mandatoryOpen > 0) throw new MonthlyChecklistError("MANDATORY_TASKS_OPEN", "Alle Pflichtaufgaben müssen erledigt oder begründet nicht zutreffend sein.");
+    if (!actor) throw new MonthlyChecklistError("INITIALS_REQUIRED", "Der Bearbeiter fehlt.");
+    if (summary.mandatoryOpen > 0) throw new MonthlyChecklistError("MANDATORY_TASKS_OPEN", `${summary.mandatoryOpen} Pflichtaufgaben sind noch offen.`);
     if (period.processingStatus === "Nachbearbeitung" && summary.openReviewPoints > 0) {
       throw new MonthlyChecklistError("OPEN_REVIEW_POINTS", "Alle offenen Prüfpunkte müssen beantwortet und als nachbearbeitet gekennzeichnet sein.");
     }
     nextStatus = "Zur Prüfung"; eventType = period.processingStatus === "Nachbearbeitung" ? "Erneut zur Prüfung übergeben" : "Zur Prüfung übergeben"; description = "Die Bearbeitung wurde ausdrücklich zur Prüfung übergeben."; periodData.submittedForReviewAt = now;
   } else if (action === "BEGIN_REVIEW" && period.processingStatus === "Zur Prüfung") {
-    if (!actor) throw new MonthlyChecklistError("INITIALS_REQUIRED", "Für den Prüfungsbeginn ist ein Prüferkürzel erforderlich.");
+    if (!actor) throw new MonthlyChecklistError("INITIALS_REQUIRED", "Der Prüfer fehlt.");
     nextStatus = "In Prüfung"; eventType = "Prüfung begonnen"; description = "Die fachliche Prüfung wurde begonnen."; periodData.reviewStartedAt = now; periodData.lastReviewAt = now;
   } else if (action === "RETURN_REWORK" && period.processingStatus === "In Prüfung") {
     if (summary.openReviewPoints === 0) throw new MonthlyChecklistError("OPEN_REVIEW_POINT_REQUIRED", "Eine Rückgabe zur Nachbearbeitung verlangt mindestens einen offenen Prüfpunkt.");
-    nextStatus = "Nachbearbeitung"; eventType = "Zur Nachbearbeitung zurückgegeben"; description = "Die Periode wurde wegen offener Prüfpunkte zurückgegeben."; periodData.returnedAt = now;
+    nextStatus = "Nachbearbeitung"; eventType = "Zur Nachbearbeitung zurückgegeben"; description = "Die Monatscheckliste wurde wegen offener Prüfpunkte zurückgegeben."; periodData.returnedAt = now;
   } else if (action === "COMPLETE_REVIEW" && period.processingStatus === "In Prüfung") {
-    if (!actor) throw new MonthlyChecklistError("INITIALS_REQUIRED", "Für den Abschluss ist ein Prüferkürzel erforderlich.");
-    if (summary.openReviewPoints > 0) throw new MonthlyChecklistError("OPEN_REVIEW_POINTS", "Die Periode kann mit offenen Prüfpunkten nicht abgeschlossen werden.");
+    if (!actor) throw new MonthlyChecklistError("INITIALS_REQUIRED", "Der Prüfer fehlt.");
+    if (summary.openReviewPoints > 0) throw new MonthlyChecklistError("OPEN_REVIEW_POINTS", "Die Monatscheckliste kann mit offenen Prüfpunkten nicht abgeschlossen werden.");
     if (summary.mandatoryOpen > 0) throw new MonthlyChecklistError("MANDATORY_TASKS_OPEN", "Alle Pflichtaufgaben müssen abgeschlossen sein.");
-    nextStatus = "Abgeschlossen"; eventType = "Periode abgeschlossen"; description = "Die Prüfung wurde ohne offene Prüfpunkte abgeschlossen."; periodData.completedAt = now; periodData.lastReviewAt = now;
+    nextStatus = "Abgeschlossen"; eventType = "Monatscheckliste abgeschlossen"; description = "Die Prüfung wurde ohne offene Prüfpunkte abgeschlossen."; periodData.completedAt = now; periodData.lastReviewAt = now;
   } else {
-    throw new MonthlyChecklistError("INVALID_TRANSITION", "Diese Statusänderung ist im aktuellen Periodenstatus nicht zulässig.");
+    throw new MonthlyChecklistError("INVALID_TRANSITION", "Diese Statusänderung ist im aktuellen Checklistenstatus nicht zulässig.");
   }
 
   return prisma.$transaction(async (transaction) => {
@@ -435,9 +611,9 @@ export async function reviewChecklistTask(
   const task = await prisma.checklistTask.findUnique({ where: { id: taskId }, include: { period: true } });
   if (!task) throw new MonthlyChecklistError("TASK_NOT_FOUND", "Die Checklistenaufgabe wurde nicht gefunden.");
   if (task.period.processingStatus !== "In Prüfung") throw new MonthlyChecklistError("INVALID_TRANSITION", "Prüfungen sind nur im Status „In Prüfung“ möglich.");
-  const reviewer = input.reviewerInitials.trim();
+  const reviewer = input.reviewerInitials.trim() || task.period.reviewerSnapshot?.trim() || "";
   const note = input.reviewNote.trim();
-  if (!reviewer) throw new MonthlyChecklistError("INITIALS_REQUIRED", "Ein Prüferkürzel ist erforderlich.");
+  if (!reviewer) throw new MonthlyChecklistError("INITIALS_REQUIRED", "Der Prüfer fehlt.");
   if (["Rückfrage", "Beanstandung"].includes(input.reviewStatus) && !note) {
     throw new MonthlyChecklistError("REVIEW_NOTE_REQUIRED", "Rückfrage und Beanstandung verlangen eine Prüfnotiz.");
   }
@@ -481,8 +657,8 @@ export async function completeRework(
   const response = input.response.trim();
   const changedNote = input.processingNote.trim() !== (task.processingNote ?? "");
   if (!response && !changedNote) throw new MonthlyChecklistError("RESPONSE_REQUIRED", "Bitte erfassen Sie eine Antwort oder eine nachvollziehbare Änderung.");
-  const actor = input.actorInitials.trim();
-  if (!actor) throw new MonthlyChecklistError("INITIALS_REQUIRED", "Ein Bearbeiterkürzel ist erforderlich.");
+  const actor = input.actorInitials.trim() || task.period.processorSnapshot?.trim() || "";
+  if (!actor) throw new MonthlyChecklistError("INITIALS_REQUIRED", "Der Bearbeiter fehlt.");
   const now = new Date();
   return prisma.$transaction(async (transaction) => {
     const updated = await transaction.checklistTask.update({
@@ -510,10 +686,10 @@ export async function reopenPeriod(periodId: number, actorInitials: string, reas
   const actor = actorInitials.trim();
   const explanation = reason.trim();
   if (!confirmed || !actor || !explanation) {
-    throw new MonthlyChecklistError("REOPEN_REASON_REQUIRED", "Wiederöffnung verlangt Kürzel, Begründung und ausdrückliche Bestätigung.");
+    throw new MonthlyChecklistError("REOPEN_REASON_REQUIRED", "Wiederöffnung verlangt den vollständigen Namen, eine Begründung und ausdrückliche Bestätigung.");
   }
   const period = await prisma.accountingPeriod.findUnique({ where: { id: periodId } });
-  if (!period || period.processingStatus !== "Abgeschlossen") throw new MonthlyChecklistError("INVALID_TRANSITION", "Nur eine abgeschlossene Periode kann wieder geöffnet werden.");
+  if (!period || period.processingStatus !== "Abgeschlossen") throw new MonthlyChecklistError("INVALID_TRANSITION", "Nur eine abgeschlossene Monatscheckliste kann wieder geöffnet werden.");
   const now = new Date();
   return prisma.$transaction(async (transaction) => {
     const updated = await transaction.accountingPeriod.update({
@@ -523,7 +699,7 @@ export async function reopenPeriod(periodId: number, actorInitials: string, reas
     await transaction.workflowHistory.create({
       data: {
         periodId, eventType: "Abschluss wieder geöffnet", actorInitials: actor,
-        description: `Die abgeschlossene Periode wurde wieder geöffnet. Begründung: ${explanation}`,
+        description: `Die abgeschlossene Monatscheckliste wurde wieder geöffnet. Begründung: ${explanation}`,
         previousValue: "Abgeschlossen", newValue: "Nachbearbeitung",
       },
     });

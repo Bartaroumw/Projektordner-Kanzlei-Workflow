@@ -2,6 +2,9 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { formatDate, textOrDash } from "@/lib/format";
+import { calculateProgress, nextMonth, workflowSummary } from "@/lib/monthly-checklist-service";
+import { ClickableTableRow } from "@/app/components/clickable-table-row";
+import { ToastMessage } from "@/app/components/toast-message";
 
 const messages: Record<string, string> = {
   angelegt: "Der Mandant wurde erfolgreich angelegt.",
@@ -21,15 +24,26 @@ export default async function ClientDetailPage({
   if (!Number.isInteger(id)) notFound();
   const client = await prisma.client.findUnique({
     where: { id },
-    include: { annualProfiles: { orderBy: { calendarYear: "desc" } } },
+    include: {
+      annualProfiles: { orderBy: { calendarYear: "desc" } },
+      periods: {
+        where: { checklistType: "Monat" },
+        include: { tasks: { select: { status: true, mandatorySnapshot: true, reviewStatus: true, processingNote: true } } },
+        orderBy: [{ calendarYear: "desc" }, { month: "desc" }],
+      },
+    },
   });
   if (!client) notFound();
   const success = messages[(await searchParams).erfolg ?? ""];
+  const latest = client.periods[0];
+  const next = latest ? nextMonth(latest.calendarYear, latest.month) : null;
+  const actionLabel = next ? `Checkliste für ${new Intl.DateTimeFormat("de-DE",{month:"long"}).format(new Date(2026,next.month-1,1))} ${next.year} anlegen` : "Erste Monatscheckliste anlegen";
+  const actionHref = next ? `/monatschecklisten/neu?clientId=${client.id}&year=${next.year}&month=${next.month}` : `/monatschecklisten/neu?clientId=${client.id}`;
 
   return (
     <div>
       <div className="mb-5"><Link className="text-sm font-semibold text-blue-700 hover:underline" href="/mandanten">← Zur Mandantenübersicht</Link></div>
-      {success && <div role="status" className="mb-5 rounded-md border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">{success}</div>}
+      <ToastMessage message={success} />
       <header className="mb-6 flex flex-wrap items-end justify-between gap-4">
         <div>
           <p className="mb-2 text-sm font-semibold uppercase tracking-wider text-blue-700">Mandant {client.clientNumber}</p>
@@ -43,8 +57,8 @@ export default async function ClientDetailPage({
         <dl className="grid gap-x-8 gap-y-4 sm:grid-cols-2 lg:grid-cols-4">
           <Data label="Bearbeiter" value={textOrDash(client.processor)} />
           <Data label="Prüfer" value={textOrDash(client.reviewer)} />
-          <Data label="Team" value={textOrDash(client.team)} />
-          <Data label="Turnus" value={client.cadence} capitalize />
+          <Data label="Zuständige Kanzleileitung" value={textOrDash(client.managementName)} />
+          <Data label="USt-Voranmeldungszeitraum" value={client.vatFilingPeriod} />
           <Data label="Status" value={client.active ? "Aktiv" : "Inaktiv"} />
           <Data label="Erstellt am" value={formatDate(client.createdAt)} />
           <Data label="Geändert am" value={formatDate(client.updatedAt)} />
@@ -53,6 +67,14 @@ export default async function ClientDetailPage({
           <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Interner Hinweis</p>
           <p className="mt-1 whitespace-pre-wrap text-sm text-slate-800">{textOrDash(client.internalNote)}</p>
         </div>
+      </section>
+
+      <section className="mt-7">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-3"><div><h2 className="text-lg font-semibold">Monatschecklisten</h2><p className="mt-1 text-sm text-slate-600">Lückenlose monatliche Bearbeitungsfolge.</p></div>{(!latest||latest.processingStatus==="Abgeschlossen")&&<Link className="button-primary" href={actionHref}>{actionLabel}</Link>}</div>
+        <div className="overflow-x-auto rounded-lg border border-[var(--color-border)] bg-white shadow-sm"><table className="w-full min-w-[1200px] text-left text-sm"><thead className="bg-[var(--color-primary-light)]"><tr>{["Monat","Status","Fortschritt","Offene Pflicht","Offene Prüfpunkte","Bearbeiter","Prüfer","Kanzleileitung","Letzte Änderung"].map(h=><th className="p-3" key={h}>{h}</th>)}</tr></thead><tbody>
+          {client.periods.map(period=>{const progress=calculateProgress(period.tasks);const summary=workflowSummary(period.tasks);return <ClickableTableRow href={`/monatschecklisten/${period.id}`} className="border-t border-[var(--color-border)]" key={period.id}><td className="p-3"><Link className="font-semibold text-[var(--color-primary-dark)]" href={`/monatschecklisten/${period.id}`}>{period.periodLabel}</Link></td><td className="p-3">{period.processingStatus}</td><td className="p-3">{progress.completed}/{progress.total} · {progress.percent} %</td><td className="p-3">{progress.mandatoryOpen}</td><td className="p-3">{summary.openReviewPoints}</td><td className="p-3">{textOrDash(period.processorSnapshot)}</td><td className="p-3">{textOrDash(period.reviewerSnapshot)}</td><td className="p-3">{textOrDash(period.managementNameSnapshot)}</td><td className="p-3">{formatDate(period.updatedAt)}</td></ClickableTableRow>})}
+          {!client.periods.length&&<tr><td colSpan={9} className="p-10 text-center text-slate-500">Noch keine Monatscheckliste vorhanden.</td></tr>}
+        </tbody></table></div>
       </section>
 
       <section className="mt-7">

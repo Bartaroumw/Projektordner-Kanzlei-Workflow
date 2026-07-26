@@ -13,6 +13,7 @@ let clientId: number;
 
 beforeEach(async () => {
   await prisma.workflowHistory.deleteMany();
+  await prisma.checklistTask.deleteMany({ where: { sourceTaskId: { not: null } } });
   await prisma.checklistTask.deleteMany();
   await prisma.accountingPeriod.deleteMany();
   await prisma.customClientTask.deleteMany();
@@ -75,9 +76,9 @@ describe("Perioden und Snapshots", () => {
     await createMonthlyPeriod(clientId, 2026, 1);
     await expect(createMonthlyPeriod(clientId, 2026, 1)).rejects.toMatchObject({ code: "PERIOD_EXISTS" });
   });
-  it("erlaubt beim vierteljährlichen Mandanten nur Abschlussmonate", async () => {
-    await prisma.client.update({ where: { id: clientId }, data: { cadence: "vierteljährlich" } });
-    await expect(createMonthlyPeriod(clientId, 2026, 2)).rejects.toMatchObject({ code: "INVALID_QUARTER_MONTH" });
+  it("erlaubt bei vierteljährlicher USt-Voranmeldung jeden Bearbeitungsmonat", async () => {
+    await prisma.client.update({ where: { id: clientId }, data: { vatFilingPeriod: "Vierteljährlich" } });
+    expect((await createMonthlyPeriod(clientId, 2026, 2)).periodLabel).toBe("Februar 2026");
   });
   it("bewahrt den Snapshot nach Änderung der Standardaufgabe", async () => {
     const template = await createTask();

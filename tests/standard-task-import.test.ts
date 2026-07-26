@@ -20,6 +20,7 @@ const templatePath = resolve("public", "downloads", "Standardaufgaben-Mustervorl
 
 beforeEach(async () => {
   await prisma.workflowHistory.deleteMany();
+  await prisma.checklistTask.deleteMany({ where: { sourceTaskId: { not: null } } });
   await prisma.checklistTask.deleteMany();
   await prisma.accountingPeriod.deleteMany();
   await prisma.customClientTask.deleteMany();

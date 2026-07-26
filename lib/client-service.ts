@@ -43,7 +43,7 @@ export async function createClient(input: ClientInput) {
     throw new DomainError(parsed.error.issues[0].message, "INVALID_INPUT");
   }
   try {
-    return await prisma.client.create({ data: parsed.data });
+    return await prisma.client.create({ data: { ...parsed.data, cadence: "monatlich" } });
   } catch (error) {
     translatePrismaError(error);
   }

@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
+import { ToastMessage } from "@/app/components/toast-message";
 
 const navigation = [
   { label: "Dashboard", href: "/" },
@@ -14,14 +16,25 @@ const navigation = [
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const [queryMessage, setQueryMessage] = useState<{message:string;type:"success"|"error"}>();
+  useEffect(() => {
+    const query = new URLSearchParams(window.location.search);
+    const error = query.get("fehler");
+    const success = query.get("erfolg");
+    const timer = window.setTimeout(() => setQueryMessage(error ? { message: error, type: "error" } : success ? { message: "Die Aktion wurde erfolgreich gespeichert.", type: "success" } : undefined), 0);
+    return () => window.clearTimeout(timer);
+  }, [pathname]);
 
   return (
-    <div className="min-h-screen bg-slate-100 text-slate-950">
+    <div className="min-h-screen bg-[var(--color-background)] text-[var(--color-text)]">
+      <ToastMessage key={queryMessage?.message} message={queryMessage?.message} type={queryMessage?.type}/>
       <div className="mx-auto flex min-h-screen max-w-[1680px] flex-col md:flex-row">
-        <aside className="border-b border-slate-800 bg-slate-950 text-white md:w-64 md:flex-none md:border-b-0 md:border-r">
-          <div className="border-b border-slate-800 px-6 py-6">
-            <p className="text-lg font-semibold tracking-tight">Kanzlei Workflow</p>
-            <p className="mt-1 text-xs text-slate-400">Arbeitsbereich</p>
+        <aside className="border-b border-[var(--color-primary-dark)] bg-[var(--color-primary-dark)] text-white md:w-64 md:flex-none md:border-b-0 md:border-r">
+          <div className="border-b border-white/15 px-6 py-6">
+            <div aria-hidden className="mb-4 flex h-10 w-10 items-center justify-center rounded border border-white/30 text-sm font-bold">OC</div>
+            <p className="text-xl font-semibold tracking-tight">Ordo Caroli</p>
+            <p className="mt-1 text-xs text-white/70">Rechnungswesen-Workflow</p>
+            <p className="mt-3 text-[11px] uppercase tracking-widest text-white/55">für Concilium</p>
           </div>
           <nav aria-label="Hauptnavigation" className="p-3">
             <ul className="flex gap-1 overflow-x-auto md:block md:space-y-1">
@@ -43,8 +56,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                       aria-current={active ? "page" : undefined}
                       className={`block rounded-md px-3 py-2.5 text-sm font-medium ${
                         active
-                          ? "bg-blue-700 text-white"
-                          : "text-slate-300 hover:bg-slate-800 hover:text-white"
+                          ? "bg-[var(--color-primary)] text-white"
+                          : "text-white/75 hover:bg-white/10 hover:text-white"
                       }`}
                     >
                       {entry.label}

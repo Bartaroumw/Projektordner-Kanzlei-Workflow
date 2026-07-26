@@ -1,8 +1,20 @@
 @import "tailwindcss";
 
 :root {
-  --background: #f1f5f9;
-  --foreground: #0f172a;
+  --color-primary: #4f7f38;
+  --color-primary-dark: #234c2b;
+  --color-primary-light: #e8f1e3;
+  --color-background: #f4f6f1;
+  --color-surface: #ffffff;
+  --color-text: #18251c;
+  --color-text-muted: #617066;
+  --color-border: #cbd5ca;
+  --color-success: #2f6b3c;
+  --color-warning: #9a6500;
+  --color-error: #a83832;
+  --color-focus: #d79b22;
+  --background: var(--color-background);
+  --foreground: var(--color-text);
 }
 
 @theme inline {
@@ -31,7 +43,7 @@ a {
 }
 
 :focus-visible {
-  outline: 3px solid #60a5fa;
+  outline: 3px solid var(--color-focus);
   outline-offset: 2px;
 }
 
@@ -39,15 +51,15 @@ a {
   .input {
     width: 100%;
     border-radius: 0.375rem;
-    border: 1px solid #cbd5e1;
+    border: 1px solid var(--color-border);
     background: white;
     padding: 0.625rem 0.75rem;
-    color: #0f172a;
+    color: var(--color-text);
   }
 
   .input:focus {
-    border-color: #2563eb;
-    outline: 2px solid #bfdbfe;
+    border-color: var(--color-primary);
+    outline: 2px solid var(--color-primary-light);
     outline-offset: 0;
   }
 
@@ -64,12 +76,12 @@ a {
   }
 
   .button-primary {
-    background: #1d4ed8;
+    background: var(--color-primary);
     color: white;
   }
 
   .button-primary:hover {
-    background: #1e40af;
+    background: var(--color-primary-dark);
   }
 
   .button-primary:disabled {
@@ -78,12 +90,27 @@ a {
   }
 
   .button-secondary {
-    border: 1px solid #cbd5e1;
+    border: 1px solid var(--color-border);
     background: white;
-    color: #334155;
+    color: var(--color-text);
   }
 
   .button-secondary:hover {
-    background: #f8fafc;
+    background: var(--color-primary-light);
+  }
+
+  .clickable-row {
+    cursor: pointer;
+    transition: background-color 120ms ease;
+  }
+
+  .clickable-row:hover,
+  .clickable-row:focus-visible {
+    background: var(--color-primary-light);
+  }
+
+  .field-error {
+    border-color: var(--color-error) !important;
+    background: #fff7f6 !important;
   }
 }

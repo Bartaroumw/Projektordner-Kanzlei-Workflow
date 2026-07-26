@@ -1,153 +1,150 @@
-# Kanzlei Workflow
+# Ordo Caroli
 
 ## Projektziel
 
-Kanzlei Workflow ist eine kleine, eigenständige Webapp als kurzfristiger Ersatz für eine Excel-Checkliste in einer deutschen Steuerberatungsgesellschaft. Die aktuelle Ausbaustufe verwaltet Mandantenstammdaten, kalenderjahrbezogene Mandantenprofile, Standardaufgaben und produktiv bearbeitbare Monatschecklisten.
+Ordo Caroli ist ein ausschließlich lokal betriebener Rechnungswesen-Workflow für eine deutsche Steuerberatungsgesellschaft. Die Anwendung unterstützt Mandantenstammdaten, Jahresprofile, Standardaufgaben, Excel-Importe sowie monatliche Checklisten mit Bearbeitungs- und Prüfworkflow.
+
+Die Monatscheckliste umfasst den gesamten laufenden Rechnungswesenprozess: Kontenabstimmung, Kontonotizen, Unterlagenbezug, Bank, Kasse, Darlehen, Verrechnungskonten, Anlagenbuchführung, Plausibilitätsprüfungen und die unterjährige Vorbereitung späterer Abschlussarbeiten. Eine zukünftige Jahresabschlusscheckliste soll nur Tätigkeiten enthalten, die tatsächlich erst zum Abschlussstichtag oder bei Abschlusserstellung möglich sind.
+
+Es dürfen ausschließlich künstliche Testdaten verwendet werden.
 
 ## Technischer Aufbau
 
-- Next.js 16 mit App Router und React 19
+- Next.js 16.2.12 mit App Router und React 19.2.4
 - TypeScript und Tailwind CSS
-- SQLite als ausschließlich lokale Datenbank
-- Prisma 6.19.3 als Datenbankzugriff
+- SQLite ausschließlich lokal unter `prisma/dev.db`
+- Prisma 6.19.3
 - Vitest für automatisierte Tests
-- `read-excel-file` für die ausschließlich lokale Prüfung von `.xlsx`-Dateien
-- npm als Paketverwaltung
+- `read-excel-file` für den lokalen Standardaufgabenimport
 - keine Cloud-Dienste oder externen Datendienste
 
-## Installation
+## Installation und Start
 
 ```powershell
 npm.cmd install
 npm.cmd run db:generate
-```
-
-## Start
-
-```powershell
 npm.cmd run dev
 ```
 
-Danach ist die Anwendung unter [http://localhost:3000](http://localhost:3000) erreichbar.
+Die Anwendung ist danach unter [http://localhost:3000](http://localhost:3000) erreichbar.
 
-## Datenbank und Prisma
+## Datenbank und Migrationen
 
-Die lokale SQLite-Datenbank liegt unter `prisma/dev.db`. Sie wird nicht in Git aufgenommen. Die Verbindungsangabe steht lokal in `.env`; `.env.example` enthält nur eine geheimnisfreie Vorlage.
-
-Wichtige Befehle:
+Die lokale Verbindungsangabe steht in `.env`; `.env.example` enthält nur eine Vorlage. Datenbankdateien und lokale Umgebungsdateien werden nicht versioniert.
 
 ```powershell
 npm.cmd run db:generate
-npm.cmd run db:migrate
 npm.cmd run db:seed
+npm.cmd run db:reset
 ```
 
-Das Datenmodell steht in `prisma/schema.prisma`. Nachvollziehbare SQL-Migrationen liegen in `prisma/migrations`. Die Migration `20260726153000_standard_tasks_import` ergänzt Kategorien, Standardaufgaben, kurzlebige Importvorschauen und die Importhistorie. Die Migration `20260726170000_monthly_checklists` ergänzt Buchhaltungsperioden, Checklistenaufgaben-Snapshots und mandantenspezifische Aufgaben.
+Das Schema steht in `prisma/schema.prisma`, die SQL-Migrationen unter `prisma/migrations`.
+
+Die Migration `20260726193000_ordo_caroli_consolidation`:
+
+- ergänzt den USt-Voranmeldungszeitraum,
+- ergänzt die zuständige Kanzleileitung,
+- ergänzt deren unveränderlichen Checklisten-Snapshot,
+- überführt historische Quartalsbezeichnungen sicher in Monatsnamen,
+- ergänzt Übertragungsgrund, Zielmonat, Person, Zeitpunkt und Ursprungsbezug,
+- löscht keine Checklistenaufgaben, Snapshots oder Verlaufseinträge.
+
+Die ergänzende Migration `20260726194000_artificial_full_names` überführt ausschließlich die bekannten neutralen Kürzel der mitgelieferten künstlichen Testdaten in vollständige künstliche Namen und ergänzt deren Kanzleileitungs-Snapshots. Sie löscht ebenfalls keine fachlichen Daten.
+
+Die früheren technischen Felder `team` und `cadence` bleiben vorerst ausschließlich zur verlustfreien Altdaten-Kompatibilität im Datenmodell. Neue Oberflächen und Fachregeln verwenden sie nicht mehr.
+
+## Ausschließlich monatliche Checklisten
+
+Jeder aktive Mandant kann für Januar bis Dezember eine Monatscheckliste erhalten. Der USt-Voranmeldungszeitraum `Monatlich`, `Vierteljährlich`, `Jährlich` oder `Keine Voranmeldung` beschreibt ausschließlich die umsatzsteuerliche Einordnung und verhindert keinen Bearbeitungsmonat.
+
+Quartalsweise Standard- oder Zusatzaufgaben werden weiterhin nur in März, Juni, September und Dezember eingesteuert.
+
+## Eine aktive Checkliste und Monatsfolge
+
+Ein Mandant darf grundsätzlich nur eine nicht abgeschlossene Monatscheckliste besitzen. Die nächste Checkliste wird erst nach Abschluss der vorherigen zugelassen und immer als direkter Folgemonat vorgeschlagen. Bei einem neuen Mandanten kann der Startmonat einmalig gewählt werden.
+
+Eine deutlich gekennzeichnete administrative Ausnahme ist nur mit vollständigem Namen, Begründung und ausdrücklicher Verwendung zulässig. Sie wird im unveränderlichen fachlichen Verlauf gespeichert.
+
+## Übertrag in den Folgemonat
+
+Eine Aufgabe kann mit dem Status `In Folgemonat übertragen` fachlich abgeschlossen werden. Erforderlich sind:
+
+- verpflichtende Begründung,
+- vollständiger Name,
+- direkter Folgemonat,
+- Zeitpunkt,
+- optional erwartete Unterlage oder nächste Handlung.
+
+Die ursprüngliche Aufgabe bleibt unverändert erhalten. Beim ausdrücklichen Anlegen der nächsten Checkliste entsteht eine eigenständige Aufgabe mit Herkunft `Übertrag aus Vormonat` und Referenz auf die ursprüngliche Aufgabe. Bearbeitungs- und Prüfnotizen werden kopiert, aber nicht gemeinsam referenziert. Eine doppelte Übertragung in dasselbe Ziel wird verhindert.
+
+Pflichtaufgaben gelten als behandelt, wenn sie `Erledigt`, begründet `Nicht zutreffend` oder ordnungsgemäß `In Folgemonat übertragen` sind. Ein übertragener Prüfpunkt bleibt als Prüfnotiz und offener Prüfstatus in der neuen Aufgabe erhalten.
+
+## Rollen und Kanzleileitung
+
+Mandanten speichern vollständige Namen für Bearbeiter, Prüfer und zuständige Kanzleileitung. Beim Anlegen einer Checkliste werden alle drei Namen als historische Text-Snapshots gespeichert. Stammdatenänderungen verändern bestehende Checklisten nicht.
+
+Eine ausdrückliche Rollenänderung in einer laufenden Checkliste verlangt Änderungsgrund und handelnde Person. Vorherige und neue Werte werden im Verlauf gespeichert.
+
+Bearbeitungsaktionen verwenden automatisch den gespeicherten Bearbeiter, Prüfaktionen automatisch den gespeicherten Prüfer. Diese Zuordnung ist bis zur Einführung einer Benutzeranmeldung keine technische Identitätsprüfung. Später können Benutzer-IDs ergänzt werden, während die historischen Textnamen erhalten bleiben.
+
+Die Kanzleileitung wird bereits in Stammdaten, Übersichten, Dashboard und Checklistenkopf angezeigt, ist aber noch nicht Teil des monatlichen Prüfworkflows oder einer Jahresfreigabe.
+
+## Mandantenbezogener Einstieg
+
+Die Mandantenübersicht zeigt die aktuelle aktive Monatscheckliste, Status, Fortschritt, offene Pflichtaufgaben, offene Prüfpunkte und letzte Änderung. Die vollständig anklickbare Zeile führt direkt zur aktiven Checkliste; ohne aktive Checkliste zur Mandantendetailseite.
+
+Die Mandantendetailseite zeigt alle Monatschecklisten absteigend und bietet nach einem Abschluss die Aktion für den automatisch ermittelten Folgemonat.
+
+Tabellenzeilen auf Dashboard, Mandanten- und Checklistenübersicht sind per Maus, Enter und Leertaste bedienbar. Eingebettete Links oder Formulare lösen keine zusätzliche Zeilennavigation aus; Textmarkierung bleibt möglich.
+
+## Bearbeitungs- und Prüfworkflow
+
+Checklistenstatus: `Offen`, `In Bearbeitung`, `Zur Prüfung`, `In Prüfung`, `Nachbearbeitung`, `Abgeschlossen`.
+
+Aufgabenstatus: `Offen`, `In Bearbeitung`, `Erledigt`, `Nicht zutreffend`, `In Folgemonat übertragen`.
+
+Prüfstatus: `Nicht geprüft`, `In Prüfung`, `In Ordnung`, `Rückfrage`, `Beanstandung`, `Erledigt nach Nachbearbeitung`.
+
+Abgeschlossene Checklisten bleiben sichtbar und gesperrt. Eine Wiederöffnung verlangt vollständigen Namen, Begründung und ausdrückliche Bestätigung.
+
+## Meldungssystem
+
+Erfolg, Warnung und Fehler werden als kompakte, schließbare Toast-Meldung im sichtbaren Bereich angezeigt. Die Meldungen besitzen passende ARIA-Rollen und ausreichende Anzeigedauer. Bei fachlichen Fehlern wird zusätzlich der betroffene Bereich markiert beziehungsweise fokussiert; Formulareingaben bleiben bei der clientseitigen Mandantenvalidierung erhalten. Browser-Alerts werden nicht verwendet.
+
+## Ordo-Caroli-Design
+
+Das eigenständige Anwendungsthema wurde aus der öffentlich erkennbaren grünen Concilium-Anmutung abgeleitet, ohne Logo oder geschützte Websitebestandteile zu kopieren.
+
+Zentrale CSS-Variablen:
+
+| Token | Wert | Zweck |
+| --- | --- | --- |
+| `--color-primary` | `#4f7f38` | Primärgrün |
+| `--color-primary-dark` | `#234c2b` | Navigation und dunkle Akzente |
+| `--color-primary-light` | `#e8f1e3` | Tabellenköpfe und ruhige Flächen |
+| `--color-background` | `#f4f6f1` | Seitenhintergrund |
+| `--color-surface` | `#ffffff` | Oberflächen |
+| `--color-text` | `#18251c` | Haupttext |
+| `--color-text-muted` | `#617066` | dezenter Text |
+| `--color-border` | `#cbd5ca` | Rahmen |
+| `--color-success` | `#2f6b3c` | Erfolg |
+| `--color-warning` | `#9a6500` | Warnung |
+| `--color-error` | `#a83832` | Fehler |
+| `--color-focus` | `#d79b22` | Tastaturfokus |
+
+Statustexte bleiben immer sichtbar; Farbe ist nie die einzige Information.
 
 ## Künstliche Testdaten
 
-Die mitgelieferten Daten sind ausdrücklich vollständig künstlich:
+Die Seed-Daten verwenden nur künstliche Mandanten und neutrale vollständige Namen. Enthalten sind künstliche Monatschecklisten, Standardaufgaben, Zusatzaufgaben und Workflowzustände. Ein Mandant besitzt absichtlich kein Jahresprofil beziehungsweise keine Kanzleileitung, damit Datenqualitätshinweise sichtbar geprüft werden können.
 
-- 10001 – Musterpraxis Beispiel, Jahresprofil 2026
-- 10002 – Beispiel Verwaltungs GmbH, Jahresprofil 2026
-- 10003 – Mustermann Besitz GbR, Jahresprofil 2026
-- zwölf künstliche Kategorien für Standardaufgaben
-- eine separate Excel-Beispieldatei mit 16 eindeutig künstlichen Standardaufgaben; sie wird nicht automatisch importiert
-- vier künstliche Perioden: Januar und Februar 2026 für 10001, Januar 2026 für 10002 sowie 1. Quartal 2026 für 10003
-- zwei künstliche Zusatzaufgaben für 10001: eine monatlich wiederkehrende und eine einmalige Aufgabe für Januar 2026
-
-Echte Mandanten-, Mitarbeiter- oder andere personenbezogene Daten dürfen weder in der Entwicklung noch im lokalen Testbetrieb verwendet werden.
-
-## Künstliche Testdaten vollständig zurücksetzen
-
-Zuerst den laufenden Entwicklungsserver mit `Strg+C` beenden. Danach:
+Vollständiger lokaler Reset:
 
 ```powershell
 npm.cmd run db:reset
 ```
 
-Der Befehl entfernt ausschließlich `prisma/dev.db`, legt die lokale Struktur aus allen Migrationen neu an und erzeugt die künstlichen Mandanten, Kategorien, 16 Standardaufgaben, zwei Zusatzaufgaben und vier Perioden erneut. Die Importhistorie wird zurückgesetzt. Eigene lokale Testeingaben gehen dabei verloren.
-
-## Standardaufgaben und Aufgaben-ID
-
-Standardaufgaben bilden einen zentralen fachlichen Bestand und sind noch keinem Mandanten zugeordnet. Neben Anweisungen und Kategorie enthalten sie Checklistenart, Rhythmus, fachliche Zielgruppen, sieben Merkmalsbedingungen, Pflichtstatus, Sortierung und fachliche Version.
-
-Die Aufgaben-ID, zum Beispiel `MON-BANK-001`, ist ein eindeutiger und dauerhaft unveränderlicher fachlicher Schlüssel. Die technische Datenbank-ID bleibt davon getrennt. Vorhandene Aufgaben werden beim Import nur über die Aufgaben-ID erkannt und behalten ihre technische ID.
-
-Für erzeugte konkrete Checklisten gilt das Snapshot-Prinzip: Die gültigen Aufgabeninhalte werden in die konkrete Checkliste kopiert. Spätere Änderungen oder Deaktivierungen einer Standardaufgabe verändern bestehende Checklisten nicht.
-
-## Monatsperioden und Turnuslogik
-
-Eine Buchhaltungsperiode gehört eindeutig zu einem Mandanten, Kalenderjahr, Monat und der Checklistenart „Monat“. Monatliche Mandanten können Perioden für jeden Monat erhalten. Bei vierteljährlichen Mandanten sind ausschließlich März, Juni, September und Dezember zulässig; die Anzeige lautet entsprechend „1. Quartal“ bis „4. Quartal“.
-
-Vor der Erzeugung muss ein Jahresprofil für das Kalenderjahr vorhanden sein. Der Ablauf besteht aus Mandanten-, Jahres- und Monatsauswahl, fachlicher Vorschau und ausdrücklicher Bestätigung. Bereits vorhandene Perioden werden nicht doppelt erzeugt.
-
-## Automatische Aufgabenwahl
-
-Berücksichtigt werden ausschließlich aktive Standardaufgaben der Checklistenart „Monat“. Alle Bedingungen müssen gemeinsam passen:
-
-- Rhythmus: monatlich immer; quartalsweise in den Abschlussmonaten beziehungsweise in jeder zulässigen Quartalsperiode; „Bestimmter Monat“ nur im hinterlegten Monat; jährlich nie
-- Rechtsformgruppe und Gewinnermittlungsart: `Alle` oder ein passender Mehrfachwert
-- Kasse, Lohn, Anlagevermögen, Debitoren/Kreditoren, Darlehen, Umsatzsteuerpflicht und Dauerfristverlängerung: `Alle`, passendes `Ja` oder passendes `Nein`
-
-Mandantenspezifische Aufgaben werden nach Aufgabenart und zeitlicher Gültigkeit zusätzlich berücksichtigt. Monatliche Aufgaben gelten in jeder passenden Periode, quartalsweise Aufgaben in den Abschlussmonaten und einmalige Aufgaben nur im festgelegten Jahr und Monat. Jährliche Aufgaben bleiben späteren Jahresabschlusschecklisten vorbehalten.
-
-## Snapshot-Prinzip
-
-Beim Erzeugen werden die relevanten Jahresprofilwerte in der Periode gespeichert. Jede ausgewählte Standard- oder Zusatzaufgabe wird als eigenständige Checklistenaufgabe kopiert. Gespeichert werden insbesondere Aufgaben-ID, Kategorie, Anweisungen, Pflichtstatus, Sortierung, fachliche Version und Herkunft.
-
-Spätere Vorlagenänderungen, Imports, Zusatzaufgaben und geänderte Jahresprofile verändern bestehende Checklisten nicht. Eine automatische rückwirkende Ergänzung gibt es bewusst nicht.
-
-## Status und Fortschritt
-
-Die grundlegenden Bearbeitungsstatus werden durch den nachstehenden vollständigen Bearbeitungs- und Prüfworkflow erweitert. Nach der ersten Aufgabenbearbeitung wechselt eine offene Periode auf „In Bearbeitung“.
-
-Aufgabenstatus: `Offen`, `In Bearbeitung`, `Erledigt`, `Nicht zutreffend`. „Nicht zutreffend“ verlangt eine Begründung. Bearbeitungsnotiz, Bearbeiterkürzel und Bearbeitungszeitpunkt werden lokal gespeichert.
-
-Der Fortschritt ist die Anzahl der Aufgaben mit Status „Erledigt“ oder „Nicht zutreffend“ geteilt durch die Gesamtzahl. Bei null Aufgaben beträgt er 0 Prozent. Pflichtaufgaben werden zusätzlich getrennt ausgewiesen.
-
-## Bearbeitungs- und Prüfworkflow
-
-Die fachlichen Periodenstatus lauten `Offen`, `In Bearbeitung`, `Zur Prüfung`, `In Prüfung`, `Nachbearbeitung` und `Abgeschlossen`. Erlaubte Hauptübergänge:
-
-1. Offen → In Bearbeitung
-2. In Bearbeitung → Zur Prüfung
-3. Zur Prüfung → In Prüfung
-4. In Prüfung → Nachbearbeitung, wenn offene Prüfpunkte bestehen
-5. Nachbearbeitung → Zur Prüfung, wenn alle Prüfpunkte beantwortet wurden
-6. In Prüfung → Abgeschlossen, wenn keine Prüfpunkte und keine offenen Pflichtaufgaben bestehen
-
-Die Übergabe verlangt ein Bearbeiterkürzel und vollständig abgeschlossene Pflichtaufgaben. Prüfungsbeginn und Abschluss verlangen ein Prüferkürzel. Die Oberfläche zeigt vor Übergaben eine Zusammenfassung der erledigten, nicht zutreffenden, freiwillig offenen und mit Notizen versehenen Aufgaben.
-
-Bearbeitungsstatus und Prüfstatus einer Aufgabe sind getrennt. Zulässige Prüfstatus sind `Nicht geprüft`, `In Prüfung`, `In Ordnung`, `Rückfrage`, `Beanstandung` und `Erledigt nach Nachbearbeitung`.
-
-Rückfrage und Beanstandung verlangen Prüferkürzel und Prüfnotiz. Der Bearbeiter beantwortet den Prüfpunkt in der Nachbearbeitung; die ursprüngliche Prüfnotiz bleibt erhalten. Nach „Nachbearbeitung erledigt“ muss der Prüfer die Aufgabe erneut auf `In Ordnung`, `Rückfrage` oder `Beanstandung` setzen.
-
-Abgeschlossene Perioden sind gegen Aufgabenänderungen gesperrt. „Abschluss wieder öffnen“ verlangt handelndes Kürzel, Begründung und ausdrückliche Bestätigung. Die Periode wechselt dabei auf `Nachbearbeitung`.
-
-## Fachlicher Verlauf
-
-Periodenerzeugung, Bearbeitungs- und Prüfstatusänderungen, Notizänderungen, Übergaben, Rückfragen, Beanstandungen, Antworten, Nachbearbeitung, Abschluss und Wiederöffnung werden als neue Verlaufseinträge gespeichert. Ein Eintrag enthält Zeitpunkt, Ereignis, Kürzel, Beschreibung, vorherigen und neuen Wert sowie optional die Aufgabe. Der Verlauf ist über die Oberfläche ausschließlich lesbar.
-
-Bearbeiter und Prüfer werden als Text-Snapshots aus dem Mandanten übernommen. Sind beide Kürzel identisch, erscheint eine deutliche Warnung. Eine technisch erzwungene personelle Trennung folgt erst mit der späteren Benutzerverwaltung.
-
-Mandantenspezifische Aufgabenvorlagen besitzen Detail- und Bearbeitungsseiten. Aufgabenart, Zeitraum, Zuordnungen und Aktivstatus können geändert werden. Deaktivierung ersetzt eine Löschung und wirkt nur auf künftig erzeugte Checklisten; vorhandene Snapshots bleiben erhalten.
-
-## Excel-Dateien und Importablauf
-
-Unter „Standardaufgaben → Excel-Import“ stehen zwei Dateien bereit:
-
-- `Standardaufgaben-Mustervorlage.xlsx` mit exakt 24 Importspalten, Ausfüllhinweisen und Dropdowns
-- `Standardaufgaben-Kuenstliche-Beispiele.xlsx` mit 16 künstlichen fachlichen Beispielen
-
-Der Import läuft ausschließlich lokal und in zwei getrennten Aktionen:
-
-1. `.xlsx`-Datei auswählen und mit „Datei prüfen“ technisch sowie fachlich validieren.
-2. Vorschau für neue, aktualisierte, unveränderte und zu deaktivierende Aufgaben, Warnungen, neue Kategorien und Fehler kontrollieren.
-3. Neue Kategorien gegebenenfalls ausdrücklich bestätigen.
-4. Fehlerfreien Import mit „Import ausdrücklich bestätigen“ ausführen.
-
-Fehlerhafte Dateien verändern keine Daten. Eine nicht mehr enthaltene Aufgabe wird weder gelöscht noch deaktiviert. Nur ein ausdrückliches `Nein` in der Spalte „Aktiv“ deaktiviert eine Aufgabe. Standardaufgaben werden nicht physisch gelöscht. Bestätigte Importe werden mit Dateiname, Zeitpunkt, Version, Ergebniszahlen und Status in der Importhistorie festgehalten; die hochgeladene Datei wird nicht gespeichert. Eine geprüfte Vorschau ist 30 Minuten gültig.
+Dabei gehen eigene lokale Testeingaben verloren.
 
 ## Prüfungen
 
@@ -158,65 +155,25 @@ npm.cmd test
 npm.cmd run build
 ```
 
-Produktionsmodus nach erfolgreichem Build:
-
-```powershell
-npm.cmd run start
-```
-
-## Aktueller Funktionsumfang
-
-- deutschsprachige, responsive Grundoberfläche
-- Mandantenübersicht mit Suche nach Nummer oder Name
-- Filter nach Status, Bearbeiter, Prüfer und Team
-- Mandanten anlegen, bearbeiten und inaktiv setzen
-- Schutz vor doppelten Mandantennummern
-- Mandantendetailseite mit historisch sortierten Jahresprofilen
-- Jahresprofile anlegen, aus dem letzten Profil vorschlagen und bearbeiten
-- nur ein Jahresprofil je Mandant und Kalenderjahr
-- automatische Bilanzierung bei Kapitalgesellschaften
-- verständliche Validierungs- und Erfolgsmeldungen
-- lokale, dauerhafte Speicherung in SQLite
-- zentrale Kategorienverwaltung
-- Standardaufgaben suchen, filtern, sortieren, anlegen, öffnen, bearbeiten, aktivieren und deaktivieren
-- Excel-Mustervorlage und künstliche Beispieldatei zum lokalen Download
-- mehrstufiger Excel-Import mit Prüfung, Vorschau, Bestätigung und Importhistorie
-- Monatschecklistenübersicht mit Suche und Filtern
-- Vorschau und ausdrückliche Erzeugung einer Buchhaltungsperiode
-- automatische Auswahl passender Standard- und mandantenspezifischer Aufgaben
-- unveränderliche Jahresprofil- und Aufgaben-Snapshots
-- Bearbeitung nach Kategorien mit Status, Kürzel, Notizen und Begründungen
-- Fortschritts- und Pflichtaufgabenauswertung
-- getrennte Bearbeitungs- und Prüfstatus je Aufgabe
-- regelgesteuerte Übergabe, Prüfung, Rückfrage, Nachbearbeitung und Abschluss
-- unveränderlicher fachlicher Verlauf
-- begründete Wiederöffnung abgeschlossener Perioden
-- Detailansicht, Bearbeitung, Aktivierung und Deaktivierung mandantenspezifischer Aufgabenvorlagen
-
 ## Bekannte Einschränkungen
 
-- Es gibt noch keine Benutzeranmeldung oder Rechteverwaltung.
-- Bearbeiter, Prüfer und Teams sind einfache Textfelder.
-- Mandanten können aus Gründen des Historienerhalts nicht über die Oberfläche gelöscht, sondern nur inaktiv gesetzt werden.
-- Jahresabschlusschecklisten, ein vollständiger Prüfworkflow und echte Dashboard-Auswertungen sind noch nicht implementiert.
-- Es gibt keinen gesonderten Prüferstatus und kein Vier-Augen-Prinzip.
-- Rollen werden weiterhin nur als Textkürzel geführt; identische Kürzel werden gewarnt, aber noch nicht technisch verhindert.
-- Der fachliche Verlauf ist nachvollziehbar, aber noch kein revisionssicherer Audit-Trail.
-- Bestehende Monatschecklisten können nicht um später hinzugekommene Vorlagen ergänzt werden.
-- Mandantenspezifische Aufgaben können angelegt, aber noch nicht bearbeitet oder deaktiviert werden.
-- Es gibt noch keine Versionshistorie einzelner Standardaufgaben; die Importhistorie protokolliert nur das zusammengefasste Importergebnis.
-- Der Import unterstützt ausschließlich das bereitgestellte `.xlsx`-Format bis 5 MB; Makros und andere Dateiformate sind ausgeschlossen.
-- Das Kalenderjahr entspricht immer dem Wirtschaftsjahr; abweichende Wirtschaftsjahre werden nicht unterstützt.
-- Die lokale Datenbank ist nur für einen einzelnen lokalen Testbetrieb vorgesehen.
+- keine Benutzeranmeldung und keine technischen Berechtigungen
+- automatische Rollennamen sind kein Identitätsnachweis
+- keine Jahresabschlusschecklisten oder Jahresfreigabe
+- keine Datei-Uploads außer dem vorhandenen lokalen `.xlsx`-Import für Standardaufgaben
+- keine Exporte, Benachrichtigungen oder E-Mails
+- der fachliche Verlauf ist nachvollziehbar, aber kein revisionssicherer Audit-Trail
+- veraltete technische Felder bleiben zur Altdaten-Kompatibilität im Schema
+- keine Live-Aktualisierung mehrerer gleichzeitig geöffneter Browserfenster
 
 ## Bekannte Sicherheitshinweise
 
-`npm audit --omit=dev` meldet weiterhin drei hoch eingestufte betroffene Pakete im Abhängigkeitsbaum von Next.js 16.2.12:
+`npm audit --omit=dev` meldete zuletzt drei hoch eingestufte betroffene Pakete im Abhängigkeitsbaum:
 
-| Betroffenes Paket | Schweregrad | Abhängigkeit | Betroffener Betrieb | Kompatible Korrektur |
-| --- | --- | --- | --- | --- |
-| Next.js – Zusammenfassung der nachstehenden PostCSS- und Sharp-Hinweise | hoch | direkt | Entwicklungs-, Build- und möglicher Produktionsbetrieb je nach verwendeter Funktion | npm bietet nur ein inkompatibles Downgrade auf Next.js 9.3.3 an; nicht anwenden und auf ein korrigiertes stabiles Next.js-Update warten |
-| PostCSS – XSS bei nicht maskiertem `</style>`, Dateizugriff über `sourceMappingURL` und Pfadüberschreitung über Source Maps | hoch zusammengefasst (ein Einzelhinweis mittel) | indirekt über Next.js | vor allem Entwicklungs- und Buildbetrieb bei Verarbeitung fremder CSS-Dateien | Next.js weist derzeit keine kompatible stabile Aktualisierung aus; keine fremden CSS-Dateien verarbeiten |
-| Sharp/libvips – mehrere Bildverarbeitungsfehler | hoch | indirekt/optional über Next.js | möglicher Produktionsbetrieb bei Verarbeitung nicht vertrauenswürdiger Bilder | Next.js 16.2.12 erlaubt noch keine korrigierte Sharp-Hauptversion; keine Bild-Uploads oder fremde Bilder verarbeiten und stabiles Next.js-Update abwarten |
+| Paket | Art | Betrieb | Kompatible Korrektur |
+| --- | --- | --- | --- |
+| Next.js 16.2.12 | direkt | Entwicklung, Build und möglicher lokaler Produktionsbetrieb | keine kompatible stabile Korrektur ausgewiesen; kein erzwungenes Downgrade |
+| PostCSS | indirekt über Next.js | vor allem Entwicklung und Build bei fremden CSS-Dateien | keine fremden CSS-Dateien verarbeiten und stabiles Next.js-Update abwarten |
+| Sharp/libvips | indirekt/optional über Next.js | Bildverarbeitung | keine Bild-Uploads oder fremden Bilder verarbeiten und stabiles Next.js-Update abwarten |
 
-Die Anwendung verarbeitet ausschließlich lokal ausgewählte strukturierte `.xlsx`-Dateien und keine fremden CSS- oder Bilddateien. Die Excel-Daten werden fachlich validiert und die Datei wird nicht dauerhaft gespeichert. Daher entsteht im ausschließlich lokalen Testbetrieb kein unmittelbares erhebliches Risiko. Prisma wurde kompatibel von 6.19.1 auf 6.19.3 aktualisiert; dadurch wurde der zwischenzeitlich gemeldete Prisma-Entwicklungshinweis behoben.
+`npm audit fix --force` darf nicht verwendet werden.

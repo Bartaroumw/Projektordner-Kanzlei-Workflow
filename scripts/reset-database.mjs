@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { existsSync, rmSync } from "node:fs";
+import { existsSync, readdirSync, rmSync } from "node:fs";
 import { resolve } from "node:path";
 
 const prismaDirectory = resolve("prisma");
@@ -15,19 +15,29 @@ for (const path of [databasePath, `${databasePath}-journal`]) {
   }
 }
 
-execFileSync(
-  process.execPath,
-  [
-    "node_modules/prisma/build/index.js",
-    "db",
-    "execute",
-    "--file",
-    "prisma/migrations/20260726120000_init_clients/migration.sql",
-    "--schema",
-    "prisma/schema.prisma",
-  ],
-  { stdio: "inherit" },
-);
+const migrationFiles = readdirSync(resolve(prismaDirectory, "migrations"), {
+  withFileTypes: true,
+})
+  .filter((entry) => entry.isDirectory())
+  .map((entry) => resolve(prismaDirectory, "migrations", entry.name, "migration.sql"))
+  .filter((path) => existsSync(path))
+  .sort();
+
+for (const migrationFile of migrationFiles) {
+  execFileSync(
+    process.execPath,
+    [
+      "node_modules/prisma/build/index.js",
+      "db",
+      "execute",
+      "--file",
+      migrationFile,
+      "--schema",
+      "prisma/schema.prisma",
+    ],
+    { stdio: "inherit" },
+  );
+}
 execFileSync(process.execPath, ["prisma/seed.mjs"], { stdio: "inherit" });
 
 console.log("Die lokale Datenbank wurde vollständig zurückgesetzt.");

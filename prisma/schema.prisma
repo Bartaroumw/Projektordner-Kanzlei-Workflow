@@ -20,6 +20,8 @@ model Client {
   createdAt     DateTime        @default(now())
   updatedAt     DateTime        @updatedAt
   annualProfiles AnnualProfile[]
+  periods        AccountingPeriod[]
+  customTasks    CustomClientTask[]
 
   @@index([name])
   @@index([active])
@@ -44,4 +46,200 @@ model AnnualProfile {
 
   @@unique([clientId, calendarYear])
   @@index([calendarYear])
+}
+
+model TaskCategory {
+  id           Int            @id @default(autoincrement())
+  name         String         @unique
+  description  String?
+  sortOrder    Int            @default(0)
+  active       Boolean        @default(true)
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+  standardTasks StandardTask[]
+  customTasks   CustomClientTask[]
+
+  @@index([active, sortOrder])
+}
+
+model StandardTask {
+  id                             Int          @id @default(autoincrement())
+  taskId                         String       @unique
+  active                         Boolean      @default(true)
+  checklistType                  String
+  categoryId                     Int
+  subcategory                    String?
+  title                          String
+  workInstruction                String?
+  reviewInstruction              String?
+  mandatory                      Boolean      @default(false)
+  rhythm                         String
+  executionMonth                 Int?
+  legalFormGroups                String
+  profitDeterminationMethods     String
+  cashCondition                  String
+  payrollCondition               String
+  fixedAssetsCondition           String
+  receivablesPayablesCondition   String
+  loansCondition                 String
+  vatCondition                   String
+  permanentExtensionCondition    String
+  knowledgeKey                   String?
+  sortOrder                      Int          @default(0)
+  professionalVersion            String
+  internalNote                   String?
+  createdAt                      DateTime     @default(now())
+  updatedAt                      DateTime     @updatedAt
+  category                       TaskCategory @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  checklistTasks                 ChecklistTask[]
+
+  @@index([active, checklistType])
+  @@index([categoryId, sortOrder])
+}
+
+model AccountingPeriod {
+  id                                  Int             @id @default(autoincrement())
+  clientId                            Int
+  calendarYear                        Int
+  month                               Int
+  periodLabel                         String
+  checklistType                       String          @default("Monat")
+  processingStatus                    String          @default("Offen")
+  processorSnapshot                   String?
+  reviewerSnapshot                    String?
+  currentActorInitials                String?
+  submittedForReviewAt                DateTime?
+  reviewStartedAt                     DateTime?
+  returnedAt                          DateTime?
+  lastReviewAt                        DateTime?
+  lastStatusChangedAt                 DateTime        @default(now())
+  generalNote                         String?
+  checklistCreatedAt                  DateTime        @default(now())
+  completedAt                         DateTime?
+  createdAt                           DateTime        @default(now())
+  updatedAt                           DateTime        @updatedAt
+  profileLegalFormGroup               String
+  profileProfitDeterminationMethod    String
+  profileHasCashRegister              Boolean
+  profileHasPayroll                   Boolean
+  profileHasFixedAssets               Boolean
+  profileHasReceivablesPayables       Boolean
+  profileHasLoans                     Boolean
+  profileSubjectToVat                 Boolean
+  profileHasPermanentExtension        Boolean
+  client                              Client          @relation(fields: [clientId], references: [id], onDelete: Restrict)
+  tasks                               ChecklistTask[]
+  history                             WorkflowHistory[]
+
+  @@unique([clientId, calendarYear, month, checklistType])
+  @@index([calendarYear, month, processingStatus])
+  @@index([clientId, updatedAt])
+}
+
+model ChecklistTask {
+  id                    Int               @id @default(autoincrement())
+  periodId              Int
+  standardTaskId        Int?
+  customClientTaskId    Int?
+  taskIdSnapshot        String
+  categorySnapshot      String
+  categorySortOrder     Int               @default(0)
+  subcategorySnapshot   String?
+  titleSnapshot         String
+  workInstructionSnapshot String?
+  reviewInstructionSnapshot String?
+  mandatorySnapshot     Boolean           @default(false)
+  sortOrderSnapshot     Int?
+  professionalVersionSnapshot String?
+  origin                String
+  status                String            @default("Offen")
+  processingNote        String?
+  processedAt           DateTime?
+  processorInitials     String?
+  notApplicableReason   String?
+  reviewStatus          String            @default("Nicht geprüft")
+  reviewerInitials      String?
+  reviewNote            String?
+  reviewedAt            DateTime?
+  reviewIssueCreatedAt  DateTime?
+  processorResponse     String?
+  respondedBy           String?
+  respondedAt           DateTime?
+  finalReviewedAt       DateTime?
+  createdAt             DateTime          @default(now())
+  updatedAt             DateTime          @updatedAt
+  period                AccountingPeriod  @relation(fields: [periodId], references: [id], onDelete: Restrict)
+  standardTask          StandardTask?     @relation(fields: [standardTaskId], references: [id], onDelete: SetNull)
+  customClientTask      CustomClientTask? @relation(fields: [customClientTaskId], references: [id], onDelete: SetNull)
+  history               WorkflowHistory[]
+
+  @@index([periodId, categorySortOrder, sortOrderSnapshot])
+  @@index([standardTaskId])
+  @@index([customClientTaskId])
+}
+
+model WorkflowHistory {
+  id             Int               @id @default(autoincrement())
+  periodId       Int
+  checklistTaskId Int?
+  eventType      String
+  occurredAt     DateTime          @default(now())
+  actorInitials  String?
+  description    String
+  previousValue  String?
+  newValue       String?
+  period         AccountingPeriod  @relation(fields: [periodId], references: [id], onDelete: Restrict)
+  checklistTask  ChecklistTask?    @relation(fields: [checklistTaskId], references: [id], onDelete: Restrict)
+
+  @@index([periodId, occurredAt])
+  @@index([checklistTaskId, occurredAt])
+}
+
+model CustomClientTask {
+  id                 Int             @id @default(autoincrement())
+  clientId           Int
+  title              String
+  description        String?
+  categoryId         Int
+  active             Boolean         @default(true)
+  taskType           String
+  validFrom          DateTime
+  validUntil         DateTime?
+  executionYear      Int?
+  executionMonth     Int?
+  processor          String?
+  reviewer           String?
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
+  client             Client          @relation(fields: [clientId], references: [id], onDelete: Restrict)
+  category           TaskCategory    @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  checklistTasks     ChecklistTask[]
+
+  @@index([clientId, active, taskType])
+  @@index([categoryId])
+}
+
+model TaskImportHistory {
+  id                 Int      @id @default(autoincrement())
+  originalFileName   String
+  importedAt         DateTime @default(now())
+  professionalVersion String?
+  createdCount       Int
+  updatedCount       Int
+  unchangedCount     Int
+  deactivatedCount   Int
+  errorRowCount      Int
+  createdCategoryCount Int
+  status             String
+}
+
+model TaskImportPreview {
+  id               String   @id
+  originalFileName String
+  fileHash         String
+  previewJson      String
+  createdAt        DateTime @default(now())
+  expiresAt        DateTime
+
+  @@index([expiresAt])
 }

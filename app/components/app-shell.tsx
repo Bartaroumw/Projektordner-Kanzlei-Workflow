@@ -6,7 +6,8 @@ import { usePathname } from "next/navigation";
 const navigation = [
   { label: "Dashboard", href: "/" },
   { label: "Mandanten", href: "/mandanten" },
-  { label: "Standardaufgaben", href: "/#standardaufgaben" },
+  { label: "Monatschecklisten", href: "/monatschecklisten" },
+  { label: "Standardaufgaben", href: "/standardaufgaben" },
   { label: "Wissensspeicher", href: "/#wissensspeicher" },
   { label: "Administration", href: "/#administration" },
 ];
@@ -30,7 +31,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                     ? pathname === "/"
                     : entry.href === "/mandanten"
                       ? pathname.startsWith("/mandanten")
-                      : false;
+                      : entry.href === "/monatschecklisten"
+                        ? pathname.startsWith("/monatschecklisten")
+                      : entry.href === "/standardaufgaben"
+                        ? pathname.startsWith("/standardaufgaben")
+                        : false;
                 return (
                   <li key={entry.label} className="shrink-0">
                     <Link

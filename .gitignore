@@ -28,6 +28,7 @@
 *.sqlite3
 /tmp/
 /temp/
+/outputs/
 *.tmp
 
 # misc

@@ -17,7 +17,7 @@ Diese Next.js-Version kann neue oder geänderte Konventionen enthalten. Vor Änd
 - Kostenpflichtige Dienste sind ausgeschlossen.
 - Eine Cloud-Veröffentlichung erfolgt nur nach ausdrücklicher Zustimmung.
 - Es gibt keine DATEV-Anbindung und keine E-Mail-Funktion.
-- Datei-Uploads gehören nicht zur ersten Version.
+- Datei-Uploads sind ausschließlich für den lokalen Import strukturierter `.xlsx`-Dateien mit Standardaufgaben zulässig; andere Uploads bleiben ausgeschlossen.
 - Die Webapp enthält keine KI-Funktionen.
 - Bestehende Funktionen werden nicht unnötig neu geschrieben.
 - Fehler werden zuerst analysiert und anschließend minimal korrigiert.

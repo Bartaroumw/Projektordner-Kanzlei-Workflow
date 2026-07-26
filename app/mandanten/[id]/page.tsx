@@ -35,7 +35,7 @@ export default async function ClientDetailPage({
           <p className="mb-2 text-sm font-semibold uppercase tracking-wider text-blue-700">Mandant {client.clientNumber}</p>
           <h1 className="text-3xl font-bold tracking-tight">{client.name}</h1>
         </div>
-        <Link className="button-secondary" href={`/mandanten/${client.id}/bearbeiten`}>Stammdaten bearbeiten</Link>
+        <div className="flex flex-wrap gap-2"><Link className="button-secondary" href={`/mandanten/${client.id}/zusatzaufgaben`}>Mandantenspezifische Aufgaben</Link><Link className="button-secondary" href={`/mandanten/${client.id}/bearbeiten`}>Stammdaten bearbeiten</Link></div>
       </header>
 
       <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">

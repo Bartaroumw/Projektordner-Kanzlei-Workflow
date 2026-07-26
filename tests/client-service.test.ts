@@ -33,6 +33,10 @@ const baseProfile: AnnualProfileInput = {
 };
 
 beforeEach(async () => {
+  await prisma.workflowHistory.deleteMany();
+  await prisma.checklistTask.deleteMany();
+  await prisma.accountingPeriod.deleteMany();
+  await prisma.customClientTask.deleteMany();
   await prisma.annualProfile.deleteMany();
   await prisma.client.deleteMany();
 });

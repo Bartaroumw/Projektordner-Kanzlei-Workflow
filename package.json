@@ -14,7 +14,8 @@
     "db:seed": "node --experimental-transform-types prisma/seed.ts",
     "db:reset": "node scripts/reset-database.mjs",
     "db:reset:test": "node scripts/reset-database.mjs",
-    "db:diagnose": "node --experimental-transform-types scripts/diagnose-test-data.ts"
+    "db:diagnose": "node --experimental-transform-types scripts/diagnose-test-data.ts",
+    "db:diagnose:acceptance": "node --experimental-transform-types scripts/acceptance-diagnostics.ts"
     ,"db:seed:annual": "node --experimental-transform-types scripts/seed-annual-test-data.ts"
   },
   "dependencies": {

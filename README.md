@@ -316,6 +316,17 @@ Der vollständige Testdatenreset erzeugt diese Fälle deterministisch. Für eine
 
 `npm audit fix --force` darf nicht verwendet werden.
 
+## Abnahme und Betrieb
+
+Die systemweite Abnahmevorbereitung und die Betriebsunterlagen befinden sich unter:
+
+- `docs/ABNAHME_ORIDO_CAROLI_V1.md`
+- `docs/ABNAHMEBERICHT_V1.md`
+- `docs/BACKUP_UND_WIEDERHERSTELLUNG.md`
+- `docs/ROADMAP_NACH_PILOT.md`
+
+Die technische Abnahmevorbereitung ersetzt nicht die fachliche Endabnahme durch die Kanzlei.
+
 ## Rechnungswesenaufgaben und Ausführungsplanung
 
 Die Hauptmodule heißen in der Oberfläche **Rechnungswesenaufgaben** und **Jahresabschlussaufgaben**. Technische Modelle und einzelne fachlich passende Detailtexte dürfen weiterhin den Begriff Checkliste verwenden.

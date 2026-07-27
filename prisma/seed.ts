@@ -111,6 +111,8 @@ const clientRows:ClientSeed[]=[
   {number:"10002",name:"Beispiel Verwaltungs GmbH",processor:"maria",reviewer:"maria",legal:"Kapitalgesellschaft",profit:"Bilanzierung",vat:"Monatlich"},
   {number:"10003",name:"Mustermann Besitz GbR",processor:"maria",reviewer:"klara",legal:"Personengesellschaft",profit:"Bilanzierung",vat:"Vierteljährlich"},
   {number:"10004",name:"Künstlicher Mandant ohne aktive Checkliste",processor:"klara",reviewer:"klara",legal:"Einzelunternehmen",profit:"Einnahmenüberschussrechnung",vat:"Keine Voranmeldung"},
+  {number:"10005",name:"Künstliches Medizinisches Versorgungszentrum",processor:"max",reviewer:"paul",legal:"Personengesellschaft",profit:"Bilanzierung",vat:"Monatlich"},
+  {number:"10006",name:"Künstlicher Quartalsmandant",processor:"max",reviewer:"klara",legal:"Einzelunternehmen",profit:"Einnahmenüberschussrechnung",vat:"Vierteljährlich"},
 ];
 const clients=new Map<string,Awaited<ReturnType<typeof prisma.client.create>>>();
 for(const row of clientRows){
@@ -120,7 +122,7 @@ for(const row of clientRows){
     processorUserId:processor.id,reviewerUserId:reviewer.id,managementUserId:management.id,
     cadence:"monatlich",vatFilingPeriod:row.vat,active:true,internalNote:"Ausschließlich künstlicher Testmandant.",
     annualProfiles:{create:[2024,2025,2026].map(calendarYear=>({calendarYear,legalFormGroup:row.legal,profitDeterminationMethod:row.profit,
-      hasCashRegister:row.number==="10001",hasPayroll:false,hasFixedAssets:row.profit==="Bilanzierung",
+      hasCashRegister:row.number==="10001",hasPayroll:row.number==="10005",hasFixedAssets:row.profit==="Bilanzierung",
       hasReceivablesPayables:row.profit==="Bilanzierung",hasLoans:row.number==="10002",subjectToVat:true,hasPermanentExtension:false}))},
   }});
   clients.set(row.number,client);
@@ -131,6 +133,19 @@ await prisma.customClientTask.create({data:{
   categoryId:categories.get("Allgemein")!,active:true,taskType:"Wiederkehrend monatlich",validFrom:new Date("2026-01-01T00:00:00Z"),
   processor:"Maria Muster",reviewer:"Paul Prüfung",
 }});
+await prisma.customClientTask.createMany({data:[
+  {
+    clientId:clients.get("10005")!.id,title:"Künstliche wiederkehrende MVZ-Abstimmung",description:"Ausschließlich künstliche Abnahmeaufgabe.",
+    categoryId:categories.get("Allgemein")!,active:true,taskType:"Wiederkehrend monatlich",validFrom:new Date("2026-01-01T00:00:00Z"),
+    executionRhythm:"Monatlich",executionMonths:"1;2;3;4;5;6;7;8;9;10;11;12",taskArea:"Laufende Bearbeitung",
+    processor:"Max Beispiel",reviewer:"Paul Prüfung",
+  },
+  {
+    clientId:clients.get("10005")!.id,title:"Künstliche einmalige MVZ-Unterlagenprüfung",description:"Ausschließlich künstliche Abnahmeaufgabe.",
+    categoryId:categories.get("Allgemein")!,active:true,taskType:"Einmalig",validFrom:new Date("2026-01-01T00:00:00Z"),
+    executionYear:2026,executionMonth:10,processor:"Max Beispiel",reviewer:"Paul Prüfung",
+  },
+]});
 
 async function finishMandatory(periodId:number,actor:string){
   const tasks=await prisma.checklistTask.findMany({where:{periodId}});

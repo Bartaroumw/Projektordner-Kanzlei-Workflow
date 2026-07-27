@@ -3,7 +3,6 @@ import { prisma } from "@/lib/prisma";
 import {
   completeRework,
   createMonthlyPeriod,
-  hasRoleConflict,
   reopenPeriod,
   reviewChecklistTask,
   transitionPeriod,
@@ -139,9 +138,13 @@ describe("Nachbearbeitung und Abschluss", () => {
     expect(await prisma.workflowHistory.findUnique({ where: { id: created.id } })).toEqual(created);
   });
 
-  it("erkennt identische Bearbeiter- und Prüferkürzel als Warnung", () => {
-    expect(hasRoleConflict("XX", "XX")).toBe(true);
-    expect(hasRoleConflict("BA", "PR")).toBe(false);
+  it("protokolliert Bearbeitung und Prüfung als getrennte Statusschritte", async () => {
+    const { period, task } = await inReview();
+    await reviewChecklistTask(task.id, { reviewStatus: "In Ordnung", reviewerInitials: "PR", reviewNote: "" });
+    await transitionPeriod(period.id, "COMPLETE_REVIEW", "PR");
+    const entries=await prisma.workflowHistory.findMany({where:{periodId:period.id},orderBy:{id:"asc"}});
+    expect(entries.some(entry=>entry.description.includes("Funktion Bearbeiter"))).toBe(true);
+    expect(entries.some(entry=>entry.description.includes("Funktion Prüfer"))).toBe(true);
   });
 });
 

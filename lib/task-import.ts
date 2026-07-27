@@ -9,6 +9,7 @@ import {
   validateStandardTaskInput,
   type StandardTaskInput,
 } from "@/lib/standard-task-validation";
+import { ALL_MONTHS, normalizeExecutionRhythm, serializeExecutionMonths } from "@/lib/task-execution-planning";
 
 export const TASK_IMPORT_HEADERS = [
   "Aufgaben-ID",
@@ -101,6 +102,8 @@ function taskComparable(task: StandardTaskInput | ExistingTask) {
     mandatory: task.mandatory,
     rhythm: task.rhythm,
     executionMonth: task.executionMonth,
+    executionMonths: task.executionMonths,
+    taskArea: task.taskArea,
     legalFormGroups: task.legalFormGroups,
     profitDeterminationMethods: task.profitDeterminationMethods,
     cashCondition: task.cashCondition,
@@ -122,18 +125,42 @@ function sameTask(a: StandardTaskInput, b: ExistingTask) {
 }
 
 function parseRow(row: unknown[], rowNumber: number) {
+  const checklistType = text(row[2]);
+  const legacyRhythm = text(row[9]);
+  const executionMonth = integer(row[10], "Ausführungsmonat", true);
+  let rhythm = legacyRhythm;
+  let executionMonths: string | null = null;
+  try {
+    rhythm = normalizeExecutionRhythm(legacyRhythm);
+    executionMonths = checklistType === "Jahresabschluss" ? null :
+      rhythm === "Monatlich" ? serializeExecutionMonths(ALL_MONTHS) :
+      rhythm === "Vierteljährlich" ? "3;6;9;12" :
+      executionMonth ? String(executionMonth) :
+      rhythm === "Jährlich" ? "1" : null;
+  } catch (error) {
+    return {
+      errors: [{
+        row: rowNumber,
+        taskId: text(row[0]),
+        column: "Rhythmus",
+        message: error instanceof Error ? error.message : "Der Rhythmus ist ungültig.",
+      }],
+    };
+  }
   const raw = {
     taskId: text(row[0]),
     active: yesNo(row[1], "Aktiv"),
-    checklistType: text(row[2]),
+    checklistType,
     categoryName: text(row[3]),
     subcategory: text(row[4]),
     title: text(row[5]),
     workInstruction: text(row[6]),
     reviewInstruction: text(row[7]),
     mandatory: yesNo(row[8], "Pflichtaufgabe"),
-    rhythm: text(row[9]),
-    executionMonth: integer(row[10], "Ausführungsmonat", true),
+    rhythm,
+    executionMonth,
+    executionMonths,
+    taskArea: "",
     legalFormGroups: text(row[11]),
     profitDeterminationMethods: text(row[12]),
     cashCondition: text(row[13]),
@@ -175,6 +202,7 @@ function fieldToColumn(field: string) {
     mandatory: "Pflichtaufgabe",
     rhythm: "Rhythmus",
     executionMonth: "Ausführungsmonat",
+    executionMonths: "Ausführungsmonat",
     legalFormGroups: "Rechtsformgruppe",
     profitDeterminationMethods: "Gewinnermittlungsart",
     cashCondition: "Kasse",

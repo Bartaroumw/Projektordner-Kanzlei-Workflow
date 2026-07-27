@@ -19,10 +19,10 @@ export function AppShell({ children, user }: { children: React.ReactNode; user:A
   }, [pathname]);
 
   if(pathname==="/anmelden") return children;
-  const canStandards=Boolean(user?.roles.some(role=>["KANZLEILEITUNG","STANDARDAUFGABEN_VERWALTEN"].includes(role)));
+  const canStandards=Boolean(user?.roles.some(role=>["KANZLEILEITUNG","STANDARDAUFGABEN_VERWALTEN","ORDO_CAMPUS_VERWALTEN"].includes(role)));
   const canUsers=Boolean(user?.roles.includes("ADMINISTRATOR"));
   const hasProfessionalAccess=Boolean(user?.roles.some(role=>["MITARBEITER","PRUEFER","KANZLEILEITUNG","MANDANTEN_VERWALTEN"].includes(role)));
-  const navigation=[{label:"Dashboard",href:"/"},...(hasProfessionalAccess?[{label:"Mandanten",href:"/mandanten"},{label:"Monatschecklisten",href:"/monatschecklisten"}]:[]),...(canStandards?[{label:"Standardaufgaben",href:"/standardaufgaben"}]:[]),...(canUsers?[{label:"Benutzerverwaltung",href:"/administration/benutzer"},{label:"Testdaten-Diagnose",href:"/administration/diagnose"}]:[])];
+  const navigation=[{label:"Dashboard",href:"/"},...(hasProfessionalAccess?[{label:"Mandanten",href:"/mandanten"},{label:"Rechnungswesenaufgaben",href:"/monatschecklisten"},{label:"Jahresabschlussaufgaben",href:"/jahresabschluesse"}]:[]),...(canStandards?[{label:"Standardaufgaben",href:"/standardaufgaben"}]:[]),...(canUsers?[{label:"Benutzerverwaltung",href:"/administration/benutzer"},{label:"Testdaten-Diagnose",href:"/administration/diagnose"}]:[])];
   return (
     <div className="min-h-screen bg-[var(--color-background)] text-[var(--color-text)]">
       <ToastMessage key={queryMessage?.message} message={queryMessage?.message} type={queryMessage?.type}/>
@@ -44,6 +44,8 @@ export function AppShell({ children, user }: { children: React.ReactNode; user:A
                       ? pathname.startsWith("/mandanten")
                       : entry.href === "/monatschecklisten"
                         ? pathname.startsWith("/monatschecklisten")
+                      : entry.href === "/jahresabschluesse"
+                        ? pathname.startsWith("/jahresabschluesse")
                       : entry.href === "/standardaufgaben"
                         ? pathname.startsWith("/standardaufgaben")
                         : false;

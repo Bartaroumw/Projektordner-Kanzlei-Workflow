@@ -7,6 +7,7 @@ import { ClickableTableRow } from "@/app/components/clickable-table-row";
 import { ToastMessage } from "@/app/components/toast-message";
 import { requireUser } from "@/lib/auth";
 import { canViewClient } from "@/lib/permissions";
+import { annualProgress } from "@/lib/annual-checklist-service";
 
 const messages: Record<string, string> = {
   angelegt: "Der Mandant wurde erfolgreich angelegt.",
@@ -33,6 +34,10 @@ export default async function ClientDetailPage({
         where: { checklistType: "Monat" },
         include: { tasks: { select: { status: true, mandatorySnapshot: true, reviewStatus: true, processingNote: true } } },
         orderBy: [{ calendarYear: "desc" }, { month: "desc" }],
+      },
+      annualChecklists: {
+        include: { tasks: { select: { status: true, mandatorySnapshot: true, reviewStatus: true } } },
+        orderBy: { fiscalYear: "desc" },
       },
     },
   });
@@ -74,8 +79,14 @@ export default async function ClientDetailPage({
         </div>
       </section>
 
+
       <section className="mt-7">
-        <div className="mb-3 flex flex-wrap items-center justify-between gap-3"><div><h2 className="text-lg font-semibold">Monatschecklisten</h2><p className="mt-1 text-sm text-slate-600">Lückenlose monatliche Bearbeitungsfolge.</p></div>{(!latest||latest.processingStatus==="Abgeschlossen")&&<Link className="button-primary" href={actionHref}>{actionLabel}</Link>}</div>
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-3"><div><h2 className="text-lg font-semibold">Jahresabschlussaufgaben</h2><p className="mt-1 text-sm text-slate-600">Stichtagsbezogene Abschlussbearbeitung mit zusätzlicher Kanzleileitungsfreigabe.</p></div>{client.annualProfiles[0]&&!client.annualChecklists.some(item=>item.fiscalYear===client.annualProfiles[0].calendarYear)&&<Link className="button-primary" href={`/jahresabschluesse/neu?clientId=${client.id}&fiscalYear=${client.annualProfiles[0].calendarYear}`}>Jahresabschlusscheckliste für {client.annualProfiles[0].calendarYear} anlegen</Link>}</div>
+        <div className="overflow-x-auto rounded-lg border bg-white"><table className="w-full min-w-[1100px] text-left text-sm"><thead className="bg-[var(--color-primary-light)]"><tr>{["Wirtschaftsjahr","Status","Fortschritt","Offene Pflicht","Bearbeiter","Prüfer","Kanzleileitung","Letzte Änderung"].map(h=><th className="p-3" key={h}>{h}</th>)}</tr></thead><tbody>{client.annualChecklists.map(item=>{const progress=annualProgress(item.tasks);return <ClickableTableRow href={`/jahresabschluesse/${item.id}`} className="border-t" key={item.id}><td className="p-3"><Link className="font-semibold text-[var(--color-primary-dark)]" href={`/jahresabschluesse/${item.id}`}>{item.fiscalYear}</Link></td><td className="p-3">{item.status}</td><td className="p-3">{progress.completed}/{progress.total} · {progress.percent} %</td><td className="p-3">{progress.mandatoryOpen}</td><td className="p-3">{item.processorNameSnapshot}</td><td className="p-3">{item.reviewerNameSnapshot}</td><td className="p-3">{item.managementNameSnapshot}</td><td className="p-3">{formatDate(item.updatedAt)}</td></ClickableTableRow>})}{!client.annualChecklists.length&&<tr><td colSpan={8} className="p-8 text-center text-slate-500">Noch keine Jahresabschlusscheckliste vorhanden.</td></tr>}</tbody></table></div>
+      </section>
+
+      <section className="mt-7">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-3"><div><h2 className="text-lg font-semibold">Rechnungswesenaufgaben</h2><p className="mt-1 text-sm text-slate-600">Lückenlose monatliche Bearbeitungsfolge.</p></div>{(!latest||latest.processingStatus==="Abgeschlossen")&&<Link className="button-primary" href={actionHref}>{actionLabel}</Link>}</div>
         {!activeChecklist&&<p className="mb-3 rounded border border-[var(--color-border)] bg-white p-4 text-sm">Für diesen Mandanten ist derzeit keine Monatscheckliste aktiv. Als Nächstes kann „{actionLabel}“ verwendet werden.</p>}
         <div className="overflow-x-auto rounded-lg border border-[var(--color-border)] bg-white shadow-sm"><table className="w-full min-w-[1200px] text-left text-sm"><thead className="bg-[var(--color-primary-light)]"><tr>{["Monat","Status","Fortschritt","Offene Pflicht","Offene Prüfpunkte","Bearbeiter","Prüfer","Kanzleileitung","Letzte Änderung"].map(h=><th className="p-3" key={h}>{h}</th>)}</tr></thead><tbody>
           {client.periods.map(period=>{const progress=calculateProgress(period.tasks);const summary=workflowSummary(period.tasks);return <ClickableTableRow href={`/monatschecklisten/${period.id}`} className="border-t border-[var(--color-border)]" key={period.id}><td className="p-3"><Link className="font-semibold text-[var(--color-primary-dark)]" href={`/monatschecklisten/${period.id}`}>{period.periodLabel}</Link></td><td className="p-3">{period.processingStatus}</td><td className="p-3">{progress.completed}/{progress.total} · {progress.percent} %</td><td className="p-3">{progress.mandatoryOpen}</td><td className="p-3">{summary.openReviewPoints}</td><td className="p-3">{textOrDash(period.processorSnapshot)}</td><td className="p-3">{textOrDash(period.reviewerSnapshot)}</td><td className="p-3">{textOrDash(period.managementNameSnapshot)}</td><td className="p-3">{formatDate(period.updatedAt)}</td></ClickableTableRow>})}

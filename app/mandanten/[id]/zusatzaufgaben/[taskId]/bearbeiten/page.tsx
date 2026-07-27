@@ -5,6 +5,7 @@ import { CUSTOM_TASK_TYPES } from "@/lib/monthly-checklist-service";
 import { updateCustomTaskAction } from "@/app/monatschecklisten/actions";
 import { requireUser } from "@/lib/auth";
 import { canManageCustomTasks } from "@/lib/permissions";
+import { ExecutionPlanningFields } from "@/app/standardaufgaben/execution-planning-fields";
 
 export default async function EditCustomTask({params,searchParams}:{params:Promise<{id:string;taskId:string}>;searchParams:Promise<{fehler?:string}>}){
   const user=await requireUser();
@@ -23,6 +24,7 @@ export default async function EditCustomTask({params,searchParams}:{params:Promi
       <Field label="Titel"><input className="input" name="title" defaultValue={task.title} required/></Field><Field label="Kategorie"><select className="input" name="categoryId" defaultValue={task.categoryId}>{categories.map((c)=><option value={c.id} key={c.id}>{c.name}</option>)}</select></Field><Field label="Aufgabenart"><select className="input" name="taskType" defaultValue={task.taskType}>{CUSTOM_TASK_TYPES.map((v)=><option key={v}>{v}</option>)}</select></Field><label className="flex items-end gap-2 pb-3 text-sm font-semibold"><input type="checkbox" name="active" defaultChecked={task.active}/> Aktiv</label>
       <Field label="Gültig ab"><input className="input" name="validFrom" type="date" defaultValue={date(task.validFrom)} required/></Field><Field label="Gültig bis"><input className="input" name="validUntil" type="date" defaultValue={task.validUntil?date(task.validUntil):""}/></Field><Field label="Kalenderjahr (nur einmalig)"><input className="input" name="executionYear" type="number" min="2000" max="2100" defaultValue={task.executionYear??""}/></Field><Field label="Monat (nur einmalig)"><input className="input" name="executionMonth" type="number" min="1" max="12" defaultValue={task.executionMonth??""}/></Field>
       <Field label="Bearbeiter"><input className="input" name="processor" defaultValue={task.processor??""}/></Field><Field label="Prüfer"><input className="input" name="reviewer" defaultValue={task.reviewer??""}/></Field><div className="md:col-span-2"><Field label="Beschreibung"><textarea className="input min-h-24" name="description" defaultValue={task.description??""}/></Field></div>
+      <div className="md:col-span-2 xl:col-span-4"><ExecutionPlanningFields initialRhythm={task.executionRhythm??(task.taskType==="Wiederkehrend quartalsweise"?"Vierteljährlich":task.taskType==="Wiederkehrend jährlich"?"Jährlich":"Monatlich")} initialMonths={task.executionMonths} initialArea={task.taskArea} annualOnly={false} rhythmName="executionRhythm" monthsName="customExecutionMonths"/></div>
       <div className="md:col-span-2 xl:col-span-4 flex gap-2"><button className="button-primary">Speichern</button><Link className="button-secondary" href={`/mandanten/${id}/zusatzaufgaben/${task.id}`}>Abbrechen</Link></div>
     </form>
   </div>

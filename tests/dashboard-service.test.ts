@@ -126,11 +126,11 @@ describe("Datenbankauswertung ohne Workflowänderung", () => {
     expect(result.myReviews).toHaveLength(1);
   });
 
-  it("zeigt fehlendes Jahresprofil und identische Kürzel als Datenprobleme", async () => {
+  it("zeigt fehlendes Jahresprofil, aber keine personengleiche Zuordnung als Datenproblem", async () => {
     await createClient({ clientNumber: "DQ-1", processor: "XX", reviewer: "XX" }, false);
     const result = await getDashboardData({ year: 2026, month: 7 });
     expect(result.quality.some((item) => item.text.includes("Jahresprofil"))).toBe(true);
-    expect(result.quality.some((item) => item.text.includes("identisch"))).toBe(true);
+    expect(result.quality.some((item) => item.text.includes("identisch"))).toBe(false);
   });
 
   it("zeigt fehlende Kanzleileitung als Datenproblem", async () => {

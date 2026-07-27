@@ -1,12 +1,8 @@
 import { z } from "zod";
+import { ALL_MONTHS, EXECUTION_RHYTHMS, normalizeExecutionRhythm, serializeExecutionMonths, validateExecutionPlanning } from "@/lib/task-execution-planning";
 
-export const CHECKLIST_TYPES = ["Monat", "Jahresabschluss"] as const;
-export const TASK_RHYTHMS = [
-  "Monatlich",
-  "Quartalsweise",
-  "Bestimmter Monat",
-  "Jährlich",
-] as const;
+export const CHECKLIST_TYPES = ["Monat", "Jahresabschluss", "Beide"] as const;
+export const TASK_RHYTHMS = EXECUTION_RHYTHMS;
 export const TASK_LEGAL_FORMS = [
   "Alle",
   "Einzelunternehmen",
@@ -69,7 +65,7 @@ export const standardTaskSchema = z
       ),
     active: z.boolean(),
     checklistType: z.enum(CHECKLIST_TYPES, {
-      message: "Zulässig sind „Monat“ und „Jahresabschluss“.",
+      message: "Zulässig sind „Monat“, „Jahresabschluss“ und „Beide“.",
     }),
     categoryName: z.string().trim().min(1, "Die Kategorie ist erforderlich.").max(120),
     subcategory: optionalShortText,
@@ -79,6 +75,8 @@ export const standardTaskSchema = z
     mandatory: z.boolean(),
     rhythm: z.enum(TASK_RHYTHMS, { message: "Der Rhythmus ist ungültig." }),
     executionMonth: z.number().int().min(1).max(12).nullable(),
+    executionMonths: z.string().nullable().default(null),
+    taskArea: optionalShortText.default(null),
     legalFormGroups: z.string(),
     profitDeterminationMethods: z.string(),
     cashCondition: z.enum(FEATURE_CONDITIONS),
@@ -94,26 +92,23 @@ export const standardTaskSchema = z
     internalNote: optionalLongText,
   })
   .superRefine((value, context) => {
-    if (value.rhythm === "Bestimmter Monat" && value.executionMonth === null) {
-      context.addIssue({
-        code: "custom",
-        path: ["executionMonth"],
-        message: "Beim Rhythmus „Bestimmter Monat“ ist ein Monat von 1 bis 12 erforderlich.",
-      });
-    }
-    if (value.rhythm !== "Bestimmter Monat" && value.executionMonth !== null) {
-      context.addIssue({
-        code: "custom",
-        path: ["executionMonth"],
-        message: "Der Ausführungsmonat muss bei diesem Rhythmus leer bleiben.",
-      });
-    }
     if (value.checklistType === "Jahresabschluss" && value.rhythm !== "Jährlich") {
       context.addIssue({
         code: "custom",
         path: ["rhythm"],
         message: "Jahresabschlussaufgaben müssen den Rhythmus „Jährlich“ verwenden.",
       });
+    }
+    if (value.checklistType !== "Jahresabschluss") {
+      try {
+        validateExecutionPlanning(value.rhythm, value.executionMonths);
+      } catch (error) {
+        context.addIssue({
+          code: "custom",
+          path: ["executionMonths"],
+          message: error instanceof Error ? error.message : "Die Ausführungsplanung ist ungültig.",
+        });
+      }
     }
   });
 
@@ -125,8 +120,20 @@ export function validateStandardTaskInput(
     profitDeterminationMethods: unknown;
   },
 ) {
+  const normalizedRhythm = normalizeExecutionRhythm(String(raw.rhythm));
+  const legacyMonth = raw.executionMonth;
+  const normalizedMonths = raw.checklistType === "Jahresabschluss" ? null :
+    raw.executionMonths ??
+    (legacyMonth ? String(legacyMonth) :
+      normalizedRhythm === "Monatlich" ? serializeExecutionMonths(ALL_MONTHS) :
+      normalizedRhythm === "Vierteljährlich" ? "3;6;9;12" :
+      normalizedRhythm === "Halbjährlich" ? "6;12" :
+      normalizedRhythm === "Jährlich" ? "1" : null);
   const normalized = {
     ...raw,
+    rhythm: normalizedRhythm,
+    executionMonths: normalizedMonths,
+    taskArea: raw.taskArea ?? null,
     legalFormGroups: parseMultiValue(
       raw.legalFormGroups,
       TASK_LEGAL_FORMS,

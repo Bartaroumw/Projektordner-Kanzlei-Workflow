@@ -15,15 +15,17 @@ import {
   updatePeriod,
   updateChecklistRoles,
   transferChecklistTask,
+  addMissingStandardTasks,
 } from "@/lib/monthly-checklist-service";
 import { requireRole, requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { canManageClients, canManageCustomTasks, canProcessPeriod, canReviewPeriod, canUseAdministrationException, canViewClient } from "@/lib/permissions";
+import { serializeExecutionMonths } from "@/lib/task-execution-planning";
 
 async function processingUser(periodId:number){const user=await requireUser();const period=await prisma.accountingPeriod.findUniqueOrThrow({where:{id:periodId}});
   if(!canProcessPeriod(user,period))throw new Error("Sie dürfen diese Monatscheckliste nicht bearbeiten.");return {user,period};}
 async function reviewingUser(periodId:number){const user=await requireUser();const period=await prisma.accountingPeriod.findUniqueOrThrow({where:{id:periodId}});
-  if(!canReviewPeriod(user,period))throw new Error("Sie dürfen diese Monatscheckliste nicht prüfen. Das Vier-Augen-Prinzip bleibt verbindlich.");return {user,period};}
+  if(!canReviewPeriod(user,period))throw new Error("Sie dürfen diese Monatscheckliste nicht prüfen.");return {user,period};}
 
 export async function confirmPeriodAction(formData: FormData) {
   const user=await requireUser();
@@ -103,6 +105,18 @@ export async function updateChecklistTaskAction(taskId: number, periodId: number
   } catch (error) {
     if (isRedirect(error)) throw error;
     redirect(`/monatschecklisten/${periodId}?fehler=${encodeURIComponent(error instanceof Error ? error.message : "Die Aufgabe konnte nicht gespeichert werden.")}#aufgabe-${taskId}`);
+  }
+}
+
+export async function addMissingStandardTasksAction(periodId: number) {
+  const { user } = await processingUser(periodId);
+  try {
+    const result = await addMissingStandardTasks(periodId, user.fullName);
+    revalidatePath(`/monatschecklisten/${periodId}`);
+    redirect(`/monatschecklisten/${periodId}?erfolg=${result.added ? `ergaenzt-${result.added}` : "keine-fehlenden"}#aufgaben`);
+  } catch (error) {
+    if (isRedirect(error)) throw error;
+    redirect(`/monatschecklisten/${periodId}?fehler=${encodeURIComponent(error instanceof Error ? error.message : "Fehlende Standardaufgaben konnten nicht übernommen werden.")}#aufgaben`);
   }
 }
 
@@ -205,6 +219,9 @@ export async function createCustomTaskAction(clientId: number, formData: FormDat
       validUntil: formData.get("validUntil") ? new Date(`${String(formData.get("validUntil"))}T23:59:59Z`) : null,
       executionYear: formData.get("executionYear") ? Number(formData.get("executionYear")) : null,
       executionMonth: formData.get("executionMonth") ? Number(formData.get("executionMonth")) : null,
+      executionRhythm: String(formData.get("executionRhythm") ?? "") || null,
+      executionMonths: serializeExecutionMonths(formData.getAll("customExecutionMonths").map(Number)),
+      taskArea: String(formData.get("taskArea") ?? "") || null,
       processor: String(formData.get("processor") ?? ""),
       reviewer: String(formData.get("reviewer") ?? ""),
     });
@@ -241,6 +258,9 @@ function customInput(clientId: number, formData: FormData) {
     validUntil: formData.get("validUntil") ? new Date(`${String(formData.get("validUntil"))}T23:59:59Z`) : null,
     executionYear: formData.get("executionYear") ? Number(formData.get("executionYear")) : null,
     executionMonth: formData.get("executionMonth") ? Number(formData.get("executionMonth")) : null,
+    executionRhythm: String(formData.get("executionRhythm") ?? "") || null,
+    executionMonths: serializeExecutionMonths(formData.getAll("customExecutionMonths").map(Number)),
+    taskArea: String(formData.get("taskArea") ?? "") || null,
     processor: String(formData.get("processor") ?? ""),
     reviewer: String(formData.get("reviewer") ?? ""),
   };

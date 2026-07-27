@@ -4,9 +4,14 @@ import { resolve } from "node:path";
 
 const prismaDirectory = resolve("prisma");
 const databasePath = resolve(prismaDirectory, "dev.db");
+const storageRoot = resolve("storage", "ordo-campus");
+const projectStorage = resolve("storage");
 
 if (!databasePath.startsWith(`${prismaDirectory}\\`)) {
   throw new Error("Die Datenbank liegt nicht im vorgesehenen Prisma-Ordner.");
+}
+if (!storageRoot.startsWith(`${projectStorage}\\`)) {
+  throw new Error("Der Campus-Anhangsspeicher liegt nicht im vorgesehenen Projektordner.");
 }
 
 console.warn("WARNUNG: Die lokale künstliche Testdatenbank wird vollständig gelöscht und neu aufgebaut.");
@@ -14,6 +19,9 @@ for (const path of [databasePath, `${databasePath}-journal`, `${databasePath}-wa
   if (existsSync(path)) {
     rmSync(path);
   }
+}
+if (existsSync(storageRoot)) {
+  rmSync(storageRoot, { recursive: true });
 }
 
 const migrationFiles = readdirSync(resolve(prismaDirectory, "migrations"), {

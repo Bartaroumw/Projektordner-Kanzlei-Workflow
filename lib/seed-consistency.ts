@@ -18,7 +18,6 @@ export async function seedDiagnostics(prisma:PrismaClient){
     periods:periods.length,
     activePeriods:activePeriods.length,
     periodsWithoutUserReferences:periods.filter(period=>!period.processorUserId||!period.reviewerUserId||!period.managementUserId).length,
-    periodsWithRoleConflict:periods.filter(period=>period.processorUserId===period.reviewerUserId).length,
     orphanedUserReferences:clients.filter(client=>(client.processorUserId&&!client.processorUser)||(client.reviewerUserId&&!client.reviewerUser)||(client.managementUserId&&!client.managementUser)).length,
     clientsWithMultipleActivePeriods:[...activeByClient.values()].filter(count=>count>1).length,
     activePeriodsWithoutTasks:activePeriods.filter(period=>period.tasks.length===0).length,
@@ -39,7 +38,6 @@ export function validateSeedReport(report:Awaited<ReturnType<typeof seedDiagnost
   if(report.clientsWithoutReviewer)errors.push("Mandant ohne Prüfer");
   if(report.clientsWithoutManagement)errors.push("Mandant ohne Kanzleileitung");
   if(report.periodsWithoutUserReferences)errors.push("Checkliste ohne Rollenreferenz");
-  if(report.periodsWithRoleConflict)errors.push("Bearbeiter und Prüfer identisch");
   if(report.orphanedUserReferences)errors.push("verwaiste Benutzerreferenz");
   if(report.clientsWithMultipleActivePeriods)errors.push("mehr als eine aktive Checkliste pro Mandant");
   if(report.activePeriodsWithoutTasks)errors.push("aktive Checkliste ohne Aufgaben");

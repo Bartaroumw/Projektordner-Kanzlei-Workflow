@@ -1,6 +1,6 @@
 import type { AccountingPeriod, ChecklistTask, Client } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { calculateProgress, hasRoleConflict, workflowSummary } from "@/lib/monthly-checklist-service";
+import { calculateProgress, workflowSummary } from "@/lib/monthly-checklist-service";
 
 export type DashboardFilters = {
   year: number;
@@ -21,7 +21,7 @@ export type DashboardFilters = {
 
 export type DashboardPeriod = AccountingPeriod & {
   client: Client;
-  tasks: Pick<ChecklistTask, "status" | "mandatorySnapshot" | "reviewStatus" | "processingNote">[];
+  tasks: (Pick<ChecklistTask, "status" | "mandatorySnapshot" | "reviewStatus" | "processingNote"> & {id?:number})[];
   progress: ReturnType<typeof calculateProgress>;
   summary: ReturnType<typeof workflowSummary>;
 };
@@ -101,7 +101,7 @@ export async function getDashboardData(filters: DashboardFilters) {
       where: { calendarYear: filters.year, checklistType: "Monat" },
       include: {
         client: true,
-        tasks: { select: { status: true, mandatorySnapshot: true, reviewStatus: true, processingNote: true } },
+        tasks: { select: { id:true,status: true, mandatorySnapshot: true, reviewStatus: true, processingNote: true } },
       },
     }),
     prisma.client.findMany({
@@ -151,7 +151,6 @@ export async function getDashboardData(filters: DashboardFilters) {
       ...filteredClients.filter((client) => !client.processorUserId).map((client) => ({ key: `processor-user-${client.id}`, text: `${client.clientNumber}: Bearbeiter konnte keinem aktiven Benutzer zugeordnet werden.`, href: `/mandanten/${client.id}` })),
       ...filteredClients.filter((client) => !client.reviewerUserId).map((client) => ({ key: `reviewer-user-${client.id}`, text: `${client.clientNumber}: Prüfer konnte keinem aktiven Benutzer zugeordnet werden.`, href: `/mandanten/${client.id}` })),
       ...filteredClients.filter((client) => !client.managementUserId).map((client) => ({ key: `management-user-${client.id}`, text: `${client.clientNumber}: Kanzleileitung konnte keinem aktiven Benutzer zugeordnet werden.`, href: `/mandanten/${client.id}` })),
-      ...filteredClients.filter((client) => hasRoleConflict(client.processor, client.reviewer)).map((client) => ({ key: `roles-${client.id}`, text: `${client.clientNumber}: Bearbeiter und Prüfer sind identisch.`, href: `/mandanten/${client.id}` })),
       ...yearFiltered.filter((period) => period.tasks.length === 0).map((period) => ({ key: `empty-${period.id}`, text: `${period.client.clientNumber} ${period.periodLabel}: Monatscheckliste enthält keine Aufgaben.`, href: `/monatschecklisten/${period.id}` })),
       ...yearFiltered.filter((period) => !period.processorSnapshot || !period.reviewerSnapshot).map((period) => ({ key: `checklist-roles-${period.id}`, text: `${period.client.clientNumber} ${period.periodLabel}: Bearbeiter oder Prüfer fehlt.`, href: `/monatschecklisten/${period.id}` })),
     ],

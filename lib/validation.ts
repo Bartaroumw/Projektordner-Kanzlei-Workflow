@@ -54,7 +54,7 @@ export const clientSchema = z.object({
         ),
     )
     .transform((value) => value || null),
-}).superRefine((value,context)=>{if(value.processorUserId&&value.processorUserId===value.reviewerUserId)context.addIssue({code:"custom",path:["reviewerUserId"],message:"Bearbeiter und Prüfer müssen unterschiedliche aktive Benutzer sein."});});
+});
 
 export const annualProfileSchema = z
   .object({

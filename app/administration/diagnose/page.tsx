@@ -11,7 +11,7 @@ export default async function DiagnosePage(){
     activeUsers:"Aktive Benutzer",clients:"Mandanten",clientsWithoutProcessor:"Mandanten ohne Bearbeiter",
     clientsWithoutReviewer:"Mandanten ohne Prüfer",clientsWithoutManagement:"Mandanten ohne Kanzleileitung",
     periods:"Monatschecklisten",activePeriods:"Aktive Monatschecklisten",
-    periodsWithoutUserReferences:"Checklisten ohne Benutzerreferenzen",periodsWithRoleConflict:"Checklisten mit identischem Bearbeiter und Prüfer",
+    periodsWithoutUserReferences:"Checklisten ohne Benutzerreferenzen",
     orphanedUserReferences:"Verwaiste Benutzerreferenzen",clientsWithMultipleActivePeriods:"Mandanten mit mehreren aktiven Checklisten",
     activePeriodsWithoutTasks:"Aktive Checklisten ohne Aufgaben",inactiveAssignments:"Zuordnungen zu inaktiven Benutzern",
   };

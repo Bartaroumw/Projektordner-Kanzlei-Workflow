@@ -1,11 +1,13 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { updateClientAction } from "@/app/mandanten/actions";
 import { ClientForm } from "@/app/mandanten/client-form";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/auth";
+import { canManageClients } from "@/lib/permissions";
 
 export default async function EditClientPage({ params }: { params: Promise<{ id: string }> }) {
-  await requireUser();
+  const user=await requireUser();
+  if(!canManageClients(user))redirect("/zugriff-verweigert?bereich=Mandantenstammdaten");
   const id = Number((await params).id);
   const client = Number.isInteger(id) ? await prisma.client.findUnique({ where: { id } }) : null;
   if (!client) notFound();

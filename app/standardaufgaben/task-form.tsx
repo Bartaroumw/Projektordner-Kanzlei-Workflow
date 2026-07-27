@@ -1,14 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import type { StandardTask, TaskCategory } from "@prisma/client";
 import type { TaskFormState } from "@/app/standardaufgaben/actions";
 import {
   CHECKLIST_TYPES,
   FEATURE_CONDITIONS,
-  TASK_RHYTHMS,
 } from "@/lib/standard-task-validation";
+import { ExecutionPlanningFields } from "@/app/standardaufgaben/execution-planning-fields";
 
 type TaskWithCategory = StandardTask & { category: TaskCategory };
 
@@ -24,6 +24,7 @@ export function TaskForm({
   cancelHref: string;
 }) {
   const [state, formAction, pending] = useActionState(action, {});
+  const [checklistType, setChecklistType] = useState(task?.checklistType ?? "Monat");
   const error = (field: string) => state.fieldErrors?.[field]?.[0];
 
   return (
@@ -42,7 +43,7 @@ export function TaskForm({
             ) : <input className="input" name="taskId" required />}
           </Field>
           <Field label="Checklistenart" required error={error("checklistType")}>
-            <select className="input" name="checklistType" defaultValue={task?.checklistType ?? "Monat"}>
+            <select className="input" name="checklistType" value={checklistType} onChange={(event) => setChecklistType(event.target.value)}>
               {CHECKLIST_TYPES.map((value) => <option key={value}>{value}</option>)}
             </select>
           </Field>
@@ -75,16 +76,8 @@ export function TaskForm({
       </fieldset>
 
       <fieldset>
-        <legend className="mb-4 text-lg font-semibold">Gültigkeit und Rhythmus</legend>
-        <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
-          <Field label="Rhythmus" required error={error("rhythm")}>
-            <select className="input" name="rhythm" defaultValue={task?.rhythm ?? "Monatlich"}>
-              {TASK_RHYTHMS.map((value) => <option key={value}>{value}</option>)}
-            </select>
-          </Field>
-          <Field label="Ausführungsmonat" error={error("executionMonth")} hint="Nur bei „Bestimmter Monat“: 1 bis 12.">
-            <input className="input" type="number" min="1" max="12" name="executionMonth" defaultValue={task?.executionMonth ?? ""} />
-          </Field>
+        <legend className="mb-4 text-lg font-semibold">Gültigkeit</legend>
+        <div className="grid gap-5 md:grid-cols-2">
           <Field label="Rechtsformgruppen" required error={error("legalFormGroups")} hint="Mehrfachwerte mit Semikolon; „Alle“ nie kombinieren.">
             <input className="input" name="legalFormGroups" defaultValue={task?.legalFormGroups ?? "Alle"} required />
           </Field>
@@ -93,6 +86,14 @@ export function TaskForm({
           </Field>
         </div>
       </fieldset>
+
+      <ExecutionPlanningFields
+        initialRhythm={task?.rhythm ?? "Monatlich"}
+        initialMonths={task?.executionMonths ?? null}
+        initialArea={task?.taskArea ?? null}
+        annualOnly={checklistType === "Jahresabschluss"}
+        error={error("executionMonths") ?? error("rhythm")}
+      />
 
       <fieldset>
         <legend className="mb-4 text-lg font-semibold">Merkmalsbedingungen</legend>

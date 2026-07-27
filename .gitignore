@@ -29,6 +29,8 @@
 /tmp/
 /temp/
 /outputs/
+/backups/
+/storage/ordo-campus/
 *.tmp
 
 # misc

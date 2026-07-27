@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import {
   calculateProgress,
   createMonthlyPeriod,
+  addMissingStandardTasks,
   customTaskMatches,
   standardTaskMatches,
   updateChecklistTask,
@@ -53,6 +54,19 @@ describe("Auswahl der Standardaufgaben", () => {
     expect(await matches({ rhythm: "Bestimmter Monat", executionMonth: 5 }, 4)).toBe(false);
   });
   it("nimmt jährliche Aufgaben nicht in die Monatscheckliste auf", async () => expect(await matches({ rhythm: "Jährlich" }, 12)).toBe(false));
+  it("nimmt vierteljährliche Aufgaben nur in ihren konkreten Monaten auf", async () => {
+    expect(await matches({ rhythm: "Vierteljährlich", executionMonths: "1;4;7;10" }, 4)).toBe(true);
+    expect(await matches({ rhythm: "Vierteljährlich", executionMonths: "1;4;7;10" }, 3)).toBe(false);
+  });
+  it("nimmt halbjährliche und benutzerdefinierte Aufgaben nur passend auf", async () => {
+    expect(await matches({ rhythm: "Halbjährlich", executionMonths: "6;12" }, 6)).toBe(true);
+    expect(await matches({ rhythm: "Halbjährlich", executionMonths: "6;12" }, 7)).toBe(false);
+    expect(await matches({ rhythm: "Benutzerdefinierte Monate", executionMonths: "2;5" }, 5)).toBe(true);
+  });
+  it("nimmt eine jährliche Rechnungswesenaufgabe nur im ausgewählten Monat auf", async () => {
+    expect(await matches({ rhythm: "Jährlich", executionMonths: "1" }, 1)).toBe(true);
+    expect(await matches({ rhythm: "Jährlich", executionMonths: "1" }, 2)).toBe(false);
+  });
   it("akzeptiert Rechtsform Alle immer", async () => expect(await matches({ legalFormGroups: "Alle" }, 1)).toBe(true));
   it("nimmt eine passende Rechtsform auf", async () => expect(await matches({ legalFormGroups: "Einzelunternehmen" }, 1)).toBe(true));
   it("schließt eine unpassende Rechtsform aus", async () => expect(await matches({ legalFormGroups: "Kapitalgesellschaft" }, 1)).toBe(false));
@@ -93,6 +107,20 @@ describe("Perioden und Snapshots", () => {
     await prisma.standardTask.update({ where: { id: template.id }, data: { active: false } });
     expect(await prisma.checklistTask.count({ where: { periodId: period.id } })).toBe(1);
   });
+  it("löscht eine bestehende Aufgabe bei Rhythmusänderung nicht", async () => {
+    const template = await createTask({ executionMonths: "1;2;3;4;5;6;7;8;9;10;11;12" });
+    const period = await createMonthlyPeriod(clientId, 2026, 1);
+    await prisma.standardTask.update({ where: { id: template.id }, data: { rhythm: "Jährlich", executionMonths: "12" } });
+    expect(await prisma.checklistTask.count({ where: { periodId: period.id, standardTaskId: template.id } })).toBe(1);
+  });
+  it("ergänzt nur im Checklistenmonat gültige fehlende Aufgaben ohne Dublette", async () => {
+    const period = await createMonthlyPeriod(clientId, 2026, 1);
+    const january = await createTask({ rhythm: "Jährlich", executionMonths: "1" });
+    await createTask({ rhythm: "Jährlich", executionMonths: "2" });
+    expect((await addMissingStandardTasks(period.id, "Test Person")).added).toBe(1);
+    expect((await addMissingStandardTasks(period.id, "Test Person")).added).toBe(0);
+    expect(await prisma.checklistTask.count({ where: { periodId: period.id, standardTaskId: january.id } })).toBe(1);
+  });
 });
 
 describe("Mandantenspezifische Aufgaben und Bearbeitung", () => {
@@ -110,6 +138,14 @@ describe("Mandantenspezifische Aufgaben und Bearbeitung", () => {
     const period = await createMonthlyPeriod(clientId, 2026, 1);
     const task = await prisma.checklistTask.findFirstOrThrow({ where: { periodId: period.id } });
     await expect(updateChecklistTask(task.id, { status: "Nicht zutreffend", processingNote: "", processorInitials: "TA", notApplicableReason: "" })).rejects.toMatchObject({ code: "REASON_REQUIRED" });
+  });
+  it("bewahrt eine gespeicherte Begründung bei späterem Statuswechsel", async () => {
+    await createTask({ mandatory: true });
+    const period = await createMonthlyPeriod(clientId, 2026, 1);
+    const task = await prisma.checklistTask.findFirstOrThrow({ where: { periodId: period.id } });
+    await updateChecklistTask(task.id, { status: "Nicht zutreffend", processingNote: "", processorInitials: "TA", notApplicableReason: "Künstliche Begründung bleibt erhalten." });
+    await updateChecklistTask(task.id, { status: "Erledigt", processingNote: "", processorInitials: "TA", notApplicableReason: "" });
+    expect((await prisma.checklistTask.findUniqueOrThrow({ where: { id: task.id } })).notApplicableReason).toBe("Künstliche Begründung bleibt erhalten.");
   });
   it("berechnet den Fortschritt korrekt", () => {
     const progress = calculateProgress([

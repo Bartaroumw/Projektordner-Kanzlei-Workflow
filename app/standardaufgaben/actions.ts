@@ -13,6 +13,7 @@ import {
 } from "@/lib/standard-task-validation";
 import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/auth";
+import { ALL_MONTHS, serializeExecutionMonths } from "@/lib/task-execution-planning";
 
 export type TaskFormState = {
   error?: string;
@@ -37,9 +38,11 @@ function inputFromForm(formData: FormData):
     reviewInstruction: String(formData.get("reviewInstruction") ?? ""),
     mandatory: bool(formData, "mandatory"),
     rhythm: String(formData.get("rhythm") ?? ""),
-    executionMonth: formData.get("executionMonth")
-      ? Number(formData.get("executionMonth"))
-      : null,
+    executionMonth: null,
+    executionMonths: formData.getAll("executionMonths").length
+      ? serializeExecutionMonths(formData.getAll("executionMonths").map(Number))
+      : serializeExecutionMonths(ALL_MONTHS),
+    taskArea: String(formData.get("taskArea") ?? ""),
     legalFormGroups: String(formData.get("legalFormGroups") ?? ""),
     profitDeterminationMethods: String(formData.get("profitDeterminationMethods") ?? ""),
     cashCondition: String(formData.get("cashCondition") ?? ""),
@@ -83,11 +86,11 @@ export async function createTaskAction(
   _state: TaskFormState,
   formData: FormData,
 ): Promise<TaskFormState> {
-  await requireRole("KANZLEILEITUNG","STANDARDAUFGABEN_VERWALTEN");
+  const user = await requireRole("KANZLEILEITUNG","STANDARDAUFGABEN_VERWALTEN");
   const parsed = inputFromForm(formData);
   if (!parsed.success) return parsed.state;
   try {
-    const task = await createStandardTask(parsed.data);
+    const task = await createStandardTask(parsed.data, user);
     revalidatePath("/standardaufgaben");
     redirect(`/standardaufgaben/${task.id}?erfolg=angelegt`);
   } catch (error) {
@@ -101,11 +104,11 @@ export async function updateTaskAction(
   _state: TaskFormState,
   formData: FormData,
 ): Promise<TaskFormState> {
-  await requireRole("KANZLEILEITUNG","STANDARDAUFGABEN_VERWALTEN");
+  const user = await requireRole("KANZLEILEITUNG","STANDARDAUFGABEN_VERWALTEN");
   const parsed = inputFromForm(formData);
   if (!parsed.success) return parsed.state;
   try {
-    await updateStandardTask(id, parsed.data);
+    await updateStandardTask(id, parsed.data, user);
     revalidatePath("/standardaufgaben");
     redirect(`/standardaufgaben/${id}?erfolg=gespeichert`);
   } catch (error) {

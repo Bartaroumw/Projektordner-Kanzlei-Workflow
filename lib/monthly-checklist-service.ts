@@ -6,6 +6,7 @@ import type {
   TaskCategory,
 } from "@prisma/client";
 import { prisma } from "./prisma.ts";
+import { defaultExecutionMonths, executionPlanningMatches, serializeExecutionMonths, validateExecutionPlanning } from "./task-execution-planning.ts";
 
 export const PERIOD_STATUSES = ["Offen", "In Bearbeitung", "Zur Prüfung", "In Prüfung", "Nachbearbeitung", "Abgeschlossen"] as const;
 export const CHECKLIST_TASK_STATUSES = ["Offen", "In Bearbeitung", "Erledigt", "Nicht zutreffend", "In Folgemonat übertragen"] as const;
@@ -75,13 +76,10 @@ export function standardTaskMatches(
   _vatFilingPeriod: string,
   month: number,
 ) {
-  if (!task.active || task.checklistType !== "Monat") return false;
-  if (task.rhythm === "Jährlich") return false;
-  if (task.rhythm === "Quartalsweise") {
-    if (![3, 6, 9, 12].includes(month)) return false;
-  } else if (task.rhythm === "Bestimmter Monat" && task.executionMonth !== month) {
-    return false;
-  }
+  if (!task.active || !["Monat", "Beide"].includes(task.checklistType)) return false;
+  const executionMonths = task.executionMonths
+    ?? (task.executionMonth ? String(task.executionMonth) : serializeExecutionMonths(defaultExecutionMonths(task.rhythm)));
+  if (!executionPlanningMatches(executionMonths, month)) return false;
   return (
     multiMatches(task.legalFormGroups, profile.legalFormGroup) &&
     multiMatches(task.profitDeterminationMethods, profile.profitDeterminationMethod) &&
@@ -111,6 +109,7 @@ export function customTaskMatches(
   if (task.taskType === "Einmalig") {
     return task.executionYear === year && task.executionMonth === month;
   }
+  if (task.executionMonths) return executionPlanningMatches(task.executionMonths, month);
   return task.taskType === "Wiederkehrend monatlich";
 }
 
@@ -383,7 +382,7 @@ export async function updateChecklistTask(
         status: input.status,
         processingNote: input.processingNote.trim() || null,
         processorInitials: input.processorInitials.trim() || period.processorSnapshot,
-        notApplicableReason: input.status === "Nicht zutreffend" ? reason : null,
+        notApplicableReason: input.status === "Nicht zutreffend" ? reason : task.notApplicableReason,
         processedAt: processed ? new Date() : null,
       },
     });
@@ -421,6 +420,61 @@ export async function updateChecklistTask(
     }
     return updated;
   });
+}
+
+export async function addMissingStandardTasks(periodId: number, actorName: string) {
+  const period = await prisma.accountingPeriod.findUnique({
+    where: { id: periodId },
+    include: { tasks: true, client: true },
+  });
+  if (!period) throw new MonthlyChecklistError("INVALID_INPUT", "Die Monatscheckliste wurde nicht gefunden.");
+  if (period.processingStatus === "Abgeschlossen") throw new MonthlyChecklistError("PERIOD_CLOSED", "Eine abgeschlossene Monatscheckliste kann nicht ergänzt werden.");
+  const profile = {
+    id: 0,
+    clientId: period.clientId,
+    calendarYear: period.calendarYear,
+    legalFormGroup: period.profileLegalFormGroup,
+    profitDeterminationMethod: period.profileProfitDeterminationMethod,
+    hasCashRegister: period.profileHasCashRegister,
+    hasPayroll: period.profileHasPayroll,
+    hasFixedAssets: period.profileHasFixedAssets,
+    hasReceivablesPayables: period.profileHasReceivablesPayables,
+    hasLoans: period.profileHasLoans,
+    subjectToVat: period.profileSubjectToVat,
+    hasPermanentExtension: period.profileHasPermanentExtension,
+    createdAt: period.createdAt,
+    updatedAt: period.updatedAt,
+  };
+  const existingIds = new Set(period.tasks.flatMap((task) => task.standardTaskId ? [task.standardTaskId] : []));
+  const matching = (await prisma.standardTask.findMany({ include: { category: true } }))
+    .filter((task) => !existingIds.has(task.id) && standardTaskMatches(task, profile, period.client.vatFilingPeriod, period.month));
+  if (!matching.length) return { added: 0 };
+  await prisma.$transaction(async (transaction) => {
+    await transaction.checklistTask.createMany({ data: matching.map((task) => ({
+      periodId,
+      standardTaskId: task.id,
+      taskIdSnapshot: task.taskId,
+      categorySnapshot: task.category.name,
+      categorySortOrder: task.category.sortOrder,
+      subcategorySnapshot: task.subcategory,
+      titleSnapshot: task.title,
+      workInstructionSnapshot: task.workInstruction,
+      reviewInstructionSnapshot: task.reviewInstruction,
+      mandatorySnapshot: task.mandatory,
+      sortOrderSnapshot: task.sortOrder,
+      professionalVersionSnapshot: task.professionalVersion,
+      origin: "Standardaufgabe nachträglich übernommen",
+    })) });
+    await transaction.workflowHistory.create({ data: {
+      periodId,
+      eventType: "Fehlende Standardaufgaben übernommen",
+      actorInitials: actorName,
+      ...await actorAudit(actorName),
+      description: `${matching.length} für ${period.periodLabel} gültige Standardaufgabe${matching.length === 1 ? "" : "n"} wurden kontrolliert ergänzt.`,
+      newValue: String(matching.length),
+    } });
+  });
+  return { added: matching.length };
 }
 
 export async function transferChecklistTask(
@@ -528,10 +582,14 @@ export async function updateChecklistRoles(periodId: number, input: {
   if (!reason || !actor) throw new MonthlyChecklistError("REASON_REQUIRED", "Rollenänderung verlangt Begründung und handelnde Person.");
   const checklist = await prisma.accountingPeriod.findUnique({ where: { id: periodId } });
   if (!checklist || checklist.processingStatus === "Abgeschlossen") throw new MonthlyChecklistError("PERIOD_CLOSED", "Nur eine laufende Monatscheckliste kann Rollen ändern.");
-  if(input.processorUserId&&input.processorUserId===input.reviewerUserId)throw new MonthlyChecklistError("INVALID_INPUT","Bearbeiter und Prüfer müssen unterschiedliche Benutzer sein.");
   const ids=[input.processorUserId,input.reviewerUserId,input.managementUserId].filter((id):id is number=>Boolean(id));
-  const users=await prisma.user.findMany({where:{id:{in:ids},active:true}});
+  const users=await prisma.user.findMany({where:{id:{in:ids},active:true},include:{roles:true}});
   if(users.length!==new Set(ids).size)throw new MonthlyChecklistError("INVALID_INPUT","Nur aktive Benutzer dürfen zugeordnet werden.");
+  const roles=(id:number|null|undefined)=>new Set(users.find(user=>user.id===id)?.roles.map(entry=>entry.role)??[]);
+  const hasAny=(id:number|null|undefined,allowed:string[])=>id===null||id===undefined||allowed.some(role=>roles(id).has(role));
+  if(!hasAny(input.processorUserId,["MITARBEITER","PRUEFER","KANZLEILEITUNG"]))throw new MonthlyChecklistError("INVALID_INPUT","Der ausgewählte Bearbeiter besitzt keine fachliche Bearbeitungsrolle.");
+  if(!hasAny(input.reviewerUserId,["PRUEFER","KANZLEILEITUNG"]))throw new MonthlyChecklistError("INVALID_INPUT","Der ausgewählte Prüfer besitzt keine Prüferrolle.");
+  if(!hasAny(input.managementUserId,["KANZLEILEITUNG"]))throw new MonthlyChecklistError("INVALID_INPUT","Die ausgewählte Person besitzt keine Kanzleileitungsrolle.");
   const names=new Map(users.map(user=>[user.id,user.fullName]));
   const next = {
     processorUserId:input.processorUserId??null,reviewerUserId:input.reviewerUserId??null,managementUserId:input.managementUserId??null,
@@ -569,10 +627,6 @@ export function workflowSummary(tasks: Array<{
     openReviewPoints: tasks.filter((task) => task.status !== "In Folgemonat übertragen" && ["Rückfrage", "Beanstandung"].includes(task.reviewStatus)).length,
     objections: tasks.filter((task) => task.status !== "In Folgemonat übertragen" && task.reviewStatus === "Beanstandung").length,
   };
-}
-
-export function hasRoleConflict(processor: string | null, reviewer: string | null) {
-  return Boolean(processor?.trim() && reviewer?.trim() && processor.trim() === reviewer.trim());
 }
 
 export async function transitionPeriod(
@@ -622,8 +676,9 @@ export async function transitionPeriod(
       where: { id: periodId },
       data: { ...periodData, processingStatus: nextStatus },
     });
+    const functionName=["BEGIN_REVIEW","RETURN_REWORK","COMPLETE_REVIEW"].includes(action)?"Prüfer":"Bearbeiter";
     await transaction.workflowHistory.create({
-      data: { periodId, eventType, actorInitials: actor || null, ...await actorAudit(actor), description, previousValue: period.processingStatus, newValue: nextStatus },
+      data: { periodId, eventType, actorInitials: actor || null, ...await actorAudit(actor), description:`${description} Ausgeführt durch ${actor} in der Funktion ${functionName}.`, previousValue: period.processingStatus, newValue: nextStatus },
     });
     return updated;
   });
@@ -665,7 +720,7 @@ export async function reviewChecklistTask(
       data: {
         periodId: task.periodId, checklistTaskId: task.id, eventType, actorInitials: reviewer,
         ...await actorAudit(reviewer),
-        description: `Prüfstatus von ${task.taskIdSnapshot} wurde auf „${input.reviewStatus}“ gesetzt.`,
+        description: `Prüfstatus von ${task.taskIdSnapshot} wurde auf „${input.reviewStatus}“ gesetzt durch ${reviewer} in der Funktion Prüfer.`,
         previousValue: task.reviewStatus, newValue: input.reviewStatus,
       },
     });
@@ -749,6 +804,9 @@ export async function createCustomClientTask(input: {
   validUntil: Date | null;
   executionYear: number | null;
   executionMonth: number | null;
+  executionRhythm?: string | null;
+  executionMonths?: string | null;
+  taskArea?: string | null;
   processor: string;
   reviewer: string;
 }) {
@@ -764,6 +822,15 @@ export async function createCustomClientTask(input: {
   ) {
     throw new MonthlyChecklistError("INVALID_INPUT", "Eine einmalige Aufgabe benötigt Kalenderjahr und Monat.");
   }
+  if (input.taskType !== "Einmalig" && input.executionRhythm) {
+    try {
+      const planning = validateExecutionPlanning(input.executionRhythm, input.executionMonths);
+      input.executionRhythm = planning.rhythm;
+      input.executionMonths = planning.serializedMonths;
+    } catch (error) {
+      throw new MonthlyChecklistError("INVALID_INPUT", error instanceof Error ? error.message : "Die Ausführungsplanung ist ungültig.");
+    }
+  }
   return prisma.customClientTask.create({
     data: {
       ...input,
@@ -773,6 +840,9 @@ export async function createCustomClientTask(input: {
       reviewer: input.reviewer.trim() || null,
       executionYear: input.taskType === "Einmalig" ? input.executionYear : null,
       executionMonth: input.taskType === "Einmalig" ? input.executionMonth : null,
+      executionRhythm: input.taskType === "Einmalig" ? null : input.executionRhythm ?? null,
+      executionMonths: input.taskType === "Einmalig" ? null : input.executionMonths ?? null,
+      taskArea: input.taskArea?.trim() || null,
     },
   });
 }
@@ -794,6 +864,15 @@ export async function updateCustomClientTask(
   if (input.taskType === "Einmalig" && (!input.executionYear || !input.executionMonth || input.executionMonth < 1 || input.executionMonth > 12)) {
     throw new MonthlyChecklistError("INVALID_INPUT", "Eine einmalige Aufgabe benötigt Kalenderjahr und Monat.");
   }
+  if (input.taskType !== "Einmalig" && input.executionRhythm) {
+    try {
+      const planning = validateExecutionPlanning(input.executionRhythm, input.executionMonths);
+      input.executionRhythm = planning.rhythm;
+      input.executionMonths = planning.serializedMonths;
+    } catch (error) {
+      throw new MonthlyChecklistError("INVALID_INPUT", error instanceof Error ? error.message : "Die Ausführungsplanung ist ungültig.");
+    }
+  }
   return prisma.customClientTask.update({
     where: { id },
     data: {
@@ -806,6 +885,9 @@ export async function updateCustomClientTask(
       validUntil: input.validUntil,
       executionYear: input.taskType === "Einmalig" ? input.executionYear : null,
       executionMonth: input.taskType === "Einmalig" ? input.executionMonth : null,
+      executionRhythm: input.taskType === "Einmalig" ? null : input.executionRhythm ?? null,
+      executionMonths: input.taskType === "Einmalig" ? null : input.executionMonths ?? null,
+      taskArea: input.taskArea?.trim() || null,
       processor: input.processor.trim() || null,
       reviewer: input.reviewer.trim() || null,
     },

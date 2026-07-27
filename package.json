@@ -15,6 +15,7 @@
     "db:reset": "node scripts/reset-database.mjs",
     "db:reset:test": "node scripts/reset-database.mjs",
     "db:diagnose": "node --experimental-transform-types scripts/diagnose-test-data.ts"
+    ,"db:seed:annual": "node --experimental-transform-types scripts/seed-annual-test-data.ts"
   },
   "dependencies": {
     "@prisma/client": "^6.19.3",

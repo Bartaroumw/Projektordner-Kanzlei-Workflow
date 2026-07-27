@@ -2,9 +2,12 @@ import { createClientAction } from "@/app/mandanten/actions";
 import { ClientForm } from "@/app/mandanten/client-form";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/auth";
+import { canManageClients } from "@/lib/permissions";
+import { redirect } from "next/navigation";
 
 export default async function NewClientPage() {
-  await requireUser();
+  const user=await requireUser();
+  if(!canManageClients(user))redirect("/zugriff-verweigert?bereich=Mandantenstammdaten");
   const users=await prisma.user.findMany({where:{active:true},include:{roles:true},orderBy:{fullName:"asc"}});
   return (
     <div className="max-w-4xl">

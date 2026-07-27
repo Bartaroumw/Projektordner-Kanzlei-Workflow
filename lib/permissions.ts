@@ -1,4 +1,4 @@
-export const ROLES = ["MITARBEITER", "PRUEFER", "KANZLEILEITUNG", "ADMINISTRATOR", "MANDANTEN_VERWALTEN", "MANDANTENSPEZIFISCHE_AUFGABEN_VERWALTEN", "STANDARDAUFGABEN_VERWALTEN"] as const;
+export const ROLES = ["MITARBEITER", "PRUEFER", "KANZLEILEITUNG", "ADMINISTRATOR", "MANDANTEN_VERWALTEN", "MANDANTENSPEZIFISCHE_AUFGABEN_VERWALTEN", "STANDARDAUFGABEN_VERWALTEN", "ORDO_CAMPUS_VERWALTEN"] as const;
 export type Role = typeof ROLES[number];
 
 export type AuthUser = {
@@ -20,6 +20,14 @@ export function canManageUsers(user: AuthUser) {
 
 export function canManageStandardTasks(user: AuthUser) {
   return hasRole(user, "KANZLEILEITUNG", "STANDARDAUFGABEN_VERWALTEN");
+}
+
+export function canManageOrdoCampus(user: AuthUser) {
+  return hasRole(user, "ORDO_CAMPUS_VERWALTEN");
+}
+
+export function canReadCampusReviewerGuidance(user: AuthUser) {
+  return hasRole(user, "PRUEFER", "KANZLEILEITUNG");
 }
 
 export function canManageClients(user: AuthUser) {
@@ -44,7 +52,29 @@ export function canProcessPeriod(user: AuthUser, period: { processorUserId: numb
 }
 
 export function canReviewPeriod(user: AuthUser, period: { processorUserId: number | null; reviewerUserId: number | null; managementUserId: number | null }) {
-  if (period.processorUserId === user.id) return false;
   return (period.reviewerUserId === user.id && hasRole(user, "PRUEFER", "KANZLEILEITUNG")) ||
     (period.managementUserId === user.id && hasRole(user, "KANZLEILEITUNG"));
+}
+
+export function canProcessAnnualChecklist(user: AuthUser, checklist: { processorUserId: number }) {
+  return checklist.processorUserId === user.id && hasRole(user, "MITARBEITER", "PRUEFER", "KANZLEILEITUNG");
+}
+
+export function canReviewAnnualChecklist(user: AuthUser, checklist: { processorUserId: number; reviewerUserId: number }) {
+  return checklist.reviewerUserId === user.id &&
+    hasRole(user, "PRUEFER", "KANZLEILEITUNG");
+}
+
+export function canReleaseAnnualChecklist(user: AuthUser, checklist: { processorUserId: number; managementUserId: number }) {
+  return checklist.managementUserId === user.id &&
+    hasRole(user, "KANZLEILEITUNG");
+}
+
+export function canViewAnnualChecklist(user: AuthUser, checklist: { processorUserId: number; reviewerUserId: number; managementUserId: number }) {
+  return hasRole(user, "KANZLEILEITUNG") ||
+    [checklist.processorUserId, checklist.reviewerUserId, checklist.managementUserId].includes(user.id);
+}
+
+export function canManageCustomAnnualTasks(user: AuthUser) {
+  return canManageCustomTasks(user);
 }

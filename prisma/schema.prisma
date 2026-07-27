@@ -8,28 +8,31 @@ datasource db {
 }
 
 model Client {
-  id              Int                @id @default(autoincrement())
-  clientNumber    String             @unique
-  name            String
-  processor       String?
-  reviewer        String?
-  team            String? // Veraltet: nur zur verlustfreien Altdaten-Kompatibilität
-  cadence         String // Veraltet: neue Logik verwendet vatFilingPeriod
-  vatFilingPeriod String             @default("Monatlich")
-  managementName  String?
-  processorUserId Int?
-  reviewerUserId  Int?
-  managementUserId Int?
-  active          Boolean            @default(true)
-  internalNote    String?
-  createdAt       DateTime           @default(now())
-  updatedAt       DateTime           @updatedAt
-  annualProfiles  AnnualProfile[]
-  periods         AccountingPeriod[]
-  customTasks     CustomClientTask[]
-  processorUser   User?              @relation("ClientProcessor", fields: [processorUserId], references: [id], onDelete: SetNull)
-  reviewerUser    User?              @relation("ClientReviewer", fields: [reviewerUserId], references: [id], onDelete: SetNull)
-  managementUser  User?              @relation("ClientManagement", fields: [managementUserId], references: [id], onDelete: SetNull)
+  id                           Int                           @id @default(autoincrement())
+  clientNumber                 String                        @unique
+  name                         String
+  processor                    String?
+  reviewer                     String?
+  team                         String? // Veraltet: nur zur verlustfreien Altdaten-Kompatibilität
+  cadence                      String // Veraltet: neue Logik verwendet vatFilingPeriod
+  vatFilingPeriod              String                        @default("Monatlich")
+  managementName               String?
+  processorUserId              Int?
+  reviewerUserId               Int?
+  managementUserId             Int?
+  active                       Boolean                       @default(true)
+  internalNote                 String?
+  createdAt                    DateTime                      @default(now())
+  updatedAt                    DateTime                      @updatedAt
+  annualProfiles               AnnualProfile[]
+  periods                      AccountingPeriod[]
+  customTasks                  CustomClientTask[]
+  annualChecklists             AnnualChecklist[]
+  customAnnualTasks            CustomAnnualTask[]
+  functionSeparationExceptions FunctionSeparationException[]
+  processorUser                User?                         @relation("ClientProcessor", fields: [processorUserId], references: [id], onDelete: SetNull)
+  reviewerUser                 User?                         @relation("ClientReviewer", fields: [reviewerUserId], references: [id], onDelete: SetNull)
+  managementUser               User?                         @relation("ClientManagement", fields: [managementUserId], references: [id], onDelete: SetNull)
 
   @@index([name])
   @@index([active])
@@ -74,18 +77,20 @@ model TaskCategory {
 }
 
 model StandardTask {
-  id                           Int             @id @default(autoincrement())
-  taskId                       String          @unique
-  active                       Boolean         @default(true)
+  id                           Int                               @id @default(autoincrement())
+  taskId                       String                            @unique
+  active                       Boolean                           @default(true)
   checklistType                String
   categoryId                   Int
   subcategory                  String?
   title                        String
   workInstruction              String?
   reviewInstruction            String?
-  mandatory                    Boolean         @default(false)
+  mandatory                    Boolean                           @default(false)
   rhythm                       String
   executionMonth               Int?
+  executionMonths              String?
+  taskArea                     String?
   legalFormGroups              String
   profitDeterminationMethods   String
   cashCondition                String
@@ -96,26 +101,127 @@ model StandardTask {
   vatCondition                 String
   permanentExtensionCondition  String
   knowledgeKey                 String?
-  sortOrder                    Int             @default(0)
+  sortOrder                    Int                               @default(0)
   professionalVersion          String
   internalNote                 String?
-  createdAt                    DateTime        @default(now())
-  updatedAt                    DateTime        @updatedAt
-  category                     TaskCategory    @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  createdAt                    DateTime                          @default(now())
+  updatedAt                    DateTime                          @updatedAt
+  category                     TaskCategory                      @relation(fields: [categoryId], references: [id], onDelete: Restrict)
   checklistTasks               ChecklistTask[]
+  annualChecklistTasks         AnnualChecklistTask[]
+  campusKnowledge              StandardTaskKnowledge?
+  campusKnowledgeHistory       StandardTaskKnowledgeHistory[]
+  campusAttachments            StandardTaskKnowledgeAttachment[]
+  planningHistory              StandardTaskPlanningHistory[]
 
   @@index([active, checklistType])
   @@index([categoryId, sortOrder])
 }
 
+model StandardTaskPlanningHistory {
+  id                Int          @id @default(autoincrement())
+  standardTaskId    Int
+  actorUserId       Int
+  actorNameSnapshot String
+  changedArea       String
+  previousValue     String?
+  newValue          String?
+  occurredAt        DateTime     @default(now())
+  standardTask      StandardTask @relation(fields: [standardTaskId], references: [id], onDelete: Restrict)
+  actorUser         User         @relation(fields: [actorUserId], references: [id], onDelete: Restrict)
+
+  @@index([standardTaskId, occurredAt])
+  @@index([actorUserId, occurredAt])
+}
+
+model StandardTaskKnowledge {
+  id                 Int                            @id @default(autoincrement())
+  standardTaskId     Int                            @unique
+  shortDescription   String?
+  objective          String?
+  processingGuidance String?
+  firmStandard       String?
+  reviewerGuidance   String?
+  typicalErrors      String?
+  internalHints      String?
+  status             String                         @default("Entwurf")
+  createdAt          DateTime                       @default(now())
+  updatedAt          DateTime                       @updatedAt
+  standardTask       StandardTask                   @relation(fields: [standardTaskId], references: [id], onDelete: Restrict)
+  links              StandardTaskKnowledgeLink[]
+  history            StandardTaskKnowledgeHistory[]
+
+  @@index([status, updatedAt])
+}
+
+model StandardTaskKnowledgeLink {
+  id          Int                   @id @default(autoincrement())
+  knowledgeId Int
+  title       String
+  url         String
+  linkType    String
+  description String?
+  sortOrder   Int                   @default(0)
+  active      Boolean               @default(true)
+  createdAt   DateTime              @default(now())
+  updatedAt   DateTime              @updatedAt
+  knowledge   StandardTaskKnowledge @relation(fields: [knowledgeId], references: [id], onDelete: Cascade)
+
+  @@index([knowledgeId, active, sortOrder])
+  @@index([title])
+}
+
+model StandardTaskKnowledgeHistory {
+  id                Int                   @id @default(autoincrement())
+  knowledgeId       Int
+  standardTaskId    Int
+  actorUserId       Int
+  actorNameSnapshot String
+  changedArea       String
+  description       String
+  occurredAt        DateTime              @default(now())
+  knowledge         StandardTaskKnowledge @relation(fields: [knowledgeId], references: [id], onDelete: Restrict)
+  standardTask      StandardTask          @relation(fields: [standardTaskId], references: [id], onDelete: Restrict)
+  actorUser         User                  @relation(fields: [actorUserId], references: [id], onDelete: Restrict)
+
+  @@index([standardTaskId, occurredAt])
+  @@index([actorUserId, occurredAt])
+}
+
+model StandardTaskKnowledgeAttachment {
+  id               Int          @id @default(autoincrement())
+  standardTaskId   Int
+  displayName      String
+  originalFileName String
+  storedFileName   String       @unique
+  storageKey       String       @unique
+  fileExtension    String
+  mimeType         String
+  fileSizeBytes    Int
+  description      String?
+  status           String       @default("Aktiv")
+  sortOrder        Int          @default(0)
+  uploadedAt       DateTime     @default(now())
+  uploadedByUserId Int
+  archivedAt       DateTime?
+  archivedByUserId Int?
+  standardTask     StandardTask @relation(fields: [standardTaskId], references: [id], onDelete: Restrict)
+  uploadedBy       User         @relation("CampusAttachmentUploader", fields: [uploadedByUserId], references: [id], onDelete: Restrict)
+  archivedBy       User?        @relation("CampusAttachmentArchiver", fields: [archivedByUserId], references: [id], onDelete: Restrict)
+
+  @@index([standardTaskId, status, sortOrder])
+  @@index([uploadedByUserId, uploadedAt])
+  @@index([archivedByUserId])
+}
+
 model AccountingPeriod {
-  id                               Int               @id @default(autoincrement())
+  id                               Int                          @id @default(autoincrement())
   clientId                         Int
   calendarYear                     Int
   month                            Int
   periodLabel                      String
-  checklistType                    String            @default("Monat")
-  processingStatus                 String            @default("Offen")
+  checklistType                    String                       @default("Monat")
+  processingStatus                 String                       @default("Offen")
   processorSnapshot                String?
   reviewerSnapshot                 String?
   managementNameSnapshot           String?
@@ -127,12 +233,12 @@ model AccountingPeriod {
   reviewStartedAt                  DateTime?
   returnedAt                       DateTime?
   lastReviewAt                     DateTime?
-  lastStatusChangedAt              DateTime          @default(now())
+  lastStatusChangedAt              DateTime                     @default(now())
   generalNote                      String?
-  checklistCreatedAt               DateTime          @default(now())
+  checklistCreatedAt               DateTime                     @default(now())
   completedAt                      DateTime?
-  createdAt                        DateTime          @default(now())
-  updatedAt                        DateTime          @updatedAt
+  createdAt                        DateTime                     @default(now())
+  updatedAt                        DateTime                     @updatedAt
   profileLegalFormGroup            String
   profileProfitDeterminationMethod String
   profileHasCashRegister           Boolean
@@ -142,12 +248,14 @@ model AccountingPeriod {
   profileHasLoans                  Boolean
   profileSubjectToVat              Boolean
   profileHasPermanentExtension     Boolean
-  client                           Client            @relation(fields: [clientId], references: [id], onDelete: Restrict)
+  client                           Client                       @relation(fields: [clientId], references: [id], onDelete: Restrict)
   tasks                            ChecklistTask[]
   history                          WorkflowHistory[]
-  processorUser                    User?             @relation("PeriodProcessor", fields: [processorUserId], references: [id], onDelete: SetNull)
-  reviewerUser                     User?             @relation("PeriodReviewer", fields: [reviewerUserId], references: [id], onDelete: SetNull)
-  managementUser                   User?             @relation("PeriodManagement", fields: [managementUserId], references: [id], onDelete: SetNull)
+  functionSeparationExceptionId    Int?                         @unique
+  processorUser                    User?                        @relation("PeriodProcessor", fields: [processorUserId], references: [id], onDelete: SetNull)
+  reviewerUser                     User?                        @relation("PeriodReviewer", fields: [reviewerUserId], references: [id], onDelete: SetNull)
+  managementUser                   User?                        @relation("PeriodManagement", fields: [managementUserId], references: [id], onDelete: SetNull)
+  functionSeparationException      FunctionSeparationException? @relation("PeriodFunctionSeparation", fields: [functionSeparationExceptionId], references: [id], onDelete: SetNull)
 
   @@unique([clientId, calendarYear, month, checklistType])
   @@index([calendarYear, month, processingStatus])
@@ -158,23 +266,23 @@ model AccountingPeriod {
 }
 
 model ChecklistTask {
-  id                          Int               @id @default(autoincrement())
+  id                          Int                   @id @default(autoincrement())
   periodId                    Int
   standardTaskId              Int?
   customClientTaskId          Int?
   sourceTaskId                Int?
   taskIdSnapshot              String
   categorySnapshot            String
-  categorySortOrder           Int               @default(0)
+  categorySortOrder           Int                   @default(0)
   subcategorySnapshot         String?
   titleSnapshot               String
   workInstructionSnapshot     String?
   reviewInstructionSnapshot   String?
-  mandatorySnapshot           Boolean           @default(false)
+  mandatorySnapshot           Boolean               @default(false)
   sortOrderSnapshot           Int?
   professionalVersionSnapshot String?
   origin                      String
-  status                      String            @default("Offen")
+  status                      String                @default("Offen")
   processingNote              String?
   processedAt                 DateTime?
   processorInitials           String?
@@ -185,7 +293,7 @@ model ChecklistTask {
   transferActorName           String?
   transferExpectedAction      String?
   transferredAt               DateTime?
-  reviewStatus                String            @default("Nicht geprüft")
+  reviewStatus                String                @default("Nicht geprüft")
   reviewerInitials            String?
   reviewNote                  String?
   reviewedAt                  DateTime?
@@ -194,14 +302,15 @@ model ChecklistTask {
   respondedBy                 String?
   respondedAt                 DateTime?
   finalReviewedAt             DateTime?
-  createdAt                   DateTime          @default(now())
-  updatedAt                   DateTime          @updatedAt
-  period                      AccountingPeriod  @relation(fields: [periodId], references: [id], onDelete: Restrict)
-  standardTask                StandardTask?     @relation(fields: [standardTaskId], references: [id], onDelete: SetNull)
-  customClientTask            CustomClientTask? @relation(fields: [customClientTaskId], references: [id], onDelete: SetNull)
-  sourceTask                  ChecklistTask?    @relation("TaskTransfer", fields: [sourceTaskId], references: [id], onDelete: Restrict)
-  transferredTasks            ChecklistTask[]   @relation("TaskTransfer")
+  createdAt                   DateTime              @default(now())
+  updatedAt                   DateTime              @updatedAt
+  period                      AccountingPeriod      @relation(fields: [periodId], references: [id], onDelete: Restrict)
+  standardTask                StandardTask?         @relation(fields: [standardTaskId], references: [id], onDelete: SetNull)
+  customClientTask            CustomClientTask?     @relation(fields: [customClientTaskId], references: [id], onDelete: SetNull)
+  sourceTask                  ChecklistTask?        @relation("TaskTransfer", fields: [sourceTaskId], references: [id], onDelete: Restrict)
+  transferredTasks            ChecklistTask[]       @relation("TaskTransfer")
   history                     WorkflowHistory[]
+  annualDerivedTasks          AnnualChecklistTask[] @relation("AnnualTaskMonthlySource")
 
   @@unique([periodId, sourceTaskId])
   @@index([periodId, categorySortOrder, sortOrderSnapshot])
@@ -211,21 +320,24 @@ model ChecklistTask {
 }
 
 model WorkflowHistory {
-  id              Int              @id @default(autoincrement())
-  periodId        Int
-  checklistTaskId Int?
-  eventType       String
-  occurredAt      DateTime         @default(now())
-  actorInitials   String?
-  actorUserId     Int?
-  actorNameSnapshot String?
-  actorRoleSnapshot String?
-  description     String
-  previousValue   String?
-  newValue        String?
-  period          AccountingPeriod @relation(fields: [periodId], references: [id], onDelete: Restrict)
-  checklistTask   ChecklistTask?   @relation(fields: [checklistTaskId], references: [id], onDelete: Restrict)
-  actorUser        User?            @relation(fields: [actorUserId], references: [id], onDelete: SetNull)
+  id                            Int                          @id @default(autoincrement())
+  periodId                      Int
+  checklistTaskId               Int?
+  eventType                     String
+  occurredAt                    DateTime                     @default(now())
+  actorInitials                 String?
+  actorUserId                   Int?
+  actorNameSnapshot             String?
+  actorRoleSnapshot             String?
+  description                   String
+  previousValue                 String?
+  newValue                      String?
+  reason                        String?
+  period                        AccountingPeriod             @relation(fields: [periodId], references: [id], onDelete: Restrict)
+  checklistTask                 ChecklistTask?               @relation(fields: [checklistTaskId], references: [id], onDelete: Restrict)
+  actorUser                     User?                        @relation(fields: [actorUserId], references: [id], onDelete: SetNull)
+  functionSeparationExceptionId Int?
+  functionSeparationException   FunctionSeparationException? @relation("MonthlyHistoryFunctionSeparation", fields: [functionSeparationExceptionId], references: [id], onDelete: SetNull)
 
   @@index([periodId, occurredAt])
   @@index([checklistTaskId, occurredAt])
@@ -233,37 +345,49 @@ model WorkflowHistory {
 }
 
 model User {
-  id                    Int               @id @default(autoincrement())
-  fullName              String
-  username              String            @unique
-  email                 String?           @unique
-  passwordHash          String
-  active                Boolean           @default(true)
-  shortLabel            String?
-  lastLoginAt           DateTime?
-  passwordChangedAt     DateTime?
-  mustChangePassword    Boolean           @default(true)
-  sessionVersion        Int               @default(1)
-  createdAt             DateTime          @default(now())
-  updatedAt             DateTime          @updatedAt
-  roles                 UserRole[]
-  sessions              Session[]
-  processorClients      Client[]          @relation("ClientProcessor")
-  reviewerClients       Client[]          @relation("ClientReviewer")
-  managementClients     Client[]          @relation("ClientManagement")
-  processorPeriods      AccountingPeriod[] @relation("PeriodProcessor")
-  reviewerPeriods       AccountingPeriod[] @relation("PeriodReviewer")
-  managementPeriods     AccountingPeriod[] @relation("PeriodManagement")
-  historyEntries        WorkflowHistory[]
+  id                                   Int                               @id @default(autoincrement())
+  fullName                             String
+  username                             String                            @unique
+  email                                String?                           @unique
+  passwordHash                         String
+  active                               Boolean                           @default(true)
+  shortLabel                           String?
+  lastLoginAt                          DateTime?
+  passwordChangedAt                    DateTime?
+  mustChangePassword                   Boolean                           @default(true)
+  sessionVersion                       Int                               @default(1)
+  createdAt                            DateTime                          @default(now())
+  updatedAt                            DateTime                          @updatedAt
+  roles                                UserRole[]
+  sessions                             Session[]
+  processorClients                     Client[]                          @relation("ClientProcessor")
+  reviewerClients                      Client[]                          @relation("ClientReviewer")
+  managementClients                    Client[]                          @relation("ClientManagement")
+  processorPeriods                     AccountingPeriod[]                @relation("PeriodProcessor")
+  reviewerPeriods                      AccountingPeriod[]                @relation("PeriodReviewer")
+  managementPeriods                    AccountingPeriod[]                @relation("PeriodManagement")
+  historyEntries                       WorkflowHistory[]
+  annualProcessorChecklists            AnnualChecklist[]                 @relation("AnnualProcessor")
+  annualReviewerChecklists             AnnualChecklist[]                 @relation("AnnualReviewer")
+  annualManagementChecklists           AnnualChecklist[]                 @relation("AnnualManagement")
+  annualHistoryEntries                 AnnualWorkflowHistory[]
+  createdAnnualTasks                   AnnualChecklistTask[]             @relation("AnnualTaskCreator")
+  releasedAnnualChecklists             AnnualChecklist[]                 @relation("AnnualReleaseUser")
+  approvedFunctionSeparationExceptions FunctionSeparationException[]     @relation("FunctionSeparationApprover")
+  assignedFunctionSeparationExceptions FunctionSeparationException[]     @relation("FunctionSeparationAssigned")
+  campusKnowledgeHistory               StandardTaskKnowledgeHistory[]
+  standardTaskPlanningHistory           StandardTaskPlanningHistory[]
+  uploadedCampusAttachments            StandardTaskKnowledgeAttachment[] @relation("CampusAttachmentUploader")
+  archivedCampusAttachments            StandardTaskKnowledgeAttachment[] @relation("CampusAttachmentArchiver")
 
   @@index([active, fullName])
 }
 
 model UserRole {
-  id       Int    @id @default(autoincrement())
-  userId   Int
-  role     String
-  user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id     Int    @id @default(autoincrement())
+  userId Int
+  role   String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, role])
   @@index([role])
@@ -295,6 +419,9 @@ model CustomClientTask {
   validUntil     DateTime?
   executionYear  Int?
   executionMonth Int?
+  executionRhythm String?
+  executionMonths String?
+  taskArea        String?
   processor      String?
   reviewer       String?
   createdAt      DateTime        @default(now())
@@ -330,4 +457,166 @@ model TaskImportPreview {
   expiresAt        DateTime
 
   @@index([expiresAt])
+}
+
+model AnnualChecklist {
+  id                            Int                          @id @default(autoincrement())
+  clientId                      Int
+  fiscalYear                    Int
+  closingDate                   DateTime
+  legalFormSnapshot             String
+  profitDeterminationSnapshot   String
+  processorUserId               Int
+  reviewerUserId                Int
+  managementUserId              Int
+  processorNameSnapshot         String
+  reviewerNameSnapshot          String
+  managementNameSnapshot        String
+  status                        String                       @default("Offen")
+  generalNote                   String?
+  submittedForReviewAt          DateTime?
+  reviewStartedAt               DateTime?
+  returnedAt                    DateTime?
+  professionallyCompletedAt     DateTime?
+  submittedForReleaseAt         DateTime?
+  releasedAt                    DateTime?
+  releaseUserId                 Int?
+  releaseNameSnapshot           String?
+  releaseNote                   String?
+  functionSeparationExceptionId Int?                         @unique
+  completedAt                   DateTime?
+  createdAt                     DateTime                     @default(now())
+  updatedAt                     DateTime                     @updatedAt
+  client                        Client                       @relation(fields: [clientId], references: [id], onDelete: Restrict)
+  processorUser                 User                         @relation("AnnualProcessor", fields: [processorUserId], references: [id], onDelete: Restrict)
+  reviewerUser                  User                         @relation("AnnualReviewer", fields: [reviewerUserId], references: [id], onDelete: Restrict)
+  managementUser                User                         @relation("AnnualManagement", fields: [managementUserId], references: [id], onDelete: Restrict)
+  releaseUser                   User?                        @relation("AnnualReleaseUser", fields: [releaseUserId], references: [id], onDelete: SetNull)
+  tasks                         AnnualChecklistTask[]
+  history                       AnnualWorkflowHistory[]
+  functionSeparationException   FunctionSeparationException? @relation("AnnualFunctionSeparation", fields: [functionSeparationExceptionId], references: [id], onDelete: SetNull)
+
+  @@unique([clientId, fiscalYear])
+  @@index([fiscalYear, status])
+  @@index([processorUserId])
+  @@index([reviewerUserId])
+  @@index([managementUserId])
+}
+
+model AnnualChecklistTask {
+  id                          Int                     @id @default(autoincrement())
+  annualChecklistId           Int
+  standardTaskId              Int?
+  customAnnualTaskId          Int?
+  sourceMonthlyTaskId         Int?
+  createdByUserId             Int?
+  taskIdSnapshot              String
+  categorySnapshot            String
+  categorySortOrder           Int                     @default(0)
+  titleSnapshot               String
+  workInstructionSnapshot     String?
+  reviewInstructionSnapshot   String?
+  mandatorySnapshot           Boolean                 @default(false)
+  sortOrderSnapshot           Int                     @default(0)
+  professionalVersionSnapshot String?
+  origin                      String
+  status                      String                  @default("Offen")
+  processingNote              String?
+  notApplicableReason         String?
+  processedByName             String?
+  processedAt                 DateTime?
+  reviewStatus                String                  @default("Nicht geprüft")
+  reviewNote                  String?
+  reviewedByName              String?
+  reviewedAt                  DateTime?
+  reviewIssueCreatedAt        DateTime?
+  processorResponse           String?
+  respondedByName             String?
+  respondedAt                 DateTime?
+  managementNote              String?
+  sourceMonthLabel            String?
+  sourceNoteSnapshot          String?
+  createdAt                   DateTime                @default(now())
+  updatedAt                   DateTime                @updatedAt
+  annualChecklist             AnnualChecklist         @relation(fields: [annualChecklistId], references: [id], onDelete: Restrict)
+  standardTask                StandardTask?           @relation(fields: [standardTaskId], references: [id], onDelete: SetNull)
+  customAnnualTask            CustomAnnualTask?       @relation(fields: [customAnnualTaskId], references: [id], onDelete: SetNull)
+  sourceMonthlyTask           ChecklistTask?          @relation("AnnualTaskMonthlySource", fields: [sourceMonthlyTaskId], references: [id], onDelete: SetNull)
+  createdByUser               User?                   @relation("AnnualTaskCreator", fields: [createdByUserId], references: [id], onDelete: SetNull)
+  history                     AnnualWorkflowHistory[]
+
+  @@index([annualChecklistId, categorySortOrder, sortOrderSnapshot])
+  @@index([standardTaskId])
+  @@index([customAnnualTaskId])
+  @@index([sourceMonthlyTaskId])
+}
+
+model AnnualWorkflowHistory {
+  id                            Int                          @id @default(autoincrement())
+  annualChecklistId             Int
+  annualChecklistTaskId         Int?
+  eventType                     String
+  occurredAt                    DateTime                     @default(now())
+  actorUserId                   Int?
+  actorNameSnapshot             String
+  actorRoleSnapshot             String
+  description                   String
+  previousValue                 String?
+  newValue                      String?
+  reason                        String?
+  functionSeparationExceptionId Int?
+  annualChecklist               AnnualChecklist              @relation(fields: [annualChecklistId], references: [id], onDelete: Restrict)
+  annualChecklistTask           AnnualChecklistTask?         @relation(fields: [annualChecklistTaskId], references: [id], onDelete: Restrict)
+  actorUser                     User?                        @relation(fields: [actorUserId], references: [id], onDelete: SetNull)
+  functionSeparationException   FunctionSeparationException? @relation("AnnualHistoryFunctionSeparation", fields: [functionSeparationExceptionId], references: [id], onDelete: SetNull)
+
+  @@index([annualChecklistId, occurredAt])
+  @@index([annualChecklistTaskId, occurredAt])
+  @@index([actorUserId])
+}
+
+model CustomAnnualTask {
+  id             Int                   @id @default(autoincrement())
+  clientId       Int
+  title          String
+  description    String?
+  category       String
+  active         Boolean               @default(true)
+  validFromYear  Int
+  validUntilYear Int?
+  mandatory      Boolean               @default(false)
+  sortOrder      Int                   @default(0)
+  createdAt      DateTime              @default(now())
+  updatedAt      DateTime              @updatedAt
+  client         Client                @relation(fields: [clientId], references: [id], onDelete: Restrict)
+  checklistTasks AnnualChecklistTask[]
+
+  @@index([clientId, active, validFromYear])
+}
+
+model FunctionSeparationException {
+  id                     Int                     @id @default(autoincrement())
+  clientId               Int
+  fiscalYear             Int?
+  assignedUserId         Int
+  equalRoles             String
+  scope                  String
+  reason                 String
+  approvedByUserId       Int
+  approvedByNameSnapshot String
+  approvedByRoleSnapshot String
+  confirmed              Boolean
+  active                 Boolean                 @default(true)
+  createdAt              DateTime                @default(now())
+  client                 Client                  @relation(fields: [clientId], references: [id], onDelete: Restrict)
+  assignedUser           User                    @relation("FunctionSeparationAssigned", fields: [assignedUserId], references: [id], onDelete: Restrict)
+  approvedByUser         User                    @relation("FunctionSeparationApprover", fields: [approvedByUserId], references: [id], onDelete: Restrict)
+  accountingPeriods      AccountingPeriod[]      @relation("PeriodFunctionSeparation")
+  annualChecklists       AnnualChecklist[]       @relation("AnnualFunctionSeparation")
+  monthlyHistory         WorkflowHistory[]       @relation("MonthlyHistoryFunctionSeparation")
+  annualHistory          AnnualWorkflowHistory[] @relation("AnnualHistoryFunctionSeparation")
+
+  @@index([clientId, fiscalYear, active])
+  @@index([assignedUserId])
+  @@index([approvedByUserId])
 }

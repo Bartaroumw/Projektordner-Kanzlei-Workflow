@@ -69,8 +69,13 @@ export async function updateClient(id: number, input: ClientInput) {
 
 async function resolvedClientData(input: ClientInput) {
   const ids=[input.processorUserId,input.reviewerUserId,input.managementUserId].filter((id):id is number=>Boolean(id));
-  const users=await prisma.user.findMany({where:{id:{in:ids},active:true}});
+  const users=await prisma.user.findMany({where:{id:{in:ids},active:true},include:{roles:true}});
   if(users.length!==new Set(ids).size)throw new DomainError("Inaktive oder unbekannte Benutzer dürfen nicht zugeordnet werden.","INVALID_INPUT");
+  const roles=(id:number|null|undefined)=>new Set(users.find(user=>user.id===id)?.roles.map(entry=>entry.role)??[]);
+  const hasAny=(id:number|null|undefined,allowed:string[])=>id===null||id===undefined||allowed.some(role=>roles(id).has(role));
+  if(!hasAny(input.processorUserId,["MITARBEITER","PRUEFER","KANZLEILEITUNG"]))throw new DomainError("Der ausgewählte Bearbeiter besitzt keine fachliche Bearbeitungsrolle.","INVALID_INPUT");
+  if(!hasAny(input.reviewerUserId,["PRUEFER","KANZLEILEITUNG"]))throw new DomainError("Der ausgewählte Prüfer besitzt keine Prüferrolle.","INVALID_INPUT");
+  if(!hasAny(input.managementUserId,["KANZLEILEITUNG"]))throw new DomainError("Die ausgewählte Person besitzt keine Kanzleileitungsrolle.","INVALID_INPUT");
   const byId=new Map(users.map(user=>[user.id,user.fullName]));
   return {...input,processor:input.processorUserId?byId.get(input.processorUserId)??null:null,reviewer:input.reviewerUserId?byId.get(input.reviewerUserId)??null:null,managementName:input.managementUserId?byId.get(input.managementUserId)??null:null};
 }

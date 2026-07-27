@@ -51,7 +51,7 @@ describe("Dashboard-Kennzahlen", () => {
     expect(dashboardMetrics(periods, 2026, 7)).toMatchObject({ openMandatory: 1, openReviewPoints: 2 });
   });
 
-  it("erkennt alte offene Perioden und schließt abgeschlossene alte Perioden aus", () => {
+  it("erkennt nicht abgeschlossene Checklisten aus Vormonaten", () => {
     expect(isOldOpenPeriod(period({ month: 6 }), 2026, 7)).toBe(true);
     expect(isOldOpenPeriod(period({ month: 6, processingStatus: "Abgeschlossen" }), 2026, 7)).toBe(false);
   });

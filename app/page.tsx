@@ -49,7 +49,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Search
     ["Abgeschlossen", data.metrics.completed],
     ["Offene Pflichtaufgaben", data.metrics.openMandatory],
     ["Offene Prüfpunkte", data.metrics.openReviewPoints],
-    ["Alte offene Checklisten", data.metrics.oldOpen],
+    ["Offene Vormonate", data.metrics.oldOpen],
   ] as const;
 
   return <div id="dashboard">
@@ -70,7 +70,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Search
         <Select label="Checklistenstatus" name="status" value={filters.status ?? ""} options={["Offen","In Bearbeitung","Zur Prüfung","In Prüfung","Nachbearbeitung","Abgeschlossen"].map((value)=>[value,value])}/>
       </div>
       <div className="mt-4 flex flex-wrap items-center gap-4">
-        <label className="flex items-center gap-2 text-sm font-semibold"><input type="checkbox" name="alt" value="1" defaultChecked={filters.onlyOldOpen}/> Nur alte offene Checklisten</label>
+        <label className="flex items-center gap-2 text-sm font-semibold"><input type="checkbox" name="alt" value="1" defaultChecked={filters.onlyOldOpen}/> Nur nicht abgeschlossene Vormonate</label>
         <label className="flex items-center gap-2 text-sm font-semibold"><input type="checkbox" name="pflicht" value="1" defaultChecked={filters.onlyOpenMandatory}/> Nur offene Pflichtaufgaben</label>
         <label className="flex items-center gap-2 text-sm font-semibold"><input type="checkbox" name="pruefpunkte" value="1" defaultChecked={filters.onlyOpenReviewPoints}/> Nur offene Prüfpunkte</label>
         <button className="button-primary">Filter anwenden</button><Link className="button-secondary" href="/">Filter zurücksetzen</Link>
@@ -87,7 +87,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Search
       <PeriodSection title="Zur Bearbeitung" periods={data.work}/>
       <PeriodSection title="Zur Prüfung" periods={data.review}/>
       <PeriodSection title="Offene Prüfpunkte" periods={data.reviewPoints}/>
-      <PeriodSection title="Alte offene Monatschecklisten" periods={data.oldOpen}/>
+      <PeriodSection title="Nicht abgeschlossene Checklisten aus Vormonaten" periods={data.oldOpen}/>
       <PeriodSection title="Zuletzt geändert" periods={data.recent}/>
     </section>
 

@@ -147,6 +147,28 @@ describe("Mandantenspezifische Aufgaben und Bearbeitung", () => {
     await updateChecklistTask(task.id, { status: "Erledigt", processingNote: "", processorInitials: "TA", notApplicableReason: "" });
     expect((await prisma.checklistTask.findUniqueOrThrow({ where: { id: task.id } })).notApplicableReason).toBe("Künstliche Begründung bleibt erhalten.");
   });
+  it("übernimmt nur eine ausdrücklich markierte Notiz in die nächste passende Ausführung", async () => {
+    const template=await createTask({rhythm:"Vierteljährlich",executionMonths:"1;4;7;10"});
+    const january=await createMonthlyPeriod(clientId,2026,1);
+    const source=await prisma.checklistTask.findFirstOrThrow({where:{periodId:january.id,standardTaskId:template.id}});
+    await updateChecklistTask(source.id,{status:"Erledigt",processingNote:"Dauerhafter künstlicher Bearbeitungshinweis.",processorInitials:"Test Person",notApplicableReason:"",carryProcessingNote:true});
+    const april=await createMonthlyPeriod(clientId,2026,4,{administrativeException:true,actorName:"Test Leitung",reason:"Künstlicher Test der nächsten rhythmischen Ausführung."});
+    const carried=await prisma.checklistTask.findFirstOrThrow({where:{periodId:april.id,standardTaskId:template.id}});
+    expect(carried).toMatchObject({
+      status:"Offen",reviewStatus:"Nicht geprüft",processingNote:"Dauerhafter künstlicher Bearbeitungshinweis.",
+      carryProcessingNote:true,carriedNoteSourceTaskId:source.id,carriedNoteSourcePeriodLabel:"Januar 2026",
+    });
+  });
+  it("übernimmt eine nicht markierte Notiz nicht", async () => {
+    const template=await createTask();
+    const january=await createMonthlyPeriod(clientId,2026,1);
+    const source=await prisma.checklistTask.findFirstOrThrow({where:{periodId:january.id,standardTaskId:template.id}});
+    await updateChecklistTask(source.id,{status:"Erledigt",processingNote:"Nur im Januar.",processorInitials:"Test Person",notApplicableReason:"",carryProcessingNote:false});
+    const february=await createMonthlyPeriod(clientId,2026,2,{administrativeException:true,actorName:"Test Leitung",reason:"Künstlicher Test ohne Notizübernahme."});
+    const next=await prisma.checklistTask.findFirstOrThrow({where:{periodId:february.id,standardTaskId:template.id}});
+    expect(next.processingNote).toBeNull();
+    expect(next.carriedNoteSourceTaskId).toBeNull();
+  });
   it("berechnet den Fortschritt korrekt", () => {
     const progress = calculateProgress([
       { status: "Erledigt", mandatorySnapshot: true },

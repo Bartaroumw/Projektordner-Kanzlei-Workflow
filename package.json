@@ -15,8 +15,10 @@
     "db:reset": "node scripts/reset-database.mjs",
     "db:reset:test": "node scripts/reset-database.mjs",
     "db:diagnose": "node --experimental-transform-types scripts/diagnose-test-data.ts",
-    "db:diagnose:acceptance": "node --experimental-transform-types scripts/acceptance-diagnostics.ts"
-    ,"db:seed:annual": "node --experimental-transform-types scripts/seed-annual-test-data.ts"
+    "db:diagnose:acceptance": "node --experimental-transform-types scripts/acceptance-diagnostics.ts",
+    "db:seed:annual": "node --experimental-transform-types scripts/seed-annual-test-data.ts",
+    "testdata:workflow": "node scripts/reset-workflow-test.mjs",
+    "testdata:workflow:diagnose": "node --experimental-transform-types scripts/diagnose-workflow-test.ts"
   },
   "dependencies": {
     "@prisma/client": "^6.19.3",

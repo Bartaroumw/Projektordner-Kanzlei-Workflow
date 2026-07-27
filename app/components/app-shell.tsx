@@ -23,16 +23,18 @@ export function AppShell({ children, user }: { children: React.ReactNode; user:A
   const canUsers=Boolean(user?.roles.includes("ADMINISTRATOR"));
   const hasProfessionalAccess=Boolean(user?.roles.some(role=>["MITARBEITER","PRUEFER","KANZLEILEITUNG","MANDANTEN_VERWALTEN"].includes(role)));
   const navigation=[{label:"Dashboard",href:"/"},...(hasProfessionalAccess?[{label:"Mandanten",href:"/mandanten"},{label:"Rechnungswesenaufgaben",href:"/monatschecklisten"},{label:"Jahresabschlussaufgaben",href:"/jahresabschluesse"}]:[]),...(canStandards?[{label:"Standardaufgaben",href:"/standardaufgaben"}]:[]),...(canUsers?[{label:"Benutzerverwaltung",href:"/administration/benutzer"},{label:"Testdaten-Diagnose",href:"/administration/diagnose"}]:[])];
+  const roleDisplay=user?formatRoleDisplay(user.roles):null;
   return (
     <div className="min-h-screen bg-[var(--color-background)] text-[var(--color-text)]">
       <ToastMessage key={queryMessage?.message} message={queryMessage?.message} type={queryMessage?.type}/>
       <div className="mx-auto flex min-h-screen max-w-[1680px] flex-col md:flex-row">
         <aside className="border-b border-[var(--color-primary-dark)] bg-[var(--color-primary-dark)] text-white md:w-64 md:flex-none md:border-b-0 md:border-r">
-          <div className="border-b border-white/15 px-6 py-6">
-            <div aria-hidden className="mb-4 flex h-10 w-10 items-center justify-center rounded border border-white/30 text-sm font-bold">OC</div>
-            <p className="text-xl font-semibold tracking-tight">Ordo Caroli</p>
-            <p className="mt-1 text-xs text-white/70">Rechnungswesen-Workflow</p>
-            <p className="mt-3 text-[11px] uppercase tracking-widest text-white/55">für Concilium</p>
+          <div className="border-b border-white/15 px-5 py-6">
+            <div className="flex items-center gap-3">
+              <div aria-hidden className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg border border-white/35 bg-white/10 text-base font-bold tracking-wide shadow-inner">OC</div>
+              <div className="min-w-0"><p className="truncate text-xl font-semibold tracking-tight">Ordo Caroli</p><p className="mt-0.5 text-xs leading-5 text-white/75">Rechnungswesen-Workflow</p></div>
+            </div>
+            <p className="mt-4 pl-[3.75rem] text-[10px] uppercase tracking-[0.18em] text-white/55">für Concilium</p>
           </div>
           <nav aria-label="Hauptnavigation" className="p-3">
             <ul className="flex gap-1 overflow-x-auto md:block md:space-y-1">
@@ -67,7 +69,7 @@ export function AppShell({ children, user }: { children: React.ReactNode; user:A
               })}
             </ul>
           </nav>
-          {user&&<div className="mt-auto border-t border-white/15 p-4 text-sm"><p className="font-semibold">{user.fullName}</p><p className="mb-3 text-xs text-white/65">{user.roles.join(", ")}</p><Link href="/passwort-aendern" className="mb-2 block text-xs underline">Passwort ändern</Link><form action={logoutAction}><button className="rounded border border-white/30 px-3 py-2 text-xs hover:bg-white/10">Abmelden</button></form></div>}
+          {user&&roleDisplay&&<div className="mt-auto border-t border-white/15 p-4 text-sm"><p className="font-semibold">{user.fullName}</p><div className="mt-2 flex flex-wrap gap-1">{roleDisplay.professional.map(role=><span className="rounded-full bg-white/15 px-2 py-0.5 text-[11px]" key={role}>{role}</span>)}{roleDisplay.technical.map(role=><span className="rounded-full border border-white/30 px-2 py-0.5 text-[11px]" key={role}>{role}</span>)}</div>{roleDisplay.additional.length>0&&<p className="mt-2 line-clamp-2 text-[11px] leading-4 text-white/60" title={roleDisplay.additional.join(" · ")}>{roleDisplay.additional.join(" · ")}</p>}<Link href="/passwort-aendern" className="mb-2 mt-3 block text-xs underline">Passwort ändern</Link><form action={logoutAction}><button className="rounded border border-white/30 px-3 py-2 text-xs hover:bg-white/10">Abmelden</button></form></div>}
         </aside>
         <main className="min-w-0 flex-1 px-4 py-7 sm:px-6 lg:px-10">
           {children}
@@ -75,4 +77,18 @@ export function AppShell({ children, user }: { children: React.ReactNode; user:A
       </div>
     </div>
   );
+}
+
+export function formatRoleDisplay(roles:string[]) {
+  const labels:Record<string,string>={
+    KANZLEILEITUNG:"Kanzleileitung",PRUEFER:"Prüfer",MITARBEITER:"Mitarbeiter",ADMINISTRATOR:"Administrator",
+    STANDARDAUFGABEN_VERWALTEN:"Standardaufgaben verwalten",ORDO_CAMPUS_VERWALTEN:"Ordo Campus verwalten",
+    MANDANTEN_VERWALTEN:"Mandanten verwalten",MANDANTENSPEZIFISCHE_AUFGABEN_VERWALTEN:"Mandantenspezifische Aufgaben verwalten",
+  };
+  const unique=[...new Set(roles)];
+  const professional=["KANZLEILEITUNG","PRUEFER","MITARBEITER"].filter(role=>unique.includes(role)).map(role=>labels[role]);
+  const technical=unique.includes("ADMINISTRATOR")?[labels.ADMINISTRATOR]:[];
+  const shown=new Set(["KANZLEILEITUNG","PRUEFER","MITARBEITER","ADMINISTRATOR"]);
+  const additional=unique.filter(role=>!shown.has(role)).map(role=>labels[role]??role).sort((a,b)=>a.localeCompare(b,"de"));
+  return {professional,technical,additional};
 }

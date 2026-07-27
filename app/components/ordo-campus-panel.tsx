@@ -72,7 +72,11 @@ export function OrdoCampusPanel({
     <span className="mt-2 inline-flex flex-wrap items-center gap-2"><button
       ref={triggerRef}
       type="button"
-      className="inline-flex items-center gap-2 rounded-md border border-[var(--color-primary)] bg-[var(--color-primary-light)] px-3 py-1.5 text-sm font-semibold text-[var(--color-primary-dark)] hover:bg-white"
+      className={`inline-flex items-center gap-2 rounded-md border px-3 py-1.5 text-sm font-semibold ${
+        activeKnowledge
+          ? "border-[var(--color-primary)] bg-[var(--color-primary-light)] text-[var(--color-primary-dark)] hover:bg-white"
+          : "border-[var(--color-border)] bg-[var(--color-background)] text-[var(--color-text-muted)] opacity-75 hover:opacity-100"
+      }`}
       onClick={() => {
         setLoading(true);
         setError("");
@@ -80,9 +84,11 @@ export function OrdoCampusPanel({
         setOpen(true);
       }}
       aria-haspopup="dialog"
+      title={activeKnowledge ? "Anleitung und Kanzleistandard verfügbar" : "Für diese Aufgabe ist noch kein Ordo-Campus-Wissen hinterlegt."}
     >
       <span aria-hidden="true">📘</span>
-      {activeKnowledge ? "Ordo Campus verfügbar" : "Ordo Campus"}
+      <span>Ordo Campus</span>
+      <span className="text-xs font-normal">{activeKnowledge ? "Verfügbar" : "Nicht hinterlegt"}</span>
     </button><details className="relative">
       <summary className="flex h-8 w-8 cursor-pointer list-none items-center justify-center rounded-full border border-[var(--color-border)] bg-white font-semibold text-[var(--color-primary-dark)] focus:outline-2 focus:outline-offset-2 focus:outline-[var(--color-focus)]" aria-label="Was ist Ordo Campus?">ⓘ</summary>
       <div className="absolute left-0 z-20 mt-2 w-[min(22rem,80vw)] rounded-lg border border-[var(--color-border)] bg-white p-4 text-sm font-normal leading-6 shadow-lg">

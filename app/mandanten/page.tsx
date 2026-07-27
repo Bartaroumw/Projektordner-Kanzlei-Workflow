@@ -19,6 +19,7 @@ export default async function ClientsPage({ searchParams }: { searchParams: Sear
   const processor = one(params.bearbeiter);
   const reviewer = one(params.pruefer);
   const management = one(params.kanzleileitung);
+  const sorting = one(params.sortierung) || "nummer-auf";
   const clients = await prisma.client.findMany({
     where: {
       AND: [
@@ -41,6 +42,7 @@ export default async function ClientsPage({ searchParams }: { searchParams: Sear
     },
     orderBy: { clientNumber: "asc" },
   });
+  const sortedClients = sortClients(clients, sorting);
   const optionRows = await prisma.client.findMany({ select: { processor: true, reviewer: true, managementName: true } });
   const options = (key: "processor" | "reviewer" | "managementName") => [...new Set(optionRows.map((row) => row[key]).filter(Boolean) as string[])].sort();
   return <div>
@@ -51,9 +53,10 @@ export default async function ClientsPage({ searchParams }: { searchParams: Sear
       <Select name="bearbeiter" label="Bearbeiter" value={processor} options={options("processor").map(v=>[v,v])}/>
       <Select name="pruefer" label="Prüfer" value={reviewer} options={options("reviewer").map(v=>[v,v])}/>
       <Select name="kanzleileitung" label="Kanzleileitung" value={management} options={options("managementName").map(v=>[v,v])}/>
+      <Select name="sortierung" label="Sortierung" value={sorting} options={[["nummer-auf","Mandantennummer aufsteigend"],["nummer-ab","Mandantennummer absteigend"],["name-auf","Name A–Z"],["name-ab","Name Z–A"]]}/>
     </div><div className="mt-3 flex gap-3"><button className="button-primary">Anwenden</button><Link className="button-secondary" href="/mandanten">Zurücksetzen</Link></div></form>
     <div className="overflow-x-auto rounded-lg border border-[var(--color-border)] bg-white shadow-sm"><table className="w-full min-w-[1550px] text-left text-sm"><thead className="bg-[var(--color-primary-light)]"><tr>{["Mandant","Bearbeiter","Prüfer","Kanzleileitung","USt-Zeitraum","Aktuelle Monatscheckliste","Status","Fortschritt","Offene Pflicht","Offene Prüfpunkte","Letzte Änderung","Aktionen"].map(h=><th className="p-3" key={h}>{h}</th>)}</tr></thead><tbody>
-      {clients.map(client=>{const current=client.periods[0];const progress=current?calculateProgress(current.tasks):null;const summary=current?workflowSummary(current.tasks):null;const href=current?`/monatschecklisten/${current.id}`:`/mandanten/${client.id}`;
+      {sortedClients.map(client=>{const current=client.periods[0];const progress=current?calculateProgress(current.tasks):null;const summary=current?workflowSummary(current.tasks):null;const href=current?`/monatschecklisten/${current.id}`:`/mandanten/${client.id}`;
         const actions:ClientMenuAction[]=[];
         if(canManageClients(user))actions.push({label:"Stammdaten bearbeiten",href:`/mandanten/${client.id}/bearbeiten`});
         actions.push({label:"Mandantendetails öffnen",href:`/mandanten/${client.id}`});
@@ -71,3 +74,15 @@ export default async function ClientsPage({ searchParams }: { searchParams: Sear
 }
 function Field({label,children}:{label:string;children:React.ReactNode}){return <label className="text-xs font-semibold"><span className="mb-1 block">{label}</span>{children}</label>}
 function Select({name,label,value,options}:{name:string;label:string;value:string;options:string[][]}){return <Field label={label}><select className="input" name={name} defaultValue={value}><option value="">Alle</option>{options.map(([v,l])=><option key={v} value={v}>{l}</option>)}</select></Field>}
+
+export function sortClients<T extends {clientNumber:string;name:string}>(clients:T[],sorting:string) {
+  const natural=new Intl.Collator("de-DE",{numeric:true,sensitivity:"base"});
+  return [...clients].sort((a,b)=>{
+    const byNumber=natural.compare(a.clientNumber||"\uffff",b.clientNumber||"\uffff")||natural.compare(a.name,b.name);
+    const byName=natural.compare(a.name,b.name)||byNumber;
+    if(sorting==="nummer-ab")return -byNumber;
+    if(sorting==="name-auf")return byName;
+    if(sorting==="name-ab")return -byName;
+    return byNumber;
+  });
+}

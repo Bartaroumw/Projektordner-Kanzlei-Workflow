@@ -16,6 +16,8 @@ import {
   updateChecklistRoles,
   transferChecklistTask,
   addMissingStandardTasks,
+  raiseChecklistQuestion,
+  answerChecklistQuestion,
 } from "@/lib/monthly-checklist-service";
 import { requireRole, requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
@@ -92,19 +94,19 @@ export async function transferChecklistTaskAction(taskId: number, periodId: numb
 }
 
 export async function updateChecklistTaskAction(taskId: number, periodId: number, formData: FormData) {
-  const {user}=await processingUser(periodId);
   try {
+    const {user}=await processingUser(periodId);
     await updateChecklistTask(taskId, {
       status: String(formData.get("status") ?? ""),
       processingNote: String(formData.get("processingNote") ?? ""),
       processorInitials: user.fullName,
       notApplicableReason: String(formData.get("notApplicableReason") ?? ""),
+      carryProcessingNote: formData.get("carryProcessingNote") === "on",
     });
     revalidatePath(`/monatschecklisten/${periodId}`);
-    redirect(`/monatschecklisten/${periodId}?erfolg=aufgabe`);
+    return { ok: true, message: "Gespeichert" };
   } catch (error) {
-    if (isRedirect(error)) throw error;
-    redirect(`/monatschecklisten/${periodId}?fehler=${encodeURIComponent(error instanceof Error ? error.message : "Die Aufgabe konnte nicht gespeichert werden.")}#aufgabe-${taskId}`);
+    return { ok: false, message: error instanceof Error ? error.message : "Die Aufgabe konnte nicht gespeichert werden." };
   }
 }
 
@@ -183,6 +185,31 @@ export async function completeReworkAction(taskId: number, periodId: number, for
   } catch (error) {
     if (isRedirect(error)) throw error;
     redirect(`/monatschecklisten/${periodId}?fehler=${encodeURIComponent(error instanceof Error ? error.message : "Die Nachbearbeitung konnte nicht gespeichert werden.")}#aufgabe-${taskId}`);
+  }
+}
+
+export async function raiseChecklistQuestionAction(taskId:number,periodId:number,formData:FormData){
+  const {user}=await processingUser(periodId);
+  try{
+    await raiseChecklistQuestion(taskId,{question:String(formData.get("question")??""),actorName:user.fullName});
+    revalidatePath(`/monatschecklisten/${periodId}`);
+    revalidatePath("/");
+    redirect(`/monatschecklisten/${periodId}?erfolg=rueckfrage#aufgabe-${taskId}`);
+  }catch(error){
+    if(isRedirect(error))throw error;
+    redirect(`/monatschecklisten/${periodId}?fehler=${encodeURIComponent(error instanceof Error?error.message:"Die Rückfrage konnte nicht gespeichert werden.")}#aufgabe-${taskId}`);
+  }
+}
+
+export async function answerChecklistQuestionAction(taskId:number,periodId:number,formData:FormData){
+  const {user}=await reviewingUser(periodId);
+  try{
+    await answerChecklistQuestion(taskId,{answer:String(formData.get("answer")??""),actorName:user.fullName,actorUserId:user.id});
+    revalidatePath(`/monatschecklisten/${periodId}`);revalidatePath("/");
+    redirect(`/monatschecklisten/${periodId}?erfolg=antwort#aufgabe-${taskId}`);
+  }catch(error){
+    if(isRedirect(error))throw error;
+    redirect(`/monatschecklisten/${periodId}?fehler=${encodeURIComponent(error instanceof Error?error.message:"Die Antwort konnte nicht gespeichert werden.")}#aufgabe-${taskId}`);
   }
 }
 

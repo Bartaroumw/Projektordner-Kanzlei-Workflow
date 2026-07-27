@@ -266,51 +266,61 @@ model AccountingPeriod {
 }
 
 model ChecklistTask {
-  id                          Int                   @id @default(autoincrement())
-  periodId                    Int
-  standardTaskId              Int?
-  customClientTaskId          Int?
-  sourceTaskId                Int?
-  taskIdSnapshot              String
-  categorySnapshot            String
-  categorySortOrder           Int                   @default(0)
-  subcategorySnapshot         String?
-  titleSnapshot               String
-  workInstructionSnapshot     String?
-  reviewInstructionSnapshot   String?
-  mandatorySnapshot           Boolean               @default(false)
-  sortOrderSnapshot           Int?
-  professionalVersionSnapshot String?
-  origin                      String
-  status                      String                @default("Offen")
-  processingNote              String?
-  processedAt                 DateTime?
-  processorInitials           String?
-  notApplicableReason         String?
-  transferTargetYear          Int?
-  transferTargetMonth         Int?
-  transferReason              String?
-  transferActorName           String?
-  transferExpectedAction      String?
-  transferredAt               DateTime?
-  reviewStatus                String                @default("Nicht geprüft")
-  reviewerInitials            String?
-  reviewNote                  String?
-  reviewedAt                  DateTime?
-  reviewIssueCreatedAt        DateTime?
-  processorResponse           String?
-  respondedBy                 String?
-  respondedAt                 DateTime?
-  finalReviewedAt             DateTime?
-  createdAt                   DateTime              @default(now())
-  updatedAt                   DateTime              @updatedAt
-  period                      AccountingPeriod      @relation(fields: [periodId], references: [id], onDelete: Restrict)
-  standardTask                StandardTask?         @relation(fields: [standardTaskId], references: [id], onDelete: SetNull)
-  customClientTask            CustomClientTask?     @relation(fields: [customClientTaskId], references: [id], onDelete: SetNull)
-  sourceTask                  ChecklistTask?        @relation("TaskTransfer", fields: [sourceTaskId], references: [id], onDelete: Restrict)
-  transferredTasks            ChecklistTask[]       @relation("TaskTransfer")
-  history                     WorkflowHistory[]
-  annualDerivedTasks          AnnualChecklistTask[] @relation("AnnualTaskMonthlySource")
+  id                           Int                   @id @default(autoincrement())
+  periodId                     Int
+  standardTaskId               Int?
+  customClientTaskId           Int?
+  sourceTaskId                 Int?
+  taskIdSnapshot               String
+  categorySnapshot             String
+  categorySortOrder            Int                   @default(0)
+  subcategorySnapshot          String?
+  titleSnapshot                String
+  workInstructionSnapshot      String?
+  reviewInstructionSnapshot    String?
+  mandatorySnapshot            Boolean               @default(false)
+  sortOrderSnapshot            Int?
+  professionalVersionSnapshot  String?
+  origin                       String
+  status                       String                @default("Offen")
+  processingNote               String?
+  carryProcessingNote          Boolean               @default(false)
+  carriedNoteSourceTaskId      Int?
+  carriedNoteSourcePeriodLabel String?
+  processedAt                  DateTime?
+  processorInitials            String?
+  notApplicableReason          String?
+  transferTargetYear           Int?
+  transferTargetMonth          Int?
+  transferReason               String?
+  transferActorName            String?
+  transferExpectedAction       String?
+  transferredAt                DateTime?
+  reviewStatus                 String                @default("Nicht geprüft")
+  reviewerInitials             String?
+  reviewNote                   String?
+  reviewedAt                   DateTime?
+  reviewIssueCreatedAt         DateTime?
+  reviewIssueStatus            String?
+  reviewIssueRaisedByUserId    Int?
+  reviewIssueRaisedByName      String?
+  reviewIssueRaisedByRole      String?
+  reviewIssueDirectedToUserId  Int?
+  reviewIssueDirectedToName    String?
+  reviewIssueDirectedToRole    String?
+  processorResponse            String?
+  respondedBy                  String?
+  respondedAt                  DateTime?
+  finalReviewedAt              DateTime?
+  createdAt                    DateTime              @default(now())
+  updatedAt                    DateTime              @updatedAt
+  period                       AccountingPeriod      @relation(fields: [periodId], references: [id], onDelete: Restrict)
+  standardTask                 StandardTask?         @relation(fields: [standardTaskId], references: [id], onDelete: SetNull)
+  customClientTask             CustomClientTask?     @relation(fields: [customClientTaskId], references: [id], onDelete: SetNull)
+  sourceTask                   ChecklistTask?        @relation("TaskTransfer", fields: [sourceTaskId], references: [id], onDelete: Restrict)
+  transferredTasks             ChecklistTask[]       @relation("TaskTransfer")
+  history                      WorkflowHistory[]
+  annualDerivedTasks           AnnualChecklistTask[] @relation("AnnualTaskMonthlySource")
 
   @@unique([periodId, sourceTaskId])
   @@index([periodId, categorySortOrder, sortOrderSnapshot])
@@ -376,7 +386,7 @@ model User {
   approvedFunctionSeparationExceptions FunctionSeparationException[]     @relation("FunctionSeparationApprover")
   assignedFunctionSeparationExceptions FunctionSeparationException[]     @relation("FunctionSeparationAssigned")
   campusKnowledgeHistory               StandardTaskKnowledgeHistory[]
-  standardTaskPlanningHistory           StandardTaskPlanningHistory[]
+  standardTaskPlanningHistory          StandardTaskPlanningHistory[]
   uploadedCampusAttachments            StandardTaskKnowledgeAttachment[] @relation("CampusAttachmentUploader")
   archivedCampusAttachments            StandardTaskKnowledgeAttachment[] @relation("CampusAttachmentArchiver")
 
@@ -408,27 +418,27 @@ model Session {
 }
 
 model CustomClientTask {
-  id             Int             @id @default(autoincrement())
-  clientId       Int
-  title          String
-  description    String?
-  categoryId     Int
-  active         Boolean         @default(true)
-  taskType       String
-  validFrom      DateTime
-  validUntil     DateTime?
-  executionYear  Int?
-  executionMonth Int?
+  id              Int             @id @default(autoincrement())
+  clientId        Int
+  title           String
+  description     String?
+  categoryId      Int
+  active          Boolean         @default(true)
+  taskType        String
+  validFrom       DateTime
+  validUntil      DateTime?
+  executionYear   Int?
+  executionMonth  Int?
   executionRhythm String?
   executionMonths String?
   taskArea        String?
-  processor      String?
-  reviewer       String?
-  createdAt      DateTime        @default(now())
-  updatedAt      DateTime        @updatedAt
-  client         Client          @relation(fields: [clientId], references: [id], onDelete: Restrict)
-  category       TaskCategory    @relation(fields: [categoryId], references: [id], onDelete: Restrict)
-  checklistTasks ChecklistTask[]
+  processor       String?
+  reviewer        String?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  client          Client          @relation(fields: [clientId], references: [id], onDelete: Restrict)
+  category        TaskCategory    @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  checklistTasks  ChecklistTask[]
 
   @@index([clientId, active, taskType])
   @@index([categoryId])

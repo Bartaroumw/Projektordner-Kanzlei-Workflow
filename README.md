@@ -1,5 +1,11 @@
 # Ordo Caroli
 
+## Separater Workflow-Testbestand
+
+Für die erneute fachliche Workflowprüfung steht ein dynamischer, ausschließlich künstlicher Bestand in `prisma/workflow-test.db` mit getrenntem Campus-Speicher `tmp/workflow-test-campus` bereit. Er wird mit `npm.cmd run testdata:workflow` reproduzierbar erstellt. Das Reset-Skript akzeptiert ausschließlich diese beiden fest definierten Ziele und verändert keine Entwicklungs-, Abnahme-, Pilot- oder Produktivdatenbank. Benutzer, Mandanten und erwartete Status sind in `docs/WORKFLOW_TESTBESTAND.md` beschrieben; `docs/WORKFLOW_PRUEFBOGEN.md` enthält die manuelle Prüfreihenfolge.
+
+Das Dashboard verwendet beim ersten Aufruf den Vormonat (im Januar den Dezember des Vorjahres). Eine explizite Monatsauswahl bleibt in der URL erhalten. Aktive Bearbeitung, aktive Prüfung und Kanzleileitungsfreigaben werden über eine zentrale Statuslogik getrennt; derselbe Vorgang erscheint auch bei Mehrfachrollen nie gleichzeitig in zwei aktiven Funktionsbereichen. Offene ältere Vorgänge bleiben separat unter „Überfällige Altmonate“ sichtbar. Jahresabschlussvorgänge richten sich nach dem Wirtschaftsjahr und werden nicht durch den Rechnungswesen-Monatsfilter ausgeblendet.
+
 ## Projektziel
 
 Ordo Caroli ist ein ausschließlich lokal betriebener Rechnungswesen-Workflow für eine deutsche Steuerberatungsgesellschaft. Die Anwendung unterstützt Mandantenstammdaten, Jahresprofile, Standardaufgaben, Excel-Importe sowie monatliche Checklisten mit Bearbeitungs- und Prüfworkflow.
@@ -290,6 +296,22 @@ Künstliche Ausgangslage:
 - Mandant 10001, 2026: offener Monatspunkt wurde kontrolliert als Jahresabschlussaufgabe übernommen
 
 Der vollständige Testdatenreset erzeugt diese Fälle deterministisch. Für eine bereits bestehende künstliche Entwicklungsdatenbank kann ausschließlich das neue Modul mit `npm.cmd run db:seed:annual` neu befüllt werden; dabei werden nur künstliche Jahresabschluss-Testdaten dieses Moduls ersetzt.
+
+## Workflowkorrekturen und Bedienung
+
+Bearbeitungsstatus und Prüfstatus werden strikt getrennt. Der Prüfstatus einer erledigten Aufgabe lautet zunächst `Nicht geprüft`; der Prüfer muss jede Aufgabe ausdrücklich auf `In Ordnung`, `Rückfrage` oder `Beanstandung` setzen. Rückfrage und Beanstandung geben die Checkliste unmittelbar in die Nachbearbeitung zurück. Nach der Antwort lautet der Prüfstatus `Erledigt nach Nachbearbeitung` und erfordert eine erneute ausdrückliche Prüfung.
+
+Der serverseitige Abschluss prüft zentral alle Aufgaben. Offene Bearbeitungen, fehlende Nicht-zutreffend-Begründungen, offene Rückfragen oder Beanstandungen sowie nicht abschließend geprüfte Aufgaben verhindern den Abschluss und werden in einer verständlichen Sammelmeldung genannt. Direkte Serveraufrufe verwenden dieselbe Regel.
+
+Aufgabenbearbeitungen werden ohne sichtbaren Seitenwechsel gespeichert. Scrollposition und geöffnete Aufgabe bleiben erhalten; direkt an der Aufgabe erscheinen `Ungespeicherte Änderungen`, `Wird gespeichert …`, `Gespeichert` oder eine Fehlermeldung. Beim Verlassen mit ungespeicherten Änderungen warnt der Browser.
+
+Eine Bearbeitungsnotiz wird nur bei aktivierter Option `In Folgeperiode übernehmen` in die nächste tatsächliche Ausführung derselben Standard- oder mandantenspezifischen Aufgabe übernommen. Bei quartalsweisen, halbjährlichen oder jährlichen Aufgaben ist dies der nächste passende Ausführungsmonat. Status, Prüfstatus und Nicht-zutreffend-Begründung werden nicht übernommen. Bereits bestehende Folgechecklisten werden nicht automatisch verändert; die Übernahme erfolgt beim Anlegen oder über `Fehlende Standardaufgaben übernehmen`.
+
+Die Mandantenübersicht ist natürlich nach Nummer auf- oder absteigend sowie nach Name A–Z oder Z–A sortierbar. In der Übersicht der Rechnungswesenaufgaben reduziert `Nur neueste Checkliste je Mandant` die zuvor durch Suche und weitere Filter gebildete Treffermenge anschließend auf den chronologisch neuesten Treffer je Mandant.
+
+Übertragene Aufgaben zeigen Ursprungsmonat und Link zur Ursprungsaufgabe. Ordo Campus kennzeichnet mit Text, Symbol und Tooltip eindeutig `Verfügbar` oder `Nicht hinterlegt`.
+
+Die additive Migration `20260727230000_workflow_ux_corrections` ergänzt ausschließlich Workflow-Metadaten; historische Aufgaben, Snapshots, Campus-Inhalte und Verläufe bleiben erhalten. Eine ältere, mit `db push` erzeugte Entwicklungsdatenbank kann eine abweichende Migrationshistorie besitzen. In diesem Fall darf sie nicht ungeprüft zurückgesetzt werden.
 
 ## Bekannte Einschränkungen
 

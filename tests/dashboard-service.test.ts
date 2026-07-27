@@ -117,13 +117,16 @@ describe("Kombinierbare Filter und Priorisierung", () => {
 });
 
 describe("Datenbankauswertung ohne Workflowänderung", () => {
-  it("trennt Mein-Kürzel-Bearbeitungen und -Prüfungen", async () => {
+  it("trennt aktive Bearbeitungen und Prüfungen nach Status", async () => {
     const clientEntry = await createClient({ processor: "MK", reviewer: "MK" }, true);
     await createPeriod(clientEntry, "In Bearbeitung", 7);
     await createPeriod(clientEntry, "Zur Prüfung", 6);
     const result = await getDashboardData({ year: 2026, month: 7, workViewName: "MK" });
     expect(result.myProcessing).toHaveLength(1);
-    expect(result.myReviews).toHaveLength(1);
+    expect(result.myReviews).toHaveLength(0);
+    const reviewResult = await getDashboardData({ year: 2026, month: 6, workViewName: "MK" });
+    expect(reviewResult.myProcessing).toHaveLength(0);
+    expect(reviewResult.myReviews).toHaveLength(1);
   });
 
   it("zeigt fehlendes Jahresprofil, aber keine personengleiche Zuordnung als Datenproblem", async () => {

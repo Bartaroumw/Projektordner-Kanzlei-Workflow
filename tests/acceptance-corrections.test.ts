@@ -20,7 +20,8 @@ describe("gezielte Bedien- und Berechtigungskorrektur",()=>{
   });
   it("Dashboard verwendet breite Arbeitslisten mit direkten Arbeitszielen",()=>{
     const page=read("app/page.tsx");
-    expect(page).toContain("Meine Bearbeitungen");
+    expect(page).toContain("Meine Bearbeitung");
+    expect(page).toContain("Meine Prüfung");
     expect(page).toContain("Alle anzeigen");
     expect(page).toContain("#aufgabe-");
     expect(page).toContain("#workflow");

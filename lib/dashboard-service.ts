@@ -1,6 +1,7 @@
 import type { AccountingPeriod, ChecklistTask, Client } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { calculateProgress, workflowSummary } from "@/lib/monthly-checklist-service";
+import { monthlyDashboardResponsibility } from "@/lib/dashboard-responsibility";
 
 export type DashboardFilters = {
   year: number;
@@ -21,7 +22,7 @@ export type DashboardFilters = {
 
 export type DashboardPeriod = AccountingPeriod & {
   client: Client;
-  tasks: (Pick<ChecklistTask, "status" | "mandatorySnapshot" | "reviewStatus" | "processingNote"> & {id?:number})[];
+  tasks: (Pick<ChecklistTask, "status" | "mandatorySnapshot" | "reviewStatus" | "processingNote" | "reviewIssueStatus" | "reviewIssueRaisedByUserId" | "reviewIssueDirectedToUserId" | "sourceTaskId"> & {id?:number})[];
   progress: ReturnType<typeof calculateProgress>;
   summary: ReturnType<typeof workflowSummary>;
 };
@@ -101,7 +102,7 @@ export async function getDashboardData(filters: DashboardFilters) {
       where: { calendarYear: filters.year, checklistType: "Monat" },
       include: {
         client: true,
-        tasks: { select: { id:true,status: true, mandatorySnapshot: true, reviewStatus: true, processingNote: true } },
+        tasks: { select: { id:true,status: true, mandatorySnapshot: true, reviewStatus: true, processingNote: true, reviewIssueStatus:true, reviewIssueRaisedByUserId:true, reviewIssueDirectedToUserId:true,sourceTaskId:true } },
       },
     }),
     prisma.client.findMany({
@@ -129,6 +130,23 @@ export async function getDashboardData(filters: DashboardFilters) {
   const yearFiltered = sortByPriority(visiblePeriods.filter((period) => periodMatchesFilters(period, filters, false)), filters.year, filters.month);
   const oldOpen = yearFiltered.filter((period) => isOldOpenPeriod(period, filters.year, filters.month));
   const workViewName = filters.workViewName?.trim();
+  const responsibility = (period: DashboardPeriod) => filters.userId
+    ? monthlyDashboardResponsibility(period.processingStatus, filters.userId, period)
+    : null;
+  const hasQuestionDirectedAway=(period:DashboardPeriod)=>Boolean(filters.userId&&period.tasks.some(task=>task.reviewIssueStatus==="Offen"&&task.reviewIssueRaisedByUserId===filters.userId&&task.reviewIssueDirectedToUserId!==filters.userId));
+  const myProcessing = filters.userId
+    ? selected.filter((period) => responsibility(period) === "BEARBEITUNG_AKTIV"&&!hasQuestionDirectedAway(period))
+    : workViewName
+      ? selected.filter((period) => period.processorSnapshot === workViewName && ["Offen", "In Bearbeitung", "Nachbearbeitung"].includes(period.processingStatus))
+      : [];
+  const myReviews = filters.userId
+    ? selected.filter((period) => responsibility(period) === "PRUEFUNG_AKTIV")
+    : workViewName
+      ? selected.filter((period) => period.reviewerSnapshot === workViewName && ["Zur Prüfung", "In Prüfung"].includes(period.processingStatus))
+      : [];
+  const overduePersonal = filters.userId
+    ? oldOpen.filter((period) => ["BEARBEITUNG_AKTIV", "PRUEFUNG_AKTIV"].includes(responsibility(period) ?? ""))
+    : oldOpen;
   return {
     periods: visiblePeriods,
     clients: visibleClients,
@@ -139,9 +157,13 @@ export async function getDashboardData(filters: DashboardFilters) {
     reviewPoints: yearFiltered.filter((period) => period.summary.openReviewPoints > 0),
     oldOpen,
     recent: [...yearFiltered].sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime()).slice(0, 10),
-    myProcessing: filters.userId ? yearFiltered.filter((period) => period.processorUserId === filters.userId && period.processingStatus !== "Abgeschlossen") : workViewName ? yearFiltered.filter((period) => period.processorSnapshot === workViewName && ["Offen","In Bearbeitung","Nachbearbeitung"].includes(period.processingStatus)) : [],
-    myReviews: filters.userId ? yearFiltered.filter((period) => period.reviewerUserId === filters.userId && period.processingStatus !== "Abgeschlossen") : workViewName ? yearFiltered.filter((period) => period.reviewerSnapshot === workViewName && ["Zur Prüfung","In Prüfung"].includes(period.processingStatus)) : [],
-    myQuestions: filters.userId ? yearFiltered.filter((period)=>period.processorUserId===filters.userId&&period.summary.openReviewPoints>0) : [],
+    myProcessing,
+    myReviews,
+    myQuestions: filters.userId ? selected.filter(period=>period.tasks.some(task=>task.reviewIssueStatus==="Offen"&&task.reviewIssueDirectedToUserId===filters.userId)) : [],
+    waitingQuestions: filters.userId ? selected.filter(period=>period.tasks.some(task=>task.reviewIssueStatus==="Offen"&&task.reviewIssueRaisedByUserId===filters.userId&&task.reviewIssueDirectedToUserId!==filters.userId)) : [],
+    waitingForReview: filters.userId ? selected.filter((period) => responsibility(period) === "WARTET_AUF_PRUEFUNG") : [],
+    waitingForRework: filters.userId ? selected.filter((period) => responsibility(period) === "WARTET_AUF_NACHBEARBEITUNG") : [],
+    overduePersonal,
     missing: filteredClients.filter((client) => expectedPeriodMissing(client, visiblePeriods, filters.year, filters.month)),
     quality: [
       ...filteredClients.filter((client) => client.annualProfiles.length === 0).map((client) => ({ key: `profile-${client.id}`, text: `${client.clientNumber}: Jahresprofil ${filters.year} fehlt.`, href: `/mandanten/${client.id}` })),

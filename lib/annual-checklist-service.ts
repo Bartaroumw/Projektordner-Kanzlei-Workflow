@@ -1,6 +1,7 @@
 import type { AnnualProfile, StandardTask, TaskCategory } from "@prisma/client";
 import { prisma } from "./prisma.ts";
 import type { AuthUser } from "./permissions.ts";
+import { checklistCompletionMessage } from "./checklist-workflow-rules.ts";
 
 export const ANNUAL_STATUSES = ["Offen", "In Vorbereitung", "Zur Prüfung", "In Prüfung", "Nachbearbeitung", "Fachlich abgeschlossen", "Zur Freigabe", "Freigegeben"] as const;
 export const ANNUAL_TASK_STATUSES = ["Offen", "In Bearbeitung", "Erledigt", "Nicht zutreffend"] as const;
@@ -32,7 +33,7 @@ export function annualStandardTaskMatches(task:TaskWithCategory, profile:AnnualP
     conditionMatches(task.permanentExtensionCondition,profile.hasPermanentExtension);
 }
 
-export function annualProgress(tasks:Array<{status:string;mandatorySnapshot:boolean;reviewStatus:string}>) {
+export function annualProgress(tasks:Array<{status:string;mandatorySnapshot:boolean;reviewStatus:string;notApplicableReason?:string|null}>) {
   const completed=tasks.filter(task=>["Erledigt","Nicht zutreffend"].includes(task.status)).length;
   const mandatoryOpen=tasks.filter(task=>task.mandatorySnapshot&&!["Erledigt","Nicht zutreffend"].includes(task.status)).length;
   const openReviewPoints=tasks.filter(task=>["Rückfrage","Beanstandung"].includes(task.reviewStatus)).length;
@@ -101,6 +102,10 @@ export async function reviewAnnualTask(taskId:number,input:{reviewStatus:string;
   if(issue&&!note)throw new AnnualChecklistError("REASON_REQUIRED","Rückfrage und Beanstandung verlangen eine Prüfnotiz.");
   const updated=await prisma.annualChecklistTask.update({where:{id:taskId},data:{reviewStatus:input.reviewStatus,reviewNote:note||task.reviewNote,reviewedByName:user.fullName,reviewedAt:new Date(),reviewIssueCreatedAt:issue?new Date():task.reviewIssueCreatedAt}});
   await history(task.annualChecklistId,user,issue?input.reviewStatus:"Prüfstatus geändert",`${task.taskIdSnapshot}: Prüfstatus ${input.reviewStatus} durch ${user.fullName} in der Funktion Prüfer.`,task.reviewStatus,input.reviewStatus,task.id);
+  if(issue){
+    await prisma.annualChecklist.update({where:{id:task.annualChecklistId},data:{status:"Nachbearbeitung",returnedAt:new Date()}});
+    await history(task.annualChecklistId,user,"Zur Nachbearbeitung zurückgegeben",`${task.taskIdSnapshot} wurde wegen ${input.reviewStatus.toLocaleLowerCase("de-DE")} an den Bearbeiter zurückgegeben.`,task.annualChecklist.status,"Nachbearbeitung",task.id);
+  }
   return updated;
 }
 
@@ -127,16 +132,17 @@ export async function transitionAnnualChecklist(checklistId:number,action:Annual
     if(summary.openReviewPoints)throw new AnnualChecklistError("REVIEW_POINTS_OPEN","Offene Prüfpunkte müssen beantwortet werden.");
     next="Zur Prüfung";
   } else if(action==="BEGIN_REVIEW"&&checklist.status==="Zur Prüfung"&&isReviewer)next="In Prüfung";
-  else if(action==="RETURN_REWORK"&&checklist.status==="In Prüfung"&&isReviewer){
+  else if(action==="RETURN_REWORK"&&["In Prüfung","Nachbearbeitung"].includes(checklist.status)&&isReviewer){
     if(!summary.openReviewPoints)throw new AnnualChecklistError("REVIEW_POINTS_OPEN","Die Rückgabe verlangt mindestens einen offenen Prüfpunkt.");
     next="Nachbearbeitung";
-  } else if(action==="PROFESSIONAL_COMPLETE"&&checklist.status==="In Prüfung"&&isReviewer){
-    if(summary.mandatoryOpen)throw new AnnualChecklistError("MANDATORY_OPEN","Pflichtaufgaben sind noch offen.");
-    if(summary.openReviewPoints)throw new AnnualChecklistError("REVIEW_POINTS_OPEN","Prüfpunkte sind noch offen.");
+  } else if(action==="PROFESSIONAL_COMPLETE"&&["In Prüfung","Nachbearbeitung"].includes(checklist.status)&&isReviewer){
+    const completionError=checklistCompletionMessage(checklist.tasks);
+    if(completionError)throw new AnnualChecklistError("REVIEW_POINTS_OPEN",completionError);
     next="Fachlich abgeschlossen";
   } else if(action==="SUBMIT_RELEASE"&&checklist.status==="Fachlich abgeschlossen"&&isReviewer)next="Zur Freigabe";
   else if(action==="RELEASE"&&checklist.status==="Zur Freigabe"&&isManagement){
-    if(summary.mandatoryOpen||summary.openReviewPoints)throw new AnnualChecklistError("MANDATORY_OPEN","Die Freigabe setzt erledigte Pflichtaufgaben und geschlossene Prüfpunkte voraus.");
+    const completionError=checklistCompletionMessage(checklist.tasks);
+    if(completionError)throw new AnnualChecklistError("MANDATORY_OPEN",completionError);
     next="Freigegeben";
   } else throw new AnnualChecklistError("NOT_ALLOWED","Diese Aktion ist im aktuellen Status oder für Ihre Rolle nicht zulässig.");
   const now=new Date();

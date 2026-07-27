@@ -37,3 +37,7 @@ Diese Next.js-Version kann neue oder geänderte Konventionen enthalten. Vor Änd
 - Rhythmusänderungen verändern keine bereits erzeugten Aufgaben-Snapshots. Fehlende passende Aufgaben werden nur über die ausdrückliche Übernahmefunktion ergänzt.
 - Eine Begründung für „Nicht zutreffend“ bleibt historisch gespeichert und darf bei späteren Statuswechseln nicht automatisch gelöscht werden.
 - In Hauptnavigation und Modulüberschriften heißen die Bereiche „Rechnungswesenaufgaben“ und „Jahresabschlussaufgaben“.
+- Bearbeitungsstatus und Prüfstatus bleiben getrennt. Eine erledigte Bearbeitung startet fachlich immer als „Nicht geprüft“ und wird niemals automatisch auf „In Ordnung“ gesetzt.
+- Offene Rückfragen, Beanstandungen und Nachbearbeitungen verhindern den Abschluss; die Abschlussfähigkeit wird zentral serverseitig geprüft.
+- Nur ausdrücklich markierte Bearbeitungsnotizen werden in die nächste tatsächliche Ausführung übernommen. Bearbeitungs-, Prüf- und Nicht-zutreffend-Status werden nicht übernommen.
+- Aufgabenformulare speichern asynchron aufgabenbezogen; ungespeicherte Änderungen, Speicherfortschritt und Fehler bleiben an der Aufgabe sichtbar.

@@ -34,8 +34,8 @@ export async function createAnnualChecklistAction(formData:FormData){
 
 export async function updateAnnualTaskAction(taskId:number,checklistId:number,formData:FormData){
   const user=await requireUser();
-  try{await updateAnnualTask(taskId,{status:String(formData.get("status")??""),processingNote:String(formData.get("processingNote")??""),notApplicableReason:String(formData.get("notApplicableReason")??"")},user);revalidatePath(`/jahresabschluesse/${checklistId}`);redirect(`/jahresabschluesse/${checklistId}?erfolg=aufgabe#aufgabe-${taskId}`)}
-  catch(error){if(isRedirect(error))throw error;redirect(`/jahresabschluesse/${checklistId}?fehler=${message(error)}#aufgabe-${taskId}`)}
+  try{await updateAnnualTask(taskId,{status:String(formData.get("status")??""),processingNote:String(formData.get("processingNote")??""),notApplicableReason:String(formData.get("notApplicableReason")??"")},user);revalidatePath(`/jahresabschluesse/${checklistId}`);return {ok:true,message:"Gespeichert"}}
+  catch(error){return {ok:false,message:error instanceof Error?error.message:"Die Aufgabe konnte nicht gespeichert werden."}}
 }
 
 export async function reviewAnnualTaskAction(taskId:number,checklistId:number,formData:FormData){

@@ -1,10 +1,12 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
+import { requireRole } from "@/lib/auth";
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 const one = (value: string | string[] | undefined) => Array.isArray(value) ? value[0] ?? "" : value ?? "";
 
 export default async function StandardTasksPage({ searchParams }: { searchParams: SearchParams }) {
+  await requireRole("KANZLEILEITUNG","STANDARDAUFGABEN_VERWALTEN");
   const params = await searchParams;
   const search = one(params.suche).trim();
   const checklistType = one(params.art);

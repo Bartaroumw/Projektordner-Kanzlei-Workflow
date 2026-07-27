@@ -5,7 +5,7 @@ import type {
   StandardTask,
   TaskCategory,
 } from "@prisma/client";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "./prisma.ts";
 
 export const PERIOD_STATUSES = ["Offen", "In Bearbeitung", "Zur Prüfung", "In Prüfung", "Nachbearbeitung", "Abgeschlossen"] as const;
 export const CHECKLIST_TASK_STATUSES = ["Offen", "In Bearbeitung", "Erledigt", "Nicht zutreffend", "In Folgemonat übertragen"] as const;
@@ -230,6 +230,9 @@ export async function createMonthlyPeriod(clientId: number, year: number, month:
           processorSnapshot: preview.client.processor,
           reviewerSnapshot: preview.client.reviewer,
           managementNameSnapshot: preview.client.managementName,
+          processorUserId: preview.client.processorUserId,
+          reviewerUserId: preview.client.reviewerUserId,
+          managementUserId: preview.client.managementUserId,
           profileLegalFormGroup: preview.profile.legalFormGroup,
           profileProfitDeterminationMethod: preview.profile.profitDeterminationMethod,
           profileHasCashRegister: preview.profile.hasCashRegister,
@@ -315,6 +318,7 @@ export async function createMonthlyPeriod(clientId: number, year: number, month:
             periodId: period.id,
             eventType: "Administrative Ausnahme",
             actorInitials: preview.exception.actorName,
+            ...await actorAudit(preview.exception.actorName),
             description: `Die Monatscheckliste wurde außerhalb der normalen Reihenfolge angelegt. Begründung: ${preview.exception.reason}`,
           },
         });
@@ -345,6 +349,13 @@ export function calculateProgress(tasks: Array<{ status: string; mandatorySnapsh
     mandatoryCompleted,
     mandatoryOpen: mandatory.length - mandatoryCompleted,
   };
+}
+
+async function actorAudit(name:string|null|undefined){
+  const actorNameSnapshot=name?.trim()||null;if(!actorNameSnapshot)return {};
+  const matches=await prisma.user.findMany({where:{fullName:actorNameSnapshot,active:true},include:{roles:true},take:2});
+  const user=matches.length===1?matches[0]:null;
+  return {actorUserId:user?.id??null,actorNameSnapshot,actorRoleSnapshot:user?.roles.map(r=>r.role).join(", ")??null};
 }
 
 export async function updateChecklistTask(
@@ -389,6 +400,7 @@ export async function updateChecklistTask(
           checklistTaskId: task.id,
           eventType: "Aufgabenstatus geändert",
           actorInitials: input.processorInitials.trim() || period.processorSnapshot,
+          ...await actorAudit(input.processorInitials.trim() || period.processorSnapshot),
           description: `Bearbeitungsstatus von ${task.taskIdSnapshot} wurde geändert.`,
           previousValue: task.status,
           newValue: input.status,
@@ -402,6 +414,7 @@ export async function updateChecklistTask(
           checklistTaskId: task.id,
           eventType: "Bearbeitungsnotiz geändert",
           actorInitials: input.processorInitials.trim() || period.processorSnapshot,
+          ...await actorAudit(input.processorInitials.trim() || period.processorSnapshot),
           description: `Bearbeitungsnotiz zu ${task.taskIdSnapshot} wurde geändert.`,
         },
       });
@@ -464,6 +477,7 @@ export async function transferChecklistTask(
         checklistTaskId: task.id,
         eventType: "In Folgemonat übertragen",
         actorInitials: actorName,
+        ...await actorAudit(actorName),
         description: `${task.taskIdSnapshot} wurde mit Begründung nach ${periodLabel("", input.targetYear, input.targetMonth)} übertragen.`,
         previousValue: task.status,
         newValue: "In Folgemonat übertragen",
@@ -504,6 +518,9 @@ export async function updateChecklistRoles(periodId: number, input: {
   processor: string;
   reviewer: string;
   managementName: string;
+  processorUserId?: number | null;
+  reviewerUserId?: number | null;
+  managementUserId?: number | null;
   reason: string;
   actorName: string;
 }) {
@@ -511,11 +528,22 @@ export async function updateChecklistRoles(periodId: number, input: {
   if (!reason || !actor) throw new MonthlyChecklistError("REASON_REQUIRED", "Rollenänderung verlangt Begründung und handelnde Person.");
   const checklist = await prisma.accountingPeriod.findUnique({ where: { id: periodId } });
   if (!checklist || checklist.processingStatus === "Abgeschlossen") throw new MonthlyChecklistError("PERIOD_CLOSED", "Nur eine laufende Monatscheckliste kann Rollen ändern.");
-  const next = { processorSnapshot: input.processor.trim() || null, reviewerSnapshot: input.reviewer.trim() || null, managementNameSnapshot: input.managementName.trim() || null };
+  if(input.processorUserId&&input.processorUserId===input.reviewerUserId)throw new MonthlyChecklistError("INVALID_INPUT","Bearbeiter und Prüfer müssen unterschiedliche Benutzer sein.");
+  const ids=[input.processorUserId,input.reviewerUserId,input.managementUserId].filter((id):id is number=>Boolean(id));
+  const users=await prisma.user.findMany({where:{id:{in:ids},active:true}});
+  if(users.length!==new Set(ids).size)throw new MonthlyChecklistError("INVALID_INPUT","Nur aktive Benutzer dürfen zugeordnet werden.");
+  const names=new Map(users.map(user=>[user.id,user.fullName]));
+  const next = {
+    processorUserId:input.processorUserId??null,reviewerUserId:input.reviewerUserId??null,managementUserId:input.managementUserId??null,
+    processorSnapshot: input.processorUserId?names.get(input.processorUserId)??null:input.processor.trim() || null,
+    reviewerSnapshot: input.reviewerUserId?names.get(input.reviewerUserId)??null:input.reviewer.trim() || null,
+    managementNameSnapshot: input.managementUserId?names.get(input.managementUserId)??null:input.managementName.trim() || null
+  };
   return prisma.$transaction(async transaction => {
     const updated = await transaction.accountingPeriod.update({ where: { id: periodId }, data: next });
     await transaction.workflowHistory.create({ data: {
       periodId, eventType: "Rollenzuordnung geändert", actorInitials: actor,
+      ...await actorAudit(actor),
       description: `Rollen wurden geändert. Begründung: ${reason}`,
       previousValue: `${checklist.processorSnapshot ?? "–"} | ${checklist.reviewerSnapshot ?? "–"} | ${checklist.managementNameSnapshot ?? "–"}`,
       newValue: `${next.processorSnapshot ?? "–"} | ${next.reviewerSnapshot ?? "–"} | ${next.managementNameSnapshot ?? "–"}`,
@@ -595,7 +623,7 @@ export async function transitionPeriod(
       data: { ...periodData, processingStatus: nextStatus },
     });
     await transaction.workflowHistory.create({
-      data: { periodId, eventType, actorInitials: actor || null, description, previousValue: period.processingStatus, newValue: nextStatus },
+      data: { periodId, eventType, actorInitials: actor || null, ...await actorAudit(actor), description, previousValue: period.processingStatus, newValue: nextStatus },
     });
     return updated;
   });
@@ -636,6 +664,7 @@ export async function reviewChecklistTask(
     await transaction.workflowHistory.create({
       data: {
         periodId: task.periodId, checklistTaskId: task.id, eventType, actorInitials: reviewer,
+        ...await actorAudit(reviewer),
         description: `Prüfstatus von ${task.taskIdSnapshot} wurde auf „${input.reviewStatus}“ gesetzt.`,
         previousValue: task.reviewStatus, newValue: input.reviewStatus,
       },
@@ -674,6 +703,7 @@ export async function completeRework(
     await transaction.workflowHistory.create({
       data: {
         periodId: task.periodId, checklistTaskId: task.id, eventType: "Nachbearbeitung erledigt", actorInitials: actor,
+        ...await actorAudit(actor),
         description: `Prüfpunkt zu ${task.taskIdSnapshot} wurde beantwortet und zur erneuten Prüfung vorbereitet.`,
         previousValue: task.reviewStatus, newValue: "Erledigt nach Nachbearbeitung",
       },
@@ -699,6 +729,7 @@ export async function reopenPeriod(periodId: number, actorInitials: string, reas
     await transaction.workflowHistory.create({
       data: {
         periodId, eventType: "Abschluss wieder geöffnet", actorInitials: actor,
+        ...await actorAudit(actor),
         description: `Die abgeschlossene Monatscheckliste wurde wieder geöffnet. Begründung: ${explanation}`,
         previousValue: "Abgeschlossen", newValue: "Nachbearbeitung",
       },

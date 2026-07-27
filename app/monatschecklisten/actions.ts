@@ -16,15 +16,27 @@ import {
   updateChecklistRoles,
   transferChecklistTask,
 } from "@/lib/monthly-checklist-service";
+import { requireRole, requireUser } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
+import { canManageClients, canManageCustomTasks, canProcessPeriod, canReviewPeriod, canUseAdministrationException, canViewClient } from "@/lib/permissions";
+
+async function processingUser(periodId:number){const user=await requireUser();const period=await prisma.accountingPeriod.findUniqueOrThrow({where:{id:periodId}});
+  if(!canProcessPeriod(user,period))throw new Error("Sie dürfen diese Monatscheckliste nicht bearbeiten.");return {user,period};}
+async function reviewingUser(periodId:number){const user=await requireUser();const period=await prisma.accountingPeriod.findUniqueOrThrow({where:{id:periodId}});
+  if(!canReviewPeriod(user,period))throw new Error("Sie dürfen diese Monatscheckliste nicht prüfen. Das Vier-Augen-Prinzip bleibt verbindlich.");return {user,period};}
 
 export async function confirmPeriodAction(formData: FormData) {
+  const user=await requireUser();
+  if(!canManageClients(user))throw new Error("Sie sind nicht berechtigt, eine Monatscheckliste anzulegen.");
   const clientId = Number(formData.get("clientId"));
   const year = Number(formData.get("year"));
   const month = Number(formData.get("month"));
   try {
-    const exception = formData.get("administrativeException") === "on" ? {
+    const administrativeException=formData.get("administrativeException")==="on";
+    if(administrativeException&&!canUseAdministrationException(user))throw new Error("Administrative Ausnahmen dürfen nur durch die Kanzleileitung genehmigt werden.");
+    const exception = administrativeException ? {
       administrativeException: true,
-      actorName: String(formData.get("exceptionActorName") ?? ""),
+      actorName: user.fullName,
       reason: String(formData.get("exceptionReason") ?? ""),
     } : {};
     const period = await createMonthlyPeriod(clientId, year, month, exception);
@@ -39,13 +51,17 @@ export async function confirmPeriodAction(formData: FormData) {
 }
 
 export async function updateChecklistRolesAction(periodId: number, formData: FormData) {
+  const user=await requireRole("KANZLEILEITUNG");
   try {
     await updateChecklistRoles(periodId, {
       processor: String(formData.get("processor") ?? ""),
       reviewer: String(formData.get("reviewer") ?? ""),
       managementName: String(formData.get("managementName") ?? ""),
+      processorUserId:formData.get("processorUserId")?Number(formData.get("processorUserId")):null,
+      reviewerUserId:formData.get("reviewerUserId")?Number(formData.get("reviewerUserId")):null,
+      managementUserId:formData.get("managementUserId")?Number(formData.get("managementUserId")):null,
       reason: String(formData.get("reason") ?? ""),
-      actorName: String(formData.get("actorName") ?? ""),
+      actorName: user.fullName,
     });
     revalidatePath(`/monatschecklisten/${periodId}`);
     redirect(`/monatschecklisten/${periodId}?erfolg=rollen`);
@@ -56,10 +72,11 @@ export async function updateChecklistRolesAction(periodId: number, formData: For
 }
 
 export async function transferChecklistTaskAction(taskId: number, periodId: number, formData: FormData) {
+  const {user}=await processingUser(periodId);
   try {
     await transferChecklistTask(taskId, {
       reason: String(formData.get("transferReason") ?? ""),
-      actorName: String(formData.get("transferActorName") ?? ""),
+      actorName: user.fullName,
       targetYear: Number(formData.get("transferTargetYear")),
       targetMonth: Number(formData.get("transferTargetMonth")),
       expectedAction: String(formData.get("transferExpectedAction") ?? ""),
@@ -73,11 +90,12 @@ export async function transferChecklistTaskAction(taskId: number, periodId: numb
 }
 
 export async function updateChecklistTaskAction(taskId: number, periodId: number, formData: FormData) {
+  const {user}=await processingUser(periodId);
   try {
     await updateChecklistTask(taskId, {
       status: String(formData.get("status") ?? ""),
       processingNote: String(formData.get("processingNote") ?? ""),
-      processorInitials: String(formData.get("processorInitials") ?? ""),
+      processorInitials: user.fullName,
       notApplicableReason: String(formData.get("notApplicableReason") ?? ""),
     });
     revalidatePath(`/monatschecklisten/${periodId}`);
@@ -89,6 +107,7 @@ export async function updateChecklistTaskAction(taskId: number, periodId: number
 }
 
 export async function updatePeriodAction(periodId: number, formData: FormData) {
+  await processingUser(periodId);
   try {
     await updatePeriod(periodId, {
       processingStatus: String(formData.get("processingStatus") ?? ""),
@@ -105,7 +124,9 @@ export async function updatePeriodAction(periodId: number, formData: FormData) {
 
 export async function transitionPeriodAction(periodId: number, action: Parameters<typeof transitionPeriod>[1], formData: FormData) {
   try {
-    const updated = await transitionPeriod(periodId, action, String(formData.get("actorInitials") ?? ""));
+    const reviewAction=["BEGIN_REVIEW","RETURN_REWORK","COMPLETE_REVIEW"].includes(action);
+    const {user}=reviewAction?await reviewingUser(periodId):await processingUser(periodId);
+    const updated = await transitionPeriod(periodId, action, user.fullName);
     revalidatePath(`/monatschecklisten/${periodId}`);
     revalidatePath("/monatschecklisten");
     if (action === "COMPLETE_REVIEW" && formData.get("createFollowing") === "1") {
@@ -120,10 +141,11 @@ export async function transitionPeriodAction(periodId: number, action: Parameter
 }
 
 export async function reviewTaskAction(taskId: number, periodId: number, formData: FormData) {
+  const {user}=await reviewingUser(periodId);
   try {
     await reviewChecklistTask(taskId, {
       reviewStatus: String(formData.get("reviewStatus") ?? ""),
-      reviewerInitials: String(formData.get("reviewerInitials") ?? ""),
+      reviewerInitials: user.fullName,
       reviewNote: String(formData.get("reviewNote") ?? ""),
     });
     revalidatePath(`/monatschecklisten/${periodId}`);
@@ -135,10 +157,11 @@ export async function reviewTaskAction(taskId: number, periodId: number, formDat
 }
 
 export async function completeReworkAction(taskId: number, periodId: number, formData: FormData) {
+  const {user}=await processingUser(periodId);
   try {
     await completeRework(taskId, {
       response: String(formData.get("processorResponse") ?? ""),
-      actorInitials: String(formData.get("respondedBy") ?? ""),
+      actorInitials: user.fullName,
       processingNote: String(formData.get("processingNote") ?? ""),
     });
     revalidatePath(`/monatschecklisten/${periodId}`);
@@ -150,10 +173,11 @@ export async function completeReworkAction(taskId: number, periodId: number, for
 }
 
 export async function reopenPeriodAction(periodId: number, formData: FormData) {
+  const user=await requireRole("KANZLEILEITUNG");
   try {
     await reopenPeriod(
       periodId,
-      String(formData.get("actorInitials") ?? ""),
+      user.fullName,
       String(formData.get("reason") ?? ""),
       formData.get("confirmed") === "on",
     );
@@ -167,6 +191,8 @@ export async function reopenPeriodAction(periodId: number, formData: FormData) {
 }
 
 export async function createCustomTaskAction(clientId: number, formData: FormData) {
+  const user=await requireUser();const client=await prisma.client.findUniqueOrThrow({where:{id:clientId}});
+  if(!canManageCustomTasks(user)||!canViewClient(user,client))throw new Error("Sie dürfen mandantenspezifische Aufgabenvorlagen nicht verwalten.");
   try {
     await createCustomClientTask({
       clientId,
@@ -191,6 +217,8 @@ export async function createCustomTaskAction(clientId: number, formData: FormDat
 }
 
 export async function updateCustomTaskAction(clientId: number, taskId: number, formData: FormData) {
+  const user=await requireUser();const client=await prisma.client.findUniqueOrThrow({where:{id:clientId}});
+  if(!canManageCustomTasks(user)||!canViewClient(user,client))throw new Error("Sie dürfen mandantenspezifische Aufgabenvorlagen nicht verwalten.");
   try {
     await updateCustomClientTask(taskId, customInput(clientId, formData));
     revalidatePath(`/mandanten/${clientId}/zusatzaufgaben`);

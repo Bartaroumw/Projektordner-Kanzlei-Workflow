@@ -3,13 +3,16 @@ import { prisma } from "@/lib/prisma";
 import { previewMonthlyPeriod } from "@/lib/monthly-checklist-service";
 import { confirmPeriodAction } from "../actions";
 import { ToastMessage } from "@/app/components/toast-message";
+import { requireUser } from "@/lib/auth";
+import { hasRole } from "@/lib/permissions";
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 const one = (value: string | string[] | undefined) => Array.isArray(value) ? value[0] ?? "" : value ?? "";
 
 export default async function NewMonthlyPeriodPage({ searchParams }: { searchParams: SearchParams }) {
+  const user=await requireUser();
   const params = await searchParams;
-  const clients = await prisma.client.findMany({ where: { active: true }, orderBy: { clientNumber: "asc" } });
+  const clients = await prisma.client.findMany({ where: { active: true,...(!hasRole(user,"KANZLEILEITUNG")?{processorUserId:user.id}:{}) }, orderBy: { clientNumber: "asc" } });
   const clientId = Number(one(params.clientId)) || clients[0]?.id;
   const year = Number(one(params.year)) || 2026;
   const month = Number(one(params.month)) || 1;

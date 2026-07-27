@@ -12,6 +12,7 @@ import {
   type StandardTaskInput,
 } from "@/lib/standard-task-validation";
 import { prisma } from "@/lib/prisma";
+import { requireRole } from "@/lib/auth";
 
 export type TaskFormState = {
   error?: string;
@@ -82,6 +83,7 @@ export async function createTaskAction(
   _state: TaskFormState,
   formData: FormData,
 ): Promise<TaskFormState> {
+  await requireRole("KANZLEILEITUNG","STANDARDAUFGABEN_VERWALTEN");
   const parsed = inputFromForm(formData);
   if (!parsed.success) return parsed.state;
   try {
@@ -99,6 +101,7 @@ export async function updateTaskAction(
   _state: TaskFormState,
   formData: FormData,
 ): Promise<TaskFormState> {
+  await requireRole("KANZLEILEITUNG","STANDARDAUFGABEN_VERWALTEN");
   const parsed = inputFromForm(formData);
   if (!parsed.success) return parsed.state;
   try {
@@ -112,6 +115,7 @@ export async function updateTaskAction(
 }
 
 export async function createCategoryAction(formData: FormData) {
+  await requireRole("KANZLEILEITUNG","STANDARDAUFGABEN_VERWALTEN");
   const name = String(formData.get("name") ?? "").trim();
   if (!name) redirect("/standardaufgaben/kategorien?fehler=Name");
   try {
@@ -131,6 +135,7 @@ export async function createCategoryAction(formData: FormData) {
 }
 
 export async function updateCategoryAction(id: number, formData: FormData) {
+  await requireRole("KANZLEILEITUNG","STANDARDAUFGABEN_VERWALTEN");
   const name = String(formData.get("name") ?? "").trim();
   if (!name) redirect("/standardaufgaben/kategorien?fehler=Name");
   try {

@@ -14,11 +14,12 @@ type ClientFormProps = {
   ) => Promise<FormState>;
   client?: Client;
   cancelHref: string;
+  users: { id:number; fullName:string; roles:{role:string}[] }[];
 };
 
 const initialState: FormState = {};
 
-export function ClientForm({ action, client, cancelHref }: ClientFormProps) {
+export function ClientForm({ action, client, cancelHref, users }: ClientFormProps) {
   const [state, formAction, pending] = useActionState(action, initialState);
   const errorFor = (field: string) => state.fieldErrors?.[field]?.[0];
 
@@ -38,13 +39,13 @@ export function ClientForm({ action, client, cancelHref }: ClientFormProps) {
           <input className="input" id="name" name="name" defaultValue={client?.name} required />
         </Field>
         <Field label="Bearbeiter (vollständiger Name)">
-          <input className="input" id="processor" name="processor" defaultValue={client?.processor ?? ""} />
+          <UserSelect name="processorUserId" value={client?.processorUserId} users={users.filter(u=>u.roles.some(r=>["MITARBEITER","PRUEFER","KANZLEILEITUNG"].includes(r.role)))}/>
         </Field>
         <Field label="Prüfer (vollständiger Name)">
-          <input className="input" id="reviewer" name="reviewer" defaultValue={client?.reviewer ?? ""} />
+          <UserSelect name="reviewerUserId" value={client?.reviewerUserId} users={users.filter(u=>u.roles.some(r=>["PRUEFER","KANZLEILEITUNG"].includes(r.role)))}/>
         </Field>
         <Field label="Zuständige Kanzleileitung">
-          <input className="input" id="managementName" name="managementName" defaultValue={client?.managementName ?? ""} />
+          <UserSelect name="managementUserId" value={client?.managementUserId} users={users.filter(u=>u.roles.some(r=>r.role==="KANZLEILEITUNG"))}/>
         </Field>
         <Field label="USt-Voranmeldungszeitraum" required error={errorFor("vatFilingPeriod")}>
           <select className="input" id="vatFilingPeriod" name="vatFilingPeriod" defaultValue={client?.vatFilingPeriod ?? "Monatlich"} required>
@@ -71,6 +72,8 @@ export function ClientForm({ action, client, cancelHref }: ClientFormProps) {
     </form>
   );
 }
+
+function UserSelect({name,value,users}:{name:string;value:number|null|undefined;users:{id:number;fullName:string}[]}){return <select className="input" id={name} name={name} defaultValue={value??""}><option value="">Nicht zugeordnet</option>{users.map(user=><option key={user.id} value={user.id}>{user.fullName}</option>)}</select>}
 
 function Field({
   label,

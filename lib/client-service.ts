@@ -43,7 +43,7 @@ export async function createClient(input: ClientInput) {
     throw new DomainError(parsed.error.issues[0].message, "INVALID_INPUT");
   }
   try {
-    return await prisma.client.create({ data: { ...parsed.data, cadence: "monatlich" } });
+    return await prisma.client.create({ data: { ...await resolvedClientData(parsed.data), cadence: "monatlich" } });
   } catch (error) {
     translatePrismaError(error);
   }
@@ -57,7 +57,7 @@ export async function updateClient(id: number, input: ClientInput) {
   try {
     return await prisma.client.update({
       where: { id },
-      data: parsed.data,
+      data: await resolvedClientData(parsed.data),
     });
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2025") {
@@ -65,6 +65,14 @@ export async function updateClient(id: number, input: ClientInput) {
     }
     translatePrismaError(error);
   }
+}
+
+async function resolvedClientData(input: ClientInput) {
+  const ids=[input.processorUserId,input.reviewerUserId,input.managementUserId].filter((id):id is number=>Boolean(id));
+  const users=await prisma.user.findMany({where:{id:{in:ids},active:true}});
+  if(users.length!==new Set(ids).size)throw new DomainError("Inaktive oder unbekannte Benutzer dürfen nicht zugeordnet werden.","INVALID_INPUT");
+  const byId=new Map(users.map(user=>[user.id,user.fullName]));
+  return {...input,processor:input.processorUserId?byId.get(input.processorUserId)??null:null,reviewer:input.reviewerUserId?byId.get(input.reviewerUserId)??null:null,managementName:input.managementUserId?byId.get(input.managementUserId)??null:null};
 }
 
 export async function createAnnualProfile(

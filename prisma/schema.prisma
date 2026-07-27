@@ -17,6 +17,9 @@ model Client {
   cadence         String // Veraltet: neue Logik verwendet vatFilingPeriod
   vatFilingPeriod String             @default("Monatlich")
   managementName  String?
+  processorUserId Int?
+  reviewerUserId  Int?
+  managementUserId Int?
   active          Boolean            @default(true)
   internalNote    String?
   createdAt       DateTime           @default(now())
@@ -24,9 +27,15 @@ model Client {
   annualProfiles  AnnualProfile[]
   periods         AccountingPeriod[]
   customTasks     CustomClientTask[]
+  processorUser   User?              @relation("ClientProcessor", fields: [processorUserId], references: [id], onDelete: SetNull)
+  reviewerUser    User?              @relation("ClientReviewer", fields: [reviewerUserId], references: [id], onDelete: SetNull)
+  managementUser  User?              @relation("ClientManagement", fields: [managementUserId], references: [id], onDelete: SetNull)
 
   @@index([name])
   @@index([active])
+  @@index([processorUserId])
+  @@index([reviewerUserId])
+  @@index([managementUserId])
 }
 
 model AnnualProfile {
@@ -110,6 +119,9 @@ model AccountingPeriod {
   processorSnapshot                String?
   reviewerSnapshot                 String?
   managementNameSnapshot           String?
+  processorUserId                  Int?
+  reviewerUserId                   Int?
+  managementUserId                 Int?
   currentActorInitials             String?
   submittedForReviewAt             DateTime?
   reviewStartedAt                  DateTime?
@@ -133,10 +145,16 @@ model AccountingPeriod {
   client                           Client            @relation(fields: [clientId], references: [id], onDelete: Restrict)
   tasks                            ChecklistTask[]
   history                          WorkflowHistory[]
+  processorUser                    User?             @relation("PeriodProcessor", fields: [processorUserId], references: [id], onDelete: SetNull)
+  reviewerUser                     User?             @relation("PeriodReviewer", fields: [reviewerUserId], references: [id], onDelete: SetNull)
+  managementUser                   User?             @relation("PeriodManagement", fields: [managementUserId], references: [id], onDelete: SetNull)
 
   @@unique([clientId, calendarYear, month, checklistType])
   @@index([calendarYear, month, processingStatus])
   @@index([clientId, updatedAt])
+  @@index([processorUserId])
+  @@index([reviewerUserId])
+  @@index([managementUserId])
 }
 
 model ChecklistTask {
@@ -199,14 +217,70 @@ model WorkflowHistory {
   eventType       String
   occurredAt      DateTime         @default(now())
   actorInitials   String?
+  actorUserId     Int?
+  actorNameSnapshot String?
+  actorRoleSnapshot String?
   description     String
   previousValue   String?
   newValue        String?
   period          AccountingPeriod @relation(fields: [periodId], references: [id], onDelete: Restrict)
   checklistTask   ChecklistTask?   @relation(fields: [checklistTaskId], references: [id], onDelete: Restrict)
+  actorUser        User?            @relation(fields: [actorUserId], references: [id], onDelete: SetNull)
 
   @@index([periodId, occurredAt])
   @@index([checklistTaskId, occurredAt])
+  @@index([actorUserId])
+}
+
+model User {
+  id                    Int               @id @default(autoincrement())
+  fullName              String
+  username              String            @unique
+  email                 String?           @unique
+  passwordHash          String
+  active                Boolean           @default(true)
+  shortLabel            String?
+  lastLoginAt           DateTime?
+  passwordChangedAt     DateTime?
+  mustChangePassword    Boolean           @default(true)
+  sessionVersion        Int               @default(1)
+  createdAt             DateTime          @default(now())
+  updatedAt             DateTime          @updatedAt
+  roles                 UserRole[]
+  sessions              Session[]
+  processorClients      Client[]          @relation("ClientProcessor")
+  reviewerClients       Client[]          @relation("ClientReviewer")
+  managementClients     Client[]          @relation("ClientManagement")
+  processorPeriods      AccountingPeriod[] @relation("PeriodProcessor")
+  reviewerPeriods       AccountingPeriod[] @relation("PeriodReviewer")
+  managementPeriods     AccountingPeriod[] @relation("PeriodManagement")
+  historyEntries        WorkflowHistory[]
+
+  @@index([active, fullName])
+}
+
+model UserRole {
+  id       Int    @id @default(autoincrement())
+  userId   Int
+  role     String
+  user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, role])
+  @@index([role])
+}
+
+model Session {
+  id             Int      @id @default(autoincrement())
+  tokenHash      String   @unique
+  userId         Int
+  sessionVersion Int
+  expiresAt      DateTime
+  createdAt      DateTime @default(now())
+  lastUsedAt     DateTime @default(now())
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, expiresAt])
+  @@index([expiresAt])
 }
 
 model CustomClientTask {

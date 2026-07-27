@@ -36,6 +36,8 @@ Die lokale Verbindungsangabe steht in `.env`; `.env.example` enthält nur eine V
 npm.cmd run db:generate
 npm.cmd run db:seed
 npm.cmd run db:reset
+npm.cmd run db:reset:test
+npm.cmd run db:diagnose
 ```
 
 Das Schema steht in `prisma/schema.prisma`, die SQL-Migrationen unter `prisma/migrations`.
@@ -81,11 +83,11 @@ Pflichtaufgaben gelten als behandelt, wenn sie `Erledigt`, begründet `Nicht zut
 
 ## Rollen und Kanzleileitung
 
-Mandanten speichern vollständige Namen für Bearbeiter, Prüfer und zuständige Kanzleileitung. Beim Anlegen einer Checkliste werden alle drei Namen als historische Text-Snapshots gespeichert. Stammdatenänderungen verändern bestehende Checklisten nicht.
+Mandanten speichern aktive Benutzerreferenzen und vollständige Namen für Bearbeiter, Prüfer und zuständige Kanzleileitung. Beim Anlegen einer Checkliste werden alle drei Benutzer-IDs und Namen als historische Snapshots gespeichert. Stammdatenänderungen verändern bestehende Checklisten nicht.
 
 Eine ausdrückliche Rollenänderung in einer laufenden Checkliste verlangt Änderungsgrund und handelnde Person. Vorherige und neue Werte werden im Verlauf gespeichert.
 
-Bearbeitungsaktionen verwenden automatisch den gespeicherten Bearbeiter, Prüfaktionen automatisch den gespeicherten Prüfer. Diese Zuordnung ist bis zur Einführung einer Benutzeranmeldung keine technische Identitätsprüfung. Später können Benutzer-IDs ergänzt werden, während die historischen Textnamen erhalten bleiben.
+Bearbeitungs- und Prüfaktionen verwenden den angemeldeten Benutzer. Serverseitige Prüfungen vergleichen dessen Benutzer-ID mit der Checklistenzuordnung; historische Textnamen bleiben zusätzlich erhalten.
 
 Die Kanzleileitung wird bereits in Stammdaten, Übersichten, Dashboard und Checklistenkopf angezeigt, ist aber noch nicht Teil des monatlichen Prüfworkflows oder einer Jahresfreigabe.
 
@@ -136,15 +138,63 @@ Statustexte bleiben immer sichtbar; Farbe ist nie die einzige Information.
 
 ## Künstliche Testdaten
 
-Die Seed-Daten verwenden nur künstliche Mandanten und neutrale vollständige Namen. Enthalten sind künstliche Monatschecklisten, Standardaufgaben, Zusatzaufgaben und Workflowzustände. Ein Mandant besitzt absichtlich kein Jahresprofil beziehungsweise keine Kanzleileitung, damit Datenqualitätshinweise sichtbar geprüft werden können.
+Die deterministischen Seed-Daten verwenden nur künstliche Mandanten und neutrale vollständige Namen. Enthalten sind sechs Monatschecklisten, Standardaufgaben, eine Zusatzaufgabe und nachvollziehbare Workflowzustände. Alle aktiven Mandanten und Checklisten besitzen konsistente Benutzerreferenzen.
 
 Vollständiger lokaler Reset:
 
 ```powershell
-npm.cmd run db:reset
+npm.cmd run db:reset:test
 ```
 
-Dabei gehen eigene lokale Testeingaben verloren.
+Dabei gehen eigene lokale Testeingaben verloren. Der Befehl ist ausschließlich für die künstliche lokale Testdatenbank bestimmt. Er führt alle vorhandenen Migrationen in Reihenfolge aus, erzeugt den Seed neu und bricht bei einer fehlerhaften Konsistenzprüfung ab.
+
+Unterschiede:
+
+- `npm.cmd run dev`: normaler Entwicklungsstart ohne Datenänderung.
+- `npm.cmd run db:migrate`: Migration ohne beabsichtigte Löschung bestehender Daten.
+- `npm.cmd run db:reset:test`: vollständiges Löschen und Neuaufbauen ausschließlich der lokalen künstlichen Testdaten.
+- `npm.cmd run db:diagnose`: lesender Diagnosebericht ohne Passwörter, Hashes oder Sitzungstoken.
+
+## Lokale Anmeldung und Benutzerrollen
+
+Ordo Caroli verwendet ausschließlich lokale Benutzerkonten in SQLite. Passwörter werden mit Node.js `scrypt` und einem je Passwort zufällig erzeugten Salt gespeichert. Das Klartextpasswort wird weder gespeichert noch protokolliert. Nach der Anmeldung wird ein zufälliges, opakes Sitzungstoken gesetzt; in der Datenbank liegt ausschließlich dessen SHA-256-Hash. Das Cookie ist `HttpOnly`, `SameSite=Lax`, auf acht Stunden begrenzt und im Produktionsmodus `Secure`.
+
+Mehrfachrollen sind möglich:
+
+- `Mitarbeiter`: Mandanten anlegen und bearbeiten, eigene zugeordnete Mandate bearbeiten, Rückfragen beantworten und zur Prüfung übergeben.
+- `Prüfer`: Mandanten sowie mandantenspezifische Aufgabenvorlagen verwalten und ausschließlich zugeordnete, nicht selbst bearbeitete Checklisten prüfen.
+- `Kanzleileitung`: kanzleiweite Fachsicht, Standardaufgaben, begründete Ausnahmen, Rollenänderungen und Wiederöffnungen.
+- `Administrator`: lokale Benutzerkonten und Passwörter verwalten, jedoch keine fachliche Prüfung allein aufgrund der Administratorrolle.
+- `Standardaufgaben verwalten`: zusätzliche ausdrückliche Fachberechtigung für Standardaufgaben und Excel-Import.
+- `Mandanten verwalten`: ausdrückliche Zusatzberechtigung für Benutzer ohne fachliche Standardrolle.
+- `Mandantenspezifische Aufgaben verwalten`: ausdrückliche Zusatzberechtigung neben Prüfer und Kanzleileitung.
+
+Ein rein technischer Administrator besitzt keine fachlichen Mandanten-, Checklisten-, Prüf- oder Aufgabenrechte. Mandantenspezifische Aufgaben und kanzleiweite Standardaufgaben werden strikt getrennt berechtigt.
+
+Das Vier-Augen-Prinzip wird anhand unveränderlicher Benutzer-IDs serverseitig geprüft. Bearbeiter und Prüfer dürfen nicht identisch sein. Die Benutzeroberfläche zeigt nur passende Aktionen; entscheidend bleibt stets die serverseitige Prüfung.
+
+Mandanten und Monatschecklisten speichern optionale Benutzerreferenzen sowie weiterhin vollständige Namen. Beim Erzeugen einer Checkliste werden Benutzer-IDs und Namen als Rollen-Snapshot gespeichert. Neue Verlaufseinträge erhalten Benutzer-ID, Namenssnapshot und Rollen zum Aktionszeitpunkt. Historische Namen und bestehende Verlaufstexte bleiben unverändert.
+
+Benutzer werden nie physisch gelöscht. Eine Deaktivierung beendet Sitzungen und verhindert neue Anmeldung und Zuordnung; historische Bezüge bleiben erhalten. Bestehende aktive Zuordnungen werden nicht automatisch umverteilt.
+
+### Ausschließlich künstliche lokale Zugänge
+
+| Benutzername | Rolle(n) | Erstpasswort |
+| --- | --- | --- |
+| `maria.muster` | Mitarbeiter | `Test-Maria-2026!` |
+| `paul.pruefung` | Prüfer | `Test-Paul-2026!` |
+| `klara.leitung` | Kanzleileitung, Prüfer | `Test-Klara-2026!` |
+| `anton.admin` | Administrator | `Test-Anton-2026!` |
+| `max.beispiel` | Mitarbeiter | `Test-Max-2026!` |
+| `nina.test` | deaktiviertes Testkonto | `Test-Nina-2026!` |
+
+Diese Zugangsdaten sind ausschließlich für lokale Tests bestimmt. Vor einem echten Kanzleieinsatz müssen die künstlichen Benutzer entfernt oder abgesichert und alle Erstpasswörter geändert werden. Nach einer administrativen Passwortzurücksetzung muss das temporäre Passwort beim nächsten Login geändert werden.
+
+Jeder Benutzer kann sein Passwort mit aktuellem Passwort, neuem Passwort und Bestätigung ändern. Andere Sitzungen werden dabei ungültig. Passwörter müssen mindestens zwölf Zeichen enthalten; unnötig starre Zeichenklassen werden nicht erzwungen.
+
+Die Migration `20260726213000_local_users_auth` ergänzt Benutzer, Mehrfachrollen, Sitzungen, Benutzerreferenzen an Mandanten und Checklisten sowie Benutzer-Snapshots im Verlauf. Sie entfernt keine historischen Daten.
+
+Der lokale Entwicklungsbetrieb verwendet HTTP. Für einen späteren Netzwerkbetrieb sind HTTPS, geregelte Datensicherung, Zugriffsschutz des Windows-PCs und ein abgesichertes internes Betriebskonzept erforderlich.
 
 ## Prüfungen
 
@@ -157,8 +207,9 @@ npm.cmd run build
 
 ## Bekannte Einschränkungen
 
-- keine Benutzeranmeldung und keine technischen Berechtigungen
-- automatische Rollennamen sind kein Identitätsnachweis
+- keine externe Identitätsverwaltung, Mehrfaktor-Anmeldung oder zentrale Kennwortrichtlinie
+- lokale Konten setzen den gesicherten Zugriff auf den Windows-PC und die SQLite-Datei voraus
+- Sitzungen sind auf eine einzelne lokale Installation ausgelegt
 - keine Jahresabschlusschecklisten oder Jahresfreigabe
 - keine Datei-Uploads außer dem vorhandenen lokalen `.xlsx`-Import für Standardaufgaben
 - keine Exporte, Benachrichtigungen oder E-Mails

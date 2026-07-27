@@ -35,6 +35,9 @@ export const clientSchema = z.object({
   processor: optionalText,
   reviewer: optionalText,
   managementName: optionalText,
+  processorUserId: z.number().int().positive().nullable().optional(),
+  reviewerUserId: z.number().int().positive().nullable().optional(),
+  managementUserId: z.number().int().positive().nullable().optional(),
   vatFilingPeriod: z.enum(VAT_FILING_PERIODS, {
     message: "Bitte wählen Sie einen gültigen USt-Voranmeldungszeitraum.",
   }),
@@ -51,7 +54,7 @@ export const clientSchema = z.object({
         ),
     )
     .transform((value) => value || null),
-});
+}).superRefine((value,context)=>{if(value.processorUserId&&value.processorUserId===value.reviewerUserId)context.addIssue({code:"custom",path:["reviewerUserId"],message:"Bearbeiter und Prüfer müssen unterschiedliche aktive Benutzer sein."});});
 
 export const annualProfileSchema = z
   .object({

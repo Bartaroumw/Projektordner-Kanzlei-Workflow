@@ -1,0 +1,11 @@
+import {ROLES} from "@/lib/permissions";
+const LABELS:Record<string,string>={MITARBEITER:"Mitarbeiter",PRUEFER:"Prüfer",KANZLEILEITUNG:"Kanzleileitung",ADMINISTRATOR:"Administrator",MANDANTEN_VERWALTEN:"Mandanten verwalten",MANDANTENSPEZIFISCHE_AUFGABEN_VERWALTEN:"Mandantenspezifische Aufgaben verwalten",STANDARDAUFGABEN_VERWALTEN:"Standardaufgaben verwalten"};
+export function UserForm({action,user}:{action:(data:FormData)=>void|Promise<void>;user?:{fullName:string;username:string;email:string|null;shortLabel:string|null;active:boolean;roles:{role:string}[]}}){const assigned=new Set(user?.roles.map(r=>r.role));return <form action={action} className="mt-6 grid max-w-3xl gap-4 rounded-lg border bg-white p-6 md:grid-cols-2">
+<label className="text-sm font-semibold">Vollständiger Name<input className="input mt-1" name="fullName" defaultValue={user?.fullName} required/></label>
+<label className="text-sm font-semibold">Benutzername<input className="input mt-1" name="username" defaultValue={user?.username} disabled={Boolean(user)} required={!user}/></label>
+<label className="text-sm font-semibold">Dienstliche E-Mail (optional)<input className="input mt-1" type="email" name="email" defaultValue={user?.email??""}/></label>
+<label className="text-sm font-semibold">Kurzbezeichnung (optional)<input className="input mt-1" name="shortLabel" defaultValue={user?.shortLabel??""}/></label>
+{!user&&<><label className="text-sm font-semibold">Temporäres Passwort<input className="input mt-1" name="password" type="password" minLength={12} required/></label><div/></>}
+<fieldset className="md:col-span-2"><legend className="text-sm font-semibold">Rollen</legend><div className="mt-2 flex flex-wrap gap-4">{ROLES.map(role=><label className="flex items-center gap-2 text-sm" key={role}><input type="checkbox" name="roles" value={role} defaultChecked={assigned.has(role)}/>{LABELS[role]}</label>)}</div></fieldset>
+{user&&<label className="flex items-center gap-2 text-sm font-semibold"><input type="checkbox" name="active" defaultChecked={user.active}/> Benutzer ist aktiv</label>}
+<div className="md:col-span-2"><button className="button-primary">Speichern</button></div></form>}

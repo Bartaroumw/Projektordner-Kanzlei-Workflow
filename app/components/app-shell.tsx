@@ -4,17 +4,10 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { ToastMessage } from "@/app/components/toast-message";
+import { logoutAction } from "@/app/anmelden/actions";
+import type { AuthUser } from "@/lib/permissions";
 
-const navigation = [
-  { label: "Dashboard", href: "/" },
-  { label: "Mandanten", href: "/mandanten" },
-  { label: "Monatschecklisten", href: "/monatschecklisten" },
-  { label: "Standardaufgaben", href: "/standardaufgaben" },
-  { label: "Wissensspeicher", href: "/#wissensspeicher" },
-  { label: "Administration", href: "/#administration" },
-];
-
-export function AppShell({ children }: { children: React.ReactNode }) {
+export function AppShell({ children, user }: { children: React.ReactNode; user:AuthUser|null }) {
   const pathname = usePathname();
   const [queryMessage, setQueryMessage] = useState<{message:string;type:"success"|"error"}>();
   useEffect(() => {
@@ -25,6 +18,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     return () => window.clearTimeout(timer);
   }, [pathname]);
 
+  if(pathname==="/anmelden") return children;
+  const canStandards=Boolean(user?.roles.some(role=>["KANZLEILEITUNG","STANDARDAUFGABEN_VERWALTEN"].includes(role)));
+  const canUsers=Boolean(user?.roles.includes("ADMINISTRATOR"));
+  const hasProfessionalAccess=Boolean(user?.roles.some(role=>["MITARBEITER","PRUEFER","KANZLEILEITUNG","MANDANTEN_VERWALTEN"].includes(role)));
+  const navigation=[{label:"Dashboard",href:"/"},...(hasProfessionalAccess?[{label:"Mandanten",href:"/mandanten"},{label:"Monatschecklisten",href:"/monatschecklisten"}]:[]),...(canStandards?[{label:"Standardaufgaben",href:"/standardaufgaben"}]:[]),...(canUsers?[{label:"Benutzerverwaltung",href:"/administration/benutzer"},{label:"Testdaten-Diagnose",href:"/administration/diagnose"}]:[])];
   return (
     <div className="min-h-screen bg-[var(--color-background)] text-[var(--color-text)]">
       <ToastMessage key={queryMessage?.message} message={queryMessage?.message} type={queryMessage?.type}/>
@@ -67,6 +65,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               })}
             </ul>
           </nav>
+          {user&&<div className="mt-auto border-t border-white/15 p-4 text-sm"><p className="font-semibold">{user.fullName}</p><p className="mb-3 text-xs text-white/65">{user.roles.join(", ")}</p><Link href="/passwort-aendern" className="mb-2 block text-xs underline">Passwort ändern</Link><form action={logoutAction}><button className="rounded border border-white/30 px-3 py-2 text-xs hover:bg-white/10">Abmelden</button></form></div>}
         </aside>
         <main className="min-w-0 flex-1 px-4 py-7 sm:px-6 lg:px-10">
           {children}

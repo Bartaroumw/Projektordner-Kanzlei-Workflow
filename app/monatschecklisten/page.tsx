@@ -3,12 +3,16 @@ import { prisma } from "@/lib/prisma";
 import { calculateProgress, workflowSummary } from "@/lib/monthly-checklist-service";
 import { formatDate } from "@/lib/format";
 import { ClickableTableRow } from "@/app/components/clickable-table-row";
+import { requireUser } from "@/lib/auth";
+import { hasRole } from "@/lib/permissions";
 
 type SearchParams=Promise<Record<string,string|string[]|undefined>>;
 const one=(value:string|string[]|undefined)=>Array.isArray(value)?value[0]??"":value??"";
 export default async function MonthlyChecklists({searchParams}:{searchParams:SearchParams}){
+  const user=await requireUser();
   const params=await searchParams,year=one(params.jahr),month=one(params.monat),search=one(params.suche),processor=one(params.bearbeiter),reviewer=one(params.pruefer),management=one(params.kanzleileitung),status=one(params.status),oldOnly=one(params.alt)==="1";
   const checklists=await prisma.accountingPeriod.findMany({where:{
+    ...(!hasRole(user,"KANZLEILEITUNG")?{OR:[{processorUserId:user.id},{reviewerUserId:user.id},{managementUserId:user.id}]}:{}),
     checklistType:"Monat",calendarYear:year?Number(year):undefined,month:month?Number(month):undefined,processingStatus:status||undefined,
     processorSnapshot:processor||undefined,reviewerSnapshot:reviewer||undefined,managementNameSnapshot:management||undefined,
     client:search?{OR:[{clientNumber:{contains:search}},{name:{contains:search}}]}:undefined,

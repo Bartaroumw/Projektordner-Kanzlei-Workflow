@@ -1,10 +1,12 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { formatDate, textOrDash } from "@/lib/format";
 import { calculateProgress, nextMonth, workflowSummary } from "@/lib/monthly-checklist-service";
 import { ClickableTableRow } from "@/app/components/clickable-table-row";
 import { ToastMessage } from "@/app/components/toast-message";
+import { requireUser } from "@/lib/auth";
+import { canViewClient } from "@/lib/permissions";
 
 const messages: Record<string, string> = {
   angelegt: "Der Mandant wurde erfolgreich angelegt.",
@@ -20,6 +22,7 @@ export default async function ClientDetailPage({
   params: Promise<{ id: string }>;
   searchParams: Promise<{ erfolg?: string }>;
 }) {
+  const user=await requireUser();
   const id = Number((await params).id);
   if (!Number.isInteger(id)) notFound();
   const client = await prisma.client.findUnique({
@@ -34,8 +37,10 @@ export default async function ClientDetailPage({
     },
   });
   if (!client) notFound();
+  if(!canViewClient(user,client))redirect("/zugriff-verweigert?bereich=Mandant");
   const success = messages[(await searchParams).erfolg ?? ""];
   const latest = client.periods[0];
+  const activeChecklist=client.periods.find(period=>period.processingStatus!=="Abgeschlossen");
   const next = latest ? nextMonth(latest.calendarYear, latest.month) : null;
   const actionLabel = next ? `Checkliste für ${new Intl.DateTimeFormat("de-DE",{month:"long"}).format(new Date(2026,next.month-1,1))} ${next.year} anlegen` : "Erste Monatscheckliste anlegen";
   const actionHref = next ? `/monatschecklisten/neu?clientId=${client.id}&year=${next.year}&month=${next.month}` : `/monatschecklisten/neu?clientId=${client.id}`;
@@ -71,6 +76,7 @@ export default async function ClientDetailPage({
 
       <section className="mt-7">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-3"><div><h2 className="text-lg font-semibold">Monatschecklisten</h2><p className="mt-1 text-sm text-slate-600">Lückenlose monatliche Bearbeitungsfolge.</p></div>{(!latest||latest.processingStatus==="Abgeschlossen")&&<Link className="button-primary" href={actionHref}>{actionLabel}</Link>}</div>
+        {!activeChecklist&&<p className="mb-3 rounded border border-[var(--color-border)] bg-white p-4 text-sm">Für diesen Mandanten ist derzeit keine Monatscheckliste aktiv. Als Nächstes kann „{actionLabel}“ verwendet werden.</p>}
         <div className="overflow-x-auto rounded-lg border border-[var(--color-border)] bg-white shadow-sm"><table className="w-full min-w-[1200px] text-left text-sm"><thead className="bg-[var(--color-primary-light)]"><tr>{["Monat","Status","Fortschritt","Offene Pflicht","Offene Prüfpunkte","Bearbeiter","Prüfer","Kanzleileitung","Letzte Änderung"].map(h=><th className="p-3" key={h}>{h}</th>)}</tr></thead><tbody>
           {client.periods.map(period=>{const progress=calculateProgress(period.tasks);const summary=workflowSummary(period.tasks);return <ClickableTableRow href={`/monatschecklisten/${period.id}`} className="border-t border-[var(--color-border)]" key={period.id}><td className="p-3"><Link className="font-semibold text-[var(--color-primary-dark)]" href={`/monatschecklisten/${period.id}`}>{period.periodLabel}</Link></td><td className="p-3">{period.processingStatus}</td><td className="p-3">{progress.completed}/{progress.total} · {progress.percent} %</td><td className="p-3">{progress.mandatoryOpen}</td><td className="p-3">{summary.openReviewPoints}</td><td className="p-3">{textOrDash(period.processorSnapshot)}</td><td className="p-3">{textOrDash(period.reviewerSnapshot)}</td><td className="p-3">{textOrDash(period.managementNameSnapshot)}</td><td className="p-3">{formatDate(period.updatedAt)}</td></ClickableTableRow>})}
           {!client.periods.length&&<tr><td colSpan={9} className="p-10 text-center text-slate-500">Noch keine Monatscheckliste vorhanden.</td></tr>}

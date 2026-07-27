@@ -9,7 +9,8 @@ if (!databasePath.startsWith(`${prismaDirectory}\\`)) {
   throw new Error("Die Datenbank liegt nicht im vorgesehenen Prisma-Ordner.");
 }
 
-for (const path of [databasePath, `${databasePath}-journal`]) {
+console.warn("WARNUNG: Die lokale künstliche Testdatenbank wird vollständig gelöscht und neu aufgebaut.");
+for (const path of [databasePath, `${databasePath}-journal`, `${databasePath}-wal`, `${databasePath}-shm`]) {
   if (existsSync(path)) {
     rmSync(path);
   }
@@ -38,6 +39,6 @@ for (const migrationFile of migrationFiles) {
     { stdio: "inherit" },
   );
 }
-execFileSync(process.execPath, ["prisma/seed.mjs"], { stdio: "inherit" });
+execFileSync(process.execPath, ["--experimental-transform-types","prisma/seed.ts"], { stdio: "inherit" });
 
 console.log("Die lokale Datenbank wurde vollständig zurückgesetzt.");

@@ -15,6 +15,14 @@ import {
   type AnnualProfileInput,
   type ClientInput,
 } from "@/lib/validation";
+import { requireUser } from "@/lib/auth";
+import { canManageClients } from "@/lib/permissions";
+
+async function requireClientManagement() {
+  const user=await requireUser();
+  if(!canManageClients(user)) throw new Error("Sie sind nicht berechtigt, Mandantenstammdaten zu verwalten.");
+  return user;
+}
 
 export type FormState = {
   error?: string;
@@ -34,6 +42,9 @@ function clientInput(formData: FormData):
     processor: formData.get("processor") ?? "",
     reviewer: formData.get("reviewer") ?? "",
     managementName: formData.get("managementName") ?? "",
+    processorUserId: formData.get("processorUserId") ? Number(formData.get("processorUserId")) : null,
+    reviewerUserId: formData.get("reviewerUserId") ? Number(formData.get("reviewerUserId")) : null,
+    managementUserId: formData.get("managementUserId") ? Number(formData.get("managementUserId")) : null,
     vatFilingPeriod: formData.get("vatFilingPeriod"),
     active: booleanValue(formData, "active"),
     internalNote: formData.get("internalNote") ?? "",
@@ -90,6 +101,7 @@ export async function createClientAction(
   _previousState: FormState,
   formData: FormData,
 ): Promise<FormState> {
+  await requireClientManagement();
   const input = clientInput(formData);
   if (!input.success) return input.state;
   try {
@@ -107,6 +119,7 @@ export async function updateClientAction(
   _previousState: FormState,
   formData: FormData,
 ): Promise<FormState> {
+  await requireClientManagement();
   const input = clientInput(formData);
   if (!input.success) return input.state;
   try {
@@ -125,6 +138,7 @@ export async function createAnnualProfileAction(
   _previousState: FormState,
   formData: FormData,
 ): Promise<FormState> {
+  await requireClientManagement();
   const input = annualInput(formData);
   if (!input.success) return input.state;
   try {
@@ -143,6 +157,7 @@ export async function updateAnnualProfileAction(
   _previousState: FormState,
   formData: FormData,
 ): Promise<FormState> {
+  await requireClientManagement();
   const input = annualInput(formData);
   if (!input.success) return input.state;
   try {

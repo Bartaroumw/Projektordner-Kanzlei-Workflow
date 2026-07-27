@@ -1,10 +1,14 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { CUSTOM_TASK_TYPES } from "@/lib/monthly-checklist-service";
 import { updateCustomTaskAction } from "@/app/monatschecklisten/actions";
+import { requireUser } from "@/lib/auth";
+import { canManageCustomTasks } from "@/lib/permissions";
 
 export default async function EditCustomTask({params,searchParams}:{params:Promise<{id:string;taskId:string}>;searchParams:Promise<{fehler?:string}>}){
+  const user=await requireUser();
+  if(!canManageCustomTasks(user))redirect("/zugriff-verweigert?bereich=Aufgabenvorlage");
   const {id,taskId}=await params;
   const [task,categories]=await Promise.all([
     prisma.customClientTask.findFirst({where:{id:Number(taskId),clientId:Number(id)}}),

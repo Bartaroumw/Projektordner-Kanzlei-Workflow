@@ -3,11 +3,14 @@ import { prisma } from "@/lib/prisma";
 import { textOrDash, formatDate } from "@/lib/format";
 import { calculateProgress, workflowSummary } from "@/lib/monthly-checklist-service";
 import { ClickableTableRow } from "@/app/components/clickable-table-row";
+import { requireUser } from "@/lib/auth";
+import { canManageClients, hasRole } from "@/lib/permissions";
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 const one = (value: string | string[] | undefined) => Array.isArray(value) ? value[0] ?? "" : value ?? "";
 
 export default async function ClientsPage({ searchParams }: { searchParams: SearchParams }) {
+  const user=await requireUser();
   const params = await searchParams;
   const search = one(params.suche).trim();
   const status = one(params.status);
@@ -17,6 +20,7 @@ export default async function ClientsPage({ searchParams }: { searchParams: Sear
   const clients = await prisma.client.findMany({
     where: {
       AND: [
+        !hasRole(user,"KANZLEILEITUNG") ? {OR:[{processorUserId:user.id},{reviewerUserId:user.id},{managementUserId:user.id}]} : {},
         search ? { OR: [{ clientNumber: { contains: search } }, { name: { contains: search } }] } : {},
         status === "aktiv" ? { active: true } : status === "inaktiv" ? { active: false } : {},
         processor ? { processor } : {},
@@ -36,7 +40,7 @@ export default async function ClientsPage({ searchParams }: { searchParams: Sear
   const optionRows = await prisma.client.findMany({ select: { processor: true, reviewer: true, managementName: true } });
   const options = (key: "processor" | "reviewer" | "managementName") => [...new Set(optionRows.map((row) => row[key]).filter(Boolean) as string[])].sort();
   return <div>
-    <header className="mb-6 flex flex-wrap items-end justify-between gap-4"><div><p className="mb-2 text-sm font-semibold uppercase tracking-wider text-[var(--color-primary)]">Zentraler Einstieg</p><h1 className="text-3xl font-bold">Mandanten</h1><p className="mt-2 text-[var(--color-text-muted)]">Aktuelle Monatscheckliste direkt öffnen oder den nächsten Monat anlegen.</p></div><Link className="button-primary" href="/mandanten/neu">Mandant anlegen</Link></header>
+    <header className="mb-6 flex flex-wrap items-end justify-between gap-4"><div><p className="mb-2 text-sm font-semibold uppercase tracking-wider text-[var(--color-primary)]">Zentraler Einstieg</p><h1 className="text-3xl font-bold">Mandanten</h1><p className="mt-2 text-[var(--color-text-muted)]">Aktuelle Monatscheckliste direkt öffnen oder den nächsten Monat anlegen.</p></div>{canManageClients(user)&&<Link className="button-primary" href="/mandanten/neu">Mandant anlegen</Link>}</header>
     <form className="mb-5 rounded-lg border border-[var(--color-border)] bg-white p-4 shadow-sm"><div className="grid gap-3 md:grid-cols-2 xl:grid-cols-6">
       <Field label="Suche"><input className="input" name="suche" defaultValue={search} placeholder="Nummer oder Name"/></Field>
       <Select name="status" label="Status" value={status} options={[["aktiv","Aktiv"],["inaktiv","Inaktiv"]]}/>

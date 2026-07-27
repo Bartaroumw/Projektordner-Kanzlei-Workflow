@@ -15,6 +15,8 @@ export type DashboardFilters = {
   onlyOpenMandatory?: boolean;
   onlyOpenReviewPoints?: boolean;
   workViewName?: string;
+  userId?: number;
+  officeWide?: boolean;
 };
 
 export type DashboardPeriod = AccountingPeriod & {
@@ -113,7 +115,9 @@ export async function getDashboardData(filters: DashboardFilters) {
     progress: calculateProgress(period.tasks),
     summary: workflowSummary(period.tasks),
   }));
-  const filteredClients = clients.filter((client) => {
+  const visiblePeriods=filters.officeWide||!filters.userId?periods:periods.filter(period=>[period.processorUserId,period.reviewerUserId,period.managementUserId].includes(filters.userId!));
+  const visibleClients=filters.officeWide||!filters.userId?clients:clients.filter(client=>[client.processorUserId,client.reviewerUserId,client.managementUserId].includes(filters.userId!));
+  const filteredClients = visibleClients.filter((client) => {
     const search = filters.search?.trim().toLocaleLowerCase("de-DE");
     return (!filters.clientId || client.id === filters.clientId) &&
       (!search || client.clientNumber.toLocaleLowerCase("de-DE").includes(search) || client.name.toLocaleLowerCase("de-DE").includes(search)) &&
@@ -121,28 +125,32 @@ export async function getDashboardData(filters: DashboardFilters) {
       (!filters.reviewer || client.reviewer === filters.reviewer) &&
       (!filters.management || client.managementName === filters.management);
   });
-  const selected = sortByPriority(periods.filter((period) => periodMatchesFilters(period, filters)), filters.year, filters.month);
-  const yearFiltered = sortByPriority(periods.filter((period) => periodMatchesFilters(period, filters, false)), filters.year, filters.month);
+  const selected = sortByPriority(visiblePeriods.filter((period) => periodMatchesFilters(period, filters)), filters.year, filters.month);
+  const yearFiltered = sortByPriority(visiblePeriods.filter((period) => periodMatchesFilters(period, filters, false)), filters.year, filters.month);
   const oldOpen = yearFiltered.filter((period) => isOldOpenPeriod(period, filters.year, filters.month));
   const workViewName = filters.workViewName?.trim();
   return {
-    periods,
-    clients,
+    periods: visiblePeriods,
+    clients: visibleClients,
     selected,
-    metrics: dashboardMetrics(periods.filter((period) => periodMatchesFilters(period, { ...filters, onlyOldOpen: false }, false)), filters.year, filters.month),
+    metrics: dashboardMetrics(visiblePeriods.filter((period) => periodMatchesFilters(period, { ...filters, onlyOldOpen: false }, false)), filters.year, filters.month),
     work: selected.filter((period) => ["Offen", "In Bearbeitung", "Nachbearbeitung"].includes(period.processingStatus)),
     review: selected.filter((period) => ["Zur Prüfung", "In Prüfung"].includes(period.processingStatus)),
     reviewPoints: yearFiltered.filter((period) => period.summary.openReviewPoints > 0),
     oldOpen,
     recent: [...yearFiltered].sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime()).slice(0, 10),
-    myProcessing: workViewName ? yearFiltered.filter((period) => period.processorSnapshot === workViewName && ["Offen", "In Bearbeitung", "Nachbearbeitung"].includes(period.processingStatus)) : [],
-    myReviews: workViewName ? yearFiltered.filter((period) => period.reviewerSnapshot === workViewName && ["Zur Prüfung", "In Prüfung"].includes(period.processingStatus)) : [],
-    missing: filteredClients.filter((client) => expectedPeriodMissing(client, periods, filters.year, filters.month)),
+    myProcessing: filters.userId ? yearFiltered.filter((period) => period.processorUserId === filters.userId && period.processingStatus !== "Abgeschlossen") : workViewName ? yearFiltered.filter((period) => period.processorSnapshot === workViewName && ["Offen","In Bearbeitung","Nachbearbeitung"].includes(period.processingStatus)) : [],
+    myReviews: filters.userId ? yearFiltered.filter((period) => period.reviewerUserId === filters.userId && period.processingStatus !== "Abgeschlossen") : workViewName ? yearFiltered.filter((period) => period.reviewerSnapshot === workViewName && ["Zur Prüfung","In Prüfung"].includes(period.processingStatus)) : [],
+    myQuestions: filters.userId ? yearFiltered.filter((period)=>period.processorUserId===filters.userId&&period.summary.openReviewPoints>0) : [],
+    missing: filteredClients.filter((client) => expectedPeriodMissing(client, visiblePeriods, filters.year, filters.month)),
     quality: [
       ...filteredClients.filter((client) => client.annualProfiles.length === 0).map((client) => ({ key: `profile-${client.id}`, text: `${client.clientNumber}: Jahresprofil ${filters.year} fehlt.`, href: `/mandanten/${client.id}` })),
       ...filteredClients.filter((client) => !client.processor).map((client) => ({ key: `processor-${client.id}`, text: `${client.clientNumber}: Bearbeiter fehlt.`, href: `/mandanten/${client.id}` })),
       ...filteredClients.filter((client) => !client.reviewer).map((client) => ({ key: `reviewer-${client.id}`, text: `${client.clientNumber}: Prüfer fehlt.`, href: `/mandanten/${client.id}` })),
       ...filteredClients.filter((client) => !client.managementName).map((client) => ({ key: `management-${client.id}`, text: `${client.clientNumber}: Zuständige Kanzleileitung fehlt.`, href: `/mandanten/${client.id}` })),
+      ...filteredClients.filter((client) => !client.processorUserId).map((client) => ({ key: `processor-user-${client.id}`, text: `${client.clientNumber}: Bearbeiter konnte keinem aktiven Benutzer zugeordnet werden.`, href: `/mandanten/${client.id}` })),
+      ...filteredClients.filter((client) => !client.reviewerUserId).map((client) => ({ key: `reviewer-user-${client.id}`, text: `${client.clientNumber}: Prüfer konnte keinem aktiven Benutzer zugeordnet werden.`, href: `/mandanten/${client.id}` })),
+      ...filteredClients.filter((client) => !client.managementUserId).map((client) => ({ key: `management-user-${client.id}`, text: `${client.clientNumber}: Kanzleileitung konnte keinem aktiven Benutzer zugeordnet werden.`, href: `/mandanten/${client.id}` })),
       ...filteredClients.filter((client) => hasRoleConflict(client.processor, client.reviewer)).map((client) => ({ key: `roles-${client.id}`, text: `${client.clientNumber}: Bearbeiter und Prüfer sind identisch.`, href: `/mandanten/${client.id}` })),
       ...yearFiltered.filter((period) => period.tasks.length === 0).map((period) => ({ key: `empty-${period.id}`, text: `${period.client.clientNumber} ${period.periodLabel}: Monatscheckliste enthält keine Aufgaben.`, href: `/monatschecklisten/${period.id}` })),
       ...yearFiltered.filter((period) => !period.processorSnapshot || !period.reviewerSnapshot).map((period) => ({ key: `checklist-roles-${period.id}`, text: `${period.client.clientNumber} ${period.periodLabel}: Bearbeiter oder Prüfer fehlt.`, href: `/monatschecklisten/${period.id}` })),

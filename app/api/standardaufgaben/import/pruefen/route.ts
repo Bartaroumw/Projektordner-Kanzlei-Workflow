@@ -1,8 +1,15 @@
 import { analyzeTaskWorkbook, storeImportPreview } from "@/lib/task-import";
+import { currentUser } from "@/lib/auth";
+import { canManageStandardTasks } from "@/lib/permissions";
+import { isSameOrigin } from "@/lib/request-security";
 
 export const runtime = "nodejs";
 
 export async function POST(request: Request) {
+  if(!isSameOrigin(request))return Response.json({error:"Ungültige Anfrage."},{status:403});
+  const user=await currentUser();
+  if(!user)return Response.json({error:"Anmeldung erforderlich."},{status:401});
+  if(!canManageStandardTasks(user))return Response.json({error:"Sie sind für den Excel-Import nicht berechtigt."},{status:403});
   try {
     const formData = await request.formData();
     const file = formData.get("file");

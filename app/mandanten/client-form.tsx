@@ -56,6 +56,28 @@ export function ClientForm({ action, client, cancelHref, users }: ClientFormProp
           </select>
         </Field>
       </div>
+      <section className="rounded-lg border border-[var(--color-border)] bg-[var(--color-background)] p-5">
+        <h2 className="text-lg font-semibold text-[var(--color-primary-dark)]">Lohn und FiBu-Lohn-Abstimmung</h2>
+        <p className="mt-1 text-sm text-[var(--color-text-muted)]">Nur bei bewusst aktiviertem Kanzleilohn wird mit einer neuen Monatscheckliste eine Abstimmung angelegt.</p>
+        <label className="mt-4 flex items-center gap-3 text-sm font-medium">
+          <input type="checkbox" name="payrollPreparedByFirm" defaultChecked={client?.payrollPreparedByFirm ?? false} className="h-4 w-4" />
+          Lohnabrechnung durch Kanzlei
+        </label>
+        <div className="mt-4 grid gap-5 md:grid-cols-2">
+          <Field label="Zuständiger Lohnsachbearbeiter" error={errorFor("payrollUserId")}>
+            <UserSelect name="payrollUserId" value={client?.payrollUserId} users={users.filter(u=>u.roles.some(r=>r.role==="LOHNSACHBEARBEITER"))}/>
+          </Field>
+          <Field label="Beginn der Lohnbetreuung" error={errorFor("payrollServiceStart")}>
+            <input className="input" id="payrollServiceStart" name="payrollServiceStart" type="date" defaultValue={client?.payrollServiceStart?.toISOString().slice(0,10) ?? ""}/>
+          </Field>
+          <Field label="Ende der Lohnbetreuung" error={errorFor("payrollServiceEnd")}>
+            <input className="input" id="payrollServiceEnd" name="payrollServiceEnd" type="date" defaultValue={client?.payrollServiceEnd?.toISOString().slice(0,10) ?? ""}/>
+          </Field>
+        </div>
+        <div className="mt-4"><Field label="Interner Hinweis zur Lohnzuständigkeit" error={errorFor("payrollResponsibilityNote")}>
+          <textarea className="input min-h-24 resize-y" id="payrollResponsibilityNote" name="payrollResponsibilityNote" defaultValue={client?.payrollResponsibilityNote ?? ""} />
+        </Field></div>
+      </section>
       <Field label="Interner Hinweis" error={errorFor("internalNote")}>
         <textarea className="input min-h-28 resize-y" id="internalNote" name="internalNote" defaultValue={client?.internalNote ?? ""} />
       </Field>

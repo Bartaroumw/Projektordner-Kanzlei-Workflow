@@ -33,6 +33,11 @@ function booleanValue(formData: FormData, field: string) {
   return formData.get(field) === "on" || formData.get(field) === "true";
 }
 
+function optionalDate(formData: FormData, field: string) {
+  const value=String(formData.get(field)??"").trim();
+  return value ? new Date(`${value}T00:00:00.000Z`) : null;
+}
+
 function clientInput(formData: FormData):
   | { success: true; data: ClientInput }
   | { success: false; state: FormState } {
@@ -45,6 +50,11 @@ function clientInput(formData: FormData):
     processorUserId: formData.get("processorUserId") ? Number(formData.get("processorUserId")) : null,
     reviewerUserId: formData.get("reviewerUserId") ? Number(formData.get("reviewerUserId")) : null,
     managementUserId: formData.get("managementUserId") ? Number(formData.get("managementUserId")) : null,
+    payrollPreparedByFirm: booleanValue(formData, "payrollPreparedByFirm"),
+    payrollUserId: formData.get("payrollUserId") ? Number(formData.get("payrollUserId")) : null,
+    payrollServiceStart: optionalDate(formData, "payrollServiceStart"),
+    payrollServiceEnd: optionalDate(formData, "payrollServiceEnd"),
+    payrollResponsibilityNote: formData.get("payrollResponsibilityNote") ?? "",
     vatFilingPeriod: formData.get("vatFilingPeriod"),
     active: booleanValue(formData, "active"),
     internalNote: formData.get("internalNote") ?? "",
@@ -101,11 +111,11 @@ export async function createClientAction(
   _previousState: FormState,
   formData: FormData,
 ): Promise<FormState> {
-  await requireClientManagement();
+  const user=await requireClientManagement();
   const input = clientInput(formData);
   if (!input.success) return input.state;
   try {
-    const client = await createClient(input.data);
+    const client = await createClient(input.data,user);
     revalidatePath("/mandanten");
     redirect(`/mandanten/${client.id}?erfolg=angelegt`);
   } catch (error) {
@@ -119,11 +129,11 @@ export async function updateClientAction(
   _previousState: FormState,
   formData: FormData,
 ): Promise<FormState> {
-  await requireClientManagement();
+  const user=await requireClientManagement();
   const input = clientInput(formData);
   if (!input.success) return input.state;
   try {
-    await updateClient(id, input.data);
+    await updateClient(id, input.data,user);
     revalidatePath("/mandanten");
     revalidatePath(`/mandanten/${id}`);
     redirect(`/mandanten/${id}?erfolg=gespeichert`);

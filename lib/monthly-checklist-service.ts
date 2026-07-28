@@ -8,6 +8,7 @@ import type {
 import { prisma } from "./prisma.ts";
 import { defaultExecutionMonths, executionPlanningMatches, serializeExecutionMonths, validateExecutionPlanning } from "./task-execution-planning.ts";
 import { checklistCompletionMessage, getBlockingWorkflowItems } from "./checklist-workflow-rules.ts";
+import { createPayrollReconciliationInTransaction, nextPayrollMonth, PAYROLL_RECONCILIATION_KNOWLEDGE_KEY, PayrollReconciliationError } from "./payroll-reconciliation-service.ts";
 
 export const PERIOD_STATUSES = ["Offen", "In Bearbeitung", "Zur Prüfung", "In Prüfung", "Nachbearbeitung", "Abgeschlossen"] as const;
 export const CHECKLIST_TASK_STATUSES = ["Offen", "In Bearbeitung", "Erledigt", "Nicht zutreffend", "In Folgemonat übertragen"] as const;
@@ -139,6 +140,7 @@ export async function previewMonthlyPeriod(clientId: number, year: number, month
       annualProfiles: { where: { calendarYear: year } },
       periods: { where: { checklistType: "Monat" }, orderBy: [{ calendarYear: "asc" }, { month: "asc" }] },
       customTasks: { include: { category: true } },
+      payrollUser: { include: { roles: true } },
     },
   });
   if (!client) throw new MonthlyChecklistError("CLIENT_NOT_FOUND", "Der Mandant wurde nicht gefunden.");
@@ -177,7 +179,8 @@ export async function previewMonthlyPeriod(clientId: number, year: number, month
   }
   const standardTasks = await prisma.standardTask.findMany({ include: { category: true } });
   const matchingStandardTasks = standardTasks.filter((task) =>
-    standardTaskMatches(task, profile, client.vatFilingPeriod, month),
+    standardTaskMatches(task, profile, client.vatFilingPeriod, month) &&
+    (task.knowledgeKey !== PAYROLL_RECONCILIATION_KNOWLEDGE_KEY || client.payrollPreparedByFirm),
   );
   const matchingCustomTasks = client.customTasks.filter((task) =>
     customTaskMatches(task, client.vatFilingPeriod, year, month),
@@ -338,6 +341,22 @@ export async function createMonthlyPeriod(clientId: number, year: number, month:
             reviewStatus: ["Rückfrage", "Beanstandung"].includes(task.reviewStatus) ? task.reviewStatus : "Nicht geprüft",
             reviewNote: task.reviewNote,
           })),
+        });
+      }
+      const payrollTemplate=preview.standardTasks.find(task=>task.knowledgeKey===PAYROLL_RECONCILIATION_KNOWLEDGE_KEY);
+      if(payrollTemplate){
+        const payrollUser=preview.client.payrollUser;
+        if(!payrollUser||!payrollUser.active||!payrollUser.roles.some(role=>role.role==="LOHNSACHBEARBEITER")){
+          throw new PayrollReconciliationError("ASSIGNEE_MISSING","Für die FiBu-Lohn-Abstimmung ist ein aktiver Lohnsachbearbeiter erforderlich.");
+        }
+        const checklistTask=await transaction.checklistTask.findFirstOrThrow({where:{periodId:period.id,standardTaskId:payrollTemplate.id}});
+        const target=nextPayrollMonth(year,month);
+        await createPayrollReconciliationInTransaction(transaction,{
+          clientId,accountingYear:year,accountingMonth:month,payrollYear:target.year,payrollMonth:target.month,
+          accountingPeriodId:period.id,checklistTaskId:checklistTask.id,
+          processorUserId:period.processorUserId,processorNameSnapshot:period.processorSnapshot,
+          reviewerUserId:period.reviewerUserId,reviewerNameSnapshot:period.reviewerSnapshot,
+          payrollUserId:payrollUser.id,payrollUserNameSnapshot:payrollUser.fullName,
         });
       }
       await transaction.workflowHistory.create({

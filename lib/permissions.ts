@@ -1,4 +1,4 @@
-export const ROLES = ["MITARBEITER", "PRUEFER", "KANZLEILEITUNG", "ADMINISTRATOR", "MANDANTEN_VERWALTEN", "MANDANTENSPEZIFISCHE_AUFGABEN_VERWALTEN", "STANDARDAUFGABEN_VERWALTEN", "ORDO_CAMPUS_VERWALTEN"] as const;
+export const ROLES = ["MITARBEITER", "PRUEFER", "KANZLEILEITUNG", "LOHNSACHBEARBEITER", "ADMINISTRATOR", "MANDANTEN_VERWALTEN", "MANDANTENSPEZIFISCHE_AUFGABEN_VERWALTEN", "STANDARDAUFGABEN_VERWALTEN", "ORDO_CAMPUS_VERWALTEN", "FIBU_LOHN_THEMEN_VERWALTEN"] as const;
 export type Role = typeof ROLES[number];
 
 export type AuthUser = {
@@ -77,4 +77,31 @@ export function canViewAnnualChecklist(user: AuthUser, checklist: { processorUse
 
 export function canManageCustomAnnualTasks(user: AuthUser) {
   return canManageCustomTasks(user);
+}
+
+export function canManagePayrollTopics(user: AuthUser) {
+  return hasRole(user, "KANZLEILEITUNG", "FIBU_LOHN_THEMEN_VERWALTEN");
+}
+
+export function canProcessPayrollReconciliation(user: AuthUser, reconciliation: { processorUserId: number | null }) {
+  return reconciliation.processorUserId === user.id &&
+    hasRole(user, "MITARBEITER", "PRUEFER", "KANZLEILEITUNG");
+}
+
+export function canReviewPayrollReconciliation(user: AuthUser, reconciliation: { reviewerUserId: number | null }) {
+  return reconciliation.reviewerUserId === user.id && hasRole(user, "PRUEFER", "KANZLEILEITUNG");
+}
+
+export function canHandlePayrollReconciliation(user: AuthUser, reconciliation: { payrollUserId: number }) {
+  return reconciliation.payrollUserId === user.id && hasRole(user, "LOHNSACHBEARBEITER");
+}
+
+export function canViewPayrollReconciliation(
+  user: AuthUser,
+  reconciliation: { processorUserId: number | null; reviewerUserId: number | null; payrollUserId: number },
+) {
+  return canProcessPayrollReconciliation(user, reconciliation) ||
+    canReviewPayrollReconciliation(user, reconciliation) ||
+    canHandlePayrollReconciliation(user, reconciliation) ||
+    hasRole(user, "KANZLEILEITUNG");
 }

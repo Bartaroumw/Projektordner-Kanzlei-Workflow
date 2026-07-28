@@ -17,7 +17,7 @@ Diese Next.js-Version kann neue oder geänderte Konventionen enthalten. Vor Änd
 - Kostenpflichtige Dienste sind ausgeschlossen.
 - Eine Cloud-Veröffentlichung erfolgt nur nach ausdrücklicher Zustimmung.
 - Es gibt keine DATEV-Anbindung und keine E-Mail-Funktion.
-- Datei-Uploads sind ausschließlich für den lokalen Import strukturierter `.xlsx`-Dateien und für freigegebene Ordo-Campus-Anhänge an Standardaufgaben zulässig.
+- Datei-Uploads sind ausschließlich für den lokalen Import strukturierter `.xlsx`-Dateien, für freigegebene Ordo-Campus-Anhänge an Standardaufgaben und für geschützte FiBu-Lohn-Belege an Abstimmungsthemen zulässig.
 - Die Webapp enthält keine KI-Funktionen.
 - Bestehende Funktionen werden nicht unnötig neu geschrieben.
 - Fehler werden zuerst analysiert und anschließend minimal korrigiert.
@@ -41,3 +41,16 @@ Diese Next.js-Version kann neue oder geänderte Konventionen enthalten. Vor Änd
 - Offene Rückfragen, Beanstandungen und Nachbearbeitungen verhindern den Abschluss; die Abschlussfähigkeit wird zentral serverseitig geprüft.
 - Nur ausdrücklich markierte Bearbeitungsnotizen werden in die nächste tatsächliche Ausführung übernommen. Bearbeitungs-, Prüf- und Nicht-zutreffend-Status werden nicht übernommen.
 - Aufgabenformulare speichern asynchron aufgabenbezogen; ungespeicherte Änderungen, Speicherfortschritt und Fehler bleiben an der Aufgabe sichtbar.
+- FiBu-Lohn-Abstimmungen werden nur für Mandanten mit bewusst aktiviertem Kanzleilohn und zugeordnetem aktiven Lohnsachbearbeiter erzeugt.
+- Rechnungswesen- und Lohnstatus bleiben getrennt. Nach vollständiger Übergabe blockiert die weitere Lohnbearbeitung die Monatscheckliste nicht und öffnet sie nicht automatisch wieder.
+- Lohnsachbearbeiter und Rechnungswesenrollen eines Mandanten werden personell getrennt zugeordnet. Eine Lohnrolle verleiht keine Rechte an Rechnungswesen- oder Jahresabschlusschecklisten.
+- FiBu-Lohn-Themen werden konfigurierbar gepflegt und beim Erstellen einer Monatsabstimmung als unveränderliche Themen-Snapshots übernommen.
+- FiBu-Lohn-Belege liegen ausschließlich unter `storage/fibu-lohn`, niemals unter `public`; erlaubt sind PDF, DOCX, XLSX, PNG und JPG/JPEG bis 15 MB.
+- Ein vollständiges Backup umfasst SQLite-Datenbank, Campus-Anhangsspeicher und FiBu-Lohn-Belegspeicher gemeinsam.
+- Die FiBu-Lohn-Oberfläche zeigt Rechnungswesenstatus und Lohnstatus stets getrennt und bietet keine Sammelaktion zum ungeprüften Abschluss aller Themen.
+- Reine Lohnsachbearbeiter sehen keine Rechnungswesen- oder Jahresabschlussmodule; alle schreibenden FiBu-Lohn-Aktionen prüfen die Zuordnung serverseitig erneut.
+- Lohnrückfragen sind Informationsvorgänge. Sie öffnen eine abgeschlossene Monatscheckliste nicht wieder und führen direkt zur betroffenen Themenkarte.
+- Fahrzeugstammdaten werden dauerhaft am Mandanten gepflegt; Änderungen aus einer Abstimmung verknüpfen den Fahrzeugverlauf, ohne Daten doppelt zu erfassen.
+- Die FiBu-Lohn-Abnahme verwendet ausschließlich `prisma/fibu-lohn-acceptance.db` und `tmp/fibu-lohn-acceptance-storage`; Reset- und Prüfbefehle müssen bei abweichenden Pfaden abbrechen.
+- FiBu-Lohn-Tests und Abnahmen dürfen weder `prisma/dev.db` noch die regulären Ordner `storage/ordo-campus` und `storage/fibu-lohn` verändern.
+- Ein Lohnabschluss ist bei offenen Rückfragen, unverarbeiteten Sachverhalten oder angekündigten, noch nicht abgeschlossenen Nachreichungen serverseitig gesperrt.

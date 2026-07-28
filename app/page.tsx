@@ -7,12 +7,14 @@ import { canManageClients, hasRole } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
 import { annualProgress } from "@/lib/annual-checklist-service";
 import { annualDashboardResponsibility, berlinCalendarMonth, defaultDashboardMonth, nextCalendarMonth, previousCalendarMonth } from "@/lib/dashboard-responsibility";
+import { redirect } from "next/navigation";
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 const one = (value: string | string[] | undefined) => Array.isArray(value) ? value[0] ?? "" : value ?? "";
 
 export default async function Dashboard({ searchParams }: { searchParams: SearchParams }) {
   const user=await requireUser();
+  if(hasRole(user,"LOHNSACHBEARBEITER")&&!hasRole(user,"MITARBEITER","PRUEFER","KANZLEILEITUNG","MANDANTEN_VERWALTEN"))redirect("/fibu-lohn");
   const canManageStandards=hasRole(user,"KANZLEILEITUNG","STANDARDAUFGABEN_VERWALTEN");
   const params = await searchParams;
   const defaultMonth = defaultDashboardMonth();
@@ -34,6 +36,11 @@ export default async function Dashboard({ searchParams }: { searchParams: Search
     officeWide:one(params.kanzleiweit)==="1"&&hasRole(user,"KANZLEILEITUNG"),
   };
   const data = await getDashboardData(filters);
+  const payrollQuestions=await prisma.payrollReconciliationQuestion.findMany({
+    where:{recipientUserId:user.id,status:"Offen beim Rechnungswesen"},
+    include:{sender:true,reconciliation:{include:{client:true}},reconciliationItem:true},
+    orderBy:{createdAt:"asc"},
+  });
   const annualAll=await prisma.annualChecklist.findMany({where:{status:{not:"Freigegeben"}},include:{client:true,tasks:true},orderBy:{updatedAt:"asc"}});
   const annualResponsibility=(item:typeof annualAll[number])=>annualDashboardResponsibility(item.status,user.id,item);
   const annualProcessing=annualAll.filter(item=>annualResponsibility(item)==="BEARBEITUNG_AKTIV");
@@ -92,6 +99,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Search
 
     <section className="mt-9"><h2 className="text-2xl font-bold text-[var(--color-primary-dark)]">Meine Bearbeitung · {user.fullName}</h2><div className="mt-4 space-y-8"><PeriodSection title="Rechnungswesenaufgaben" periods={data.myProcessing} allHref="/monatschecklisten?arbeitsart=bearbeitung"/><AnnualSection title="Jahresabschlussaufgaben" items={annualProcessing} kind="processing"/>{data.waitingForReview.length>0&&<PeriodSection title="Wartet auf Prüfung" periods={data.waitingForReview}/>}</div></section>
     <section className="mt-10"><h2 className="text-2xl font-bold text-[var(--color-primary-dark)]">Offene Rückfragen</h2><div className="mt-4 space-y-8"><PeriodSection title="Von mir zu beantworten" periods={data.myQuestions} allHref="/monatschecklisten?pruefpunkte=1"/>{data.waitingQuestions.length>0&&<PeriodSection title="Wartet auf Antwort" periods={data.waitingQuestions}/>}</div></section>
+    <section className="mt-10"><div className="mb-3 flex flex-wrap items-center justify-between gap-3"><h2 className="text-2xl font-bold text-[var(--color-primary-dark)]">Offene Lohnrückfragen · {payrollQuestions.length}</h2><Link className="text-sm font-semibold text-[var(--color-primary-dark)] hover:underline" href="/fibu-lohn#rueckfragen">Alle FiBu-Lohn-Abstimmungen</Link></div><div className="space-y-3">{payrollQuestions.slice(0,10).map(question=><Link className="block rounded-lg border border-[var(--color-border)] bg-white p-4 shadow-sm hover:bg-[var(--color-primary-light)]" href={`/fibu-lohn/${question.reconciliationId}#thema-${question.reconciliationItemId}`} key={question.id}><div className="flex flex-wrap justify-between gap-2"><strong>{question.reconciliation.client.clientNumber} · {question.reconciliation.client.name}</strong><span className="text-sm">{question.reconciliation.accountingMonth}/{question.reconciliation.accountingYear} → Lohn {question.reconciliation.payrollMonth}/{question.reconciliation.payrollYear}</span></div><p className="mt-2 text-sm"><strong>{question.reconciliationItem.topicTitleSnapshot}:</strong> {question.message}</p><p className="mt-1 text-xs text-[var(--color-text-muted)]">{question.sender.fullName} · direkte Aktion „Antworten“</p></Link>)}{!payrollQuestions.length&&<p className="rounded border border-[var(--color-border)] bg-white p-5 text-sm text-[var(--color-text-muted)]">Derzeit bestehen keine offenen Lohnrückfragen.</p>}</div></section>
     <section className="mt-10"><h2 className="text-2xl font-bold text-[var(--color-primary-dark)]">Meine Prüfung</h2><div className="mt-4 space-y-8"><PeriodSection title="Rechnungswesenprüfungen" periods={data.myReviews} allHref="/monatschecklisten?arbeitsart=pruefung"/><AnnualSection title="Jahresabschlussprüfungen" items={annualReviews} kind="review"/>{data.waitingForRework.length>0&&<PeriodSection title="Wartet auf Nachbearbeitung" periods={data.waitingForRework}/>}</div></section>
     {annualReleases.length>0&&<section className="mt-10"><h2 className="text-2xl font-bold text-[var(--color-primary-dark)]">Meine Freigaben</h2><div className="mt-4"><AnnualSection title="Jahresabschlüsse zur Freigabe" items={annualReleases} kind="release"/></div></section>}
     <section className="mt-10"><h2 className="text-2xl font-bold text-[var(--color-primary-dark)]">Überfällige Altmonate</h2><p className="mb-4 mt-1 text-sm text-[var(--color-text-muted)]">Nicht abgeschlossene eigene Vorgänge vor {monthName}, getrennt von der aktuellen Monatsansicht.</p><PeriodSection title="Frühere offene Rechnungswesenaufgaben" periods={data.overduePersonal}/></section>

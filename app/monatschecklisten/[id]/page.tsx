@@ -10,6 +10,7 @@ import { canViewClient } from "@/lib/permissions";
 import { OrdoCampusPanel } from "@/app/components/ordo-campus-panel";
 import { TaskProcessingForm } from "@/app/components/task-processing-form";
 import { TaskTransferForm } from "@/app/components/task-transfer-form";
+import { payrollReconciliationSummary } from "@/lib/payroll-reconciliation-service";
 
 type SearchParams = Promise<Record<string,string|string[]|undefined>>;
 const one=(v:string|string[]|undefined)=>Array.isArray(v)?v[0]??"":v??"";
@@ -19,7 +20,7 @@ export default async function MonthlyChecklistDetail({params,searchParams}:{para
   const id=Number((await params).id);
   const checklist=await prisma.accountingPeriod.findUnique({where:{id},include:{
     client:true,
-    tasks:{include:{standardTask:{select:{campusKnowledge:{select:{status:true}}}},sourceTask:{include:{period:{select:{id:true,periodLabel:true}}}}},orderBy:[{categorySortOrder:"asc"},{categorySnapshot:"asc"},{sortOrderSnapshot:"asc"},{taskIdSnapshot:"asc"}]},
+    tasks:{include:{standardTask:{select:{campusKnowledge:{select:{status:true}}}},sourceTask:{include:{period:{select:{id:true,periodLabel:true}}}},payrollReconciliation:{include:{items:{include:{documents:{select:{status:true}},questions:{select:{status:true}}}}}}},orderBy:[{categorySortOrder:"asc"},{categorySnapshot:"asc"},{sortOrderSnapshot:"asc"},{taskIdSnapshot:"asc"}]},
     history:{include:{checklistTask:{select:{taskIdSnapshot:true}}},orderBy:{occurredAt:"desc"}},
   }});
   if(!checklist)notFound();
@@ -62,7 +63,8 @@ export default async function MonthlyChecklistDetail({params,searchParams}:{para
       {task.reviewIssueStatus==="Offen"&&<Note label="Offene Rückfrage" text={`${task.reviewIssueRaisedByName??"Unbekannt"} (${task.reviewIssueRaisedByRole??"Funktion"}) → ${task.reviewIssueDirectedToName??"Unbekannt"} (${task.reviewIssueDirectedToRole??"Funktion"})`}/>}
       {task.reviewNote&&<Note label={`Prüfnotiz (${task.reviewerInitials??"–"})`} text={task.reviewNote}/>}
       {task.transferReason&&<Note label={`Übertrag nach ${monthName(task.transferTargetMonth??following.month)} ${task.transferTargetYear??following.year}`} text={`${task.transferReason}${task.transferExpectedAction?` · Nächste Handlung: ${task.transferExpectedAction}`:""}`}/>}
-      {!closed&&<TaskForms task={task} status={checklist.processingStatus} checklistId={checklist.id} processor={user.fullName} reviewer={user.fullName} currentUserId={user.id} target={following}/>}
+      {task.payrollReconciliation&&<PayrollChecklistSummary reconciliation={task.payrollReconciliation}/>}
+      {!closed&&(!task.payrollReconciliation||["In Prüfung","Nachbearbeitung"].includes(checklist.processingStatus))&&<TaskForms task={task} status={checklist.processingStatus} checklistId={checklist.id} processor={user.fullName} reviewer={user.fullName} currentUserId={user.id} target={following}/>}
     </article>)}</div></section>)}{!tasks.length&&<p className="rounded border bg-white p-10 text-center">Keine Aufgaben gefunden.</p>}</div>
     {closed&&<section className="mt-7 rounded-lg border border-[var(--color-primary)] bg-[var(--color-primary-light)] p-5"><h2 className="text-xl font-semibold">Folgemonat</h2><p className="mt-1 text-sm">Die neue Monatscheckliste wird erst nach ausdrücklicher Vorschau angelegt.</p><Link className="button-primary mt-3" href={`/monatschecklisten/neu?clientId=${checklist.clientId}&year=${following.year}&month=${following.month}`}>Checkliste für {monthName(following.month)} {following.year} anlegen</Link></section>}
     {closed&&user.roles.includes("KANZLEILEITUNG")&&<section className="mt-7 rounded-lg border-2 border-red-300 bg-red-50 p-5"><h2 className="text-xl font-semibold">Abschluss wieder öffnen</h2><p className="mt-1 text-sm">Die Monatscheckliste wird auf „Nachbearbeitung“ gesetzt. Die Wiederöffnung bleibt im Verlauf sichtbar.</p><form action={reopenPeriodAction.bind(null,checklist.id)} className="mt-4 grid gap-3 md:grid-cols-2"><p className="text-sm">Diese Aktion wird ausgeführt von: <strong>{user.fullName}</strong></p><Field label="Verpflichtende Begründung"><input className="input" name="reason" required/></Field><label className="flex items-center gap-2 text-sm font-semibold"><input type="checkbox" name="confirmed" required/> Ausdrücklich bestätigen</label><button className="button-primary">Abschluss wieder öffnen</button></form></section>}
@@ -92,3 +94,7 @@ function Status({label,value}:{label:string;value:string}){return <div className
 function Note({label,text}:{label:string;text:string}){return <div className="mt-3 rounded border border-amber-200 bg-amber-50 p-3 text-sm"><strong>{label}:</strong> {text}</div>}
 function Field({label,children}:{label:string;children:React.ReactNode}){return <label className="text-xs font-semibold"><span className="mb-1 block">{label}</span>{children}</label>}
 function Select({label,name,value,options,labels}:{label:string;name:string;value:string;options:readonly string[];labels?:string[]}){return <Field label={label}><select className="input" name={name} defaultValue={value}><option value="">Nicht filtern</option>{options.map((option,index)=><option key={option} value={option}>{labels?.[index]??option}</option>)}</select></Field>}
+function PayrollChecklistSummary({reconciliation}:{reconciliation:{id:number;accountingStatus:string;payrollStatus:string;payrollUserNameSnapshot:string;transferredAt:Date|null;items:Array<{status:string;matterPresent:string;payrollProcessingStatus:string;documentToFollow:boolean;documents:Array<{status:string}>;questions:Array<{status:string}>}>}}){
+  const summary=payrollReconciliationSummary(reconciliation.items);
+  return <div className="mt-4 rounded-lg border-2 border-[var(--color-primary)] bg-[var(--color-primary-light)] p-4"><div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4"><Data label="Gesamtstatus Rechnungswesen" value={reconciliation.accountingStatus}/><Data label="Themen geprüft" value={`${summary.reviewed} von ${summary.total}`}/><Data label="Sachverhalte vollständig" value={String(summary.fullyTransferred)}/><Data label="Lohnsachbearbeiter" value={reconciliation.payrollUserNameSnapshot}/><Data label="Offene Lohnrückfragen" value={String(summary.openQuestions)}/><Data label="Lohnstatus" value={reconciliation.payrollStatus}/><Data label="Übergabe" value={reconciliation.transferredAt?formatDateTime(reconciliation.transferredAt):"Noch nicht erfolgt"}/></div><Link className="button-primary mt-4" href={`/fibu-lohn/${reconciliation.id}`}>Abstimmung öffnen</Link></div>
+}

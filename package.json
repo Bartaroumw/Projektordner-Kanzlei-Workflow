@@ -18,7 +18,11 @@
     "db:diagnose:acceptance": "node --experimental-transform-types scripts/acceptance-diagnostics.ts",
     "db:seed:annual": "node --experimental-transform-types scripts/seed-annual-test-data.ts",
     "testdata:workflow": "node scripts/reset-workflow-test.mjs",
-    "testdata:workflow:diagnose": "node --experimental-transform-types scripts/diagnose-workflow-test.ts"
+    "testdata:workflow:diagnose": "node --experimental-transform-types scripts/diagnose-workflow-test.ts",
+    "testdata:fibu-lohn": "node scripts/reset-fibu-lohn-acceptance.mjs",
+    "testdata:fibu-lohn:diagnose": "node --experimental-transform-types scripts/diagnose-fibu-lohn-acceptance.ts",
+    "testdata:fibu-lohn:backup-test": "node scripts/verify-fibu-lohn-backup.mjs",
+    "testdata:fibu-lohn:performance": "node scripts/performance-fibu-lohn.mjs"
   },
   "dependencies": {
     "@prisma/client": "^6.19.3",

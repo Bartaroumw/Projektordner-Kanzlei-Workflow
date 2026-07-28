@@ -6,8 +6,9 @@ import {
   canReadCampusReviewerGuidance,
   canViewAnnualChecklist,
   canViewClient,
+  canViewPayrollReconciliation,
 } from "@/lib/permissions";
-import { getCampusKnowledgeForChecklistTask } from "@/lib/ordo-campus-service";
+import { campusContentIsVisible, getCampusKnowledgeForChecklistTask } from "@/lib/ordo-campus-service";
 
 export const dynamic = "force-dynamic";
 
@@ -20,7 +21,7 @@ export async function GET(
 
   const { kind, taskId: rawTaskId } = await params;
   const taskId = Number(rawTaskId);
-  const campusKind = kind === "monat" ? "Monat" : kind === "jahresabschluss" ? "Jahresabschluss" : null;
+  const campusKind = kind === "monat" ? "Monat" : kind === "jahresabschluss" ? "Jahresabschluss" : kind === "fibu-lohn" ? "FiBu-Lohn" : null;
   if (!campusKind || !Number.isInteger(taskId)) {
     return NextResponse.json({ error: "Die Aufgabe wurde nicht gefunden." }, { status: 404 });
   }
@@ -30,16 +31,33 @@ export async function GET(
         where: { id: taskId },
         select: { standardTaskId: true, period: { select: { processorUserId: true, reviewerUserId: true, managementUserId: true } } },
       }).then((task) => task ? { standardTaskId: task.standardTaskId, allowed: canViewClient(user, task.period) } : null)
-    : await prisma.annualChecklistTask.findUnique({
+    : campusKind === "Jahresabschluss" ? await prisma.annualChecklistTask.findUnique({
         where: { id: taskId },
         select: { standardTaskId: true, annualChecklist: { select: { processorUserId: true, reviewerUserId: true, managementUserId: true } } },
-      }).then((task) => task ? { standardTaskId: task.standardTaskId, allowed: canViewAnnualChecklist(user, task.annualChecklist) } : null);
+      }).then((task) => task ? { standardTaskId: task.standardTaskId, allowed: canViewAnnualChecklist(user, task.annualChecklist) } : null)
+    : await prisma.payrollReconciliationItem.findUnique({
+        where: { id: taskId },
+        select: {
+          sourceTopic: { select: { campusStandardTaskId: true } },
+          reconciliation: { select: { processorUserId: true, reviewerUserId: true, payrollUserId: true } },
+        },
+      }).then((item) => item ? {
+        standardTaskId: item.sourceTopic.campusStandardTaskId,
+        allowed: canViewPayrollReconciliation(user, item.reconciliation),
+      } : null);
 
   if (!taskAccess?.allowed) {
     return NextResponse.json({ error: "Sie dürfen das Wissen zu dieser Aufgabe nicht öffnen." }, { status: 403 });
   }
 
-  const knowledge = await getCampusKnowledgeForChecklistTask(campusKind, taskId, user);
+  const knowledge = campusKind === "FiBu-Lohn"
+    ? taskAccess.standardTaskId
+      ? await prisma.standardTaskKnowledge.findUnique({
+          where: { standardTaskId: taskAccess.standardTaskId },
+          include: { links: { where: canManageOrdoCampus(user) ? {} : { active: true }, orderBy: [{ sortOrder: "asc" }, { title: "asc" }] } },
+        }).then((entry) => entry && campusContentIsVisible(entry.status, user) ? entry : null)
+      : null
+    : await getCampusKnowledgeForChecklistTask(campusKind, taskId, user);
   if (!knowledge) {
     return NextResponse.json({
       knowledge: null,

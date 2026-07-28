@@ -39,6 +39,8 @@ export default async function ClientDetailPage({
         include: { tasks: { select: { status: true, mandatorySnapshot: true, reviewStatus: true } } },
         orderBy: { fiscalYear: "desc" },
       },
+      payrollUser:{select:{fullName:true,active:true}},
+      vehicles:{orderBy:[{status:"asc"},{description:"asc"}]},
     },
   });
   if (!client) notFound();
@@ -69,6 +71,8 @@ export default async function ClientDetailPage({
           <Data label="Prüfer" value={textOrDash(client.reviewer)} />
           <Data label="Zuständige Kanzleileitung" value={textOrDash(client.managementName)} />
           <Data label="USt-Voranmeldungszeitraum" value={client.vatFilingPeriod} />
+          <Data label="Lohnabrechnung durch Kanzlei" value={client.payrollPreparedByFirm?"Ja":"Nein"} />
+          <Data label="Lohnsachbearbeiter" value={client.payrollUser?.fullName??"Nicht zugeordnet"} />
           <Data label="Status" value={client.active ? "Aktiv" : "Inaktiv"} />
           <Data label="Erstellt am" value={formatDate(client.createdAt)} />
           <Data label="Geändert am" value={formatDate(client.updatedAt)} />
@@ -79,6 +83,10 @@ export default async function ClientDetailPage({
         </div>
       </section>
 
+      <section className="mt-7">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-3"><div><h2 className="text-lg font-semibold">Fahrzeuge</h2><p className="mt-1 text-sm text-slate-600">Dauerhafter Fahrzeugbestand für die FiBu-Lohn-Abstimmung.</p></div><div className="flex gap-2"><Link className="button-secondary" href={`/fibu-lohn/fahrzeuge?mandant=${client.id}`}>Alle Fahrzeuge</Link><Link className="button-primary" href={`/fibu-lohn/fahrzeuge/neu?clientId=${client.id}`}>Neues Fahrzeug</Link></div></div>
+        <div className="overflow-x-auto rounded-lg border border-[var(--color-border)] bg-white"><table className="w-full min-w-[850px] text-left text-sm"><thead className="bg-[var(--color-primary-light)]"><tr>{["Kennzeichen","Fahrzeug","Nutzer","Eigentum / Leasing","Versteuerung","Status"].map(h=><th className="p-3" key={h}>{h}</th>)}</tr></thead><tbody>{client.vehicles.map(vehicle=><ClickableTableRow href={`/fibu-lohn/fahrzeuge/${vehicle.id}`} className="border-t" key={vehicle.id}><td className="p-3">{vehicle.licensePlate??"–"}</td><td className="p-3"><Link className="font-semibold text-[var(--color-primary-dark)]" href={`/fibu-lohn/fahrzeuge/${vehicle.id}`}>{vehicle.description}</Link></td><td className="p-3">{vehicle.userName}</td><td className="p-3">{vehicle.ownershipType}</td><td className="p-3">{vehicle.onePercentRule?"1-%-Regelung":vehicle.logbook?"Fahrtenbuch":"–"}</td><td className="p-3">{vehicle.status}</td></ClickableTableRow>)}{!client.vehicles.length&&<tr><td colSpan={6} className="p-8 text-center text-[var(--color-text-muted)]">Für diesen Mandanten sind noch keine Fahrzeuge hinterlegt.</td></tr>}</tbody></table></div>
+      </section>
 
       <section className="mt-7">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-3"><div><h2 className="text-lg font-semibold">Jahresabschlussaufgaben</h2><p className="mt-1 text-sm text-slate-600">Stichtagsbezogene Abschlussbearbeitung mit zusätzlicher Kanzleileitungsfreigabe.</p></div>{client.annualProfiles[0]&&!client.annualChecklists.some(item=>item.fiscalYear===client.annualProfiles[0].calendarYear)&&<Link className="button-primary" href={`/jahresabschluesse/neu?clientId=${client.id}&fiscalYear=${client.annualProfiles[0].calendarYear}`}>Jahresabschlusscheckliste für {client.annualProfiles[0].calendarYear} anlegen</Link>}</div>

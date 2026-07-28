@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { currentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { canManageOrdoCampus,canViewAnnualChecklist,canViewClient } from "@/lib/permissions";
+import { canManageOrdoCampus,canViewAnnualChecklist,canViewClient,canViewPayrollReconciliation } from "@/lib/permissions";
 import { readCampusAttachmentFile } from "@/lib/ordo-campus-attachment-service";
 
 export const dynamic = "force-dynamic";
@@ -25,7 +25,12 @@ export async function GET(request:NextRequest,{params}:{params:Promise<{attachme
       ? await prisma.checklistTask.findUnique({where:{id:taskId},select:{standardTaskId:true,period:{select:{processorUserId:true,reviewerUserId:true,managementUserId:true}}}}).then(task=>Boolean(task&&task.standardTaskId===attachment.standardTaskId&&canViewClient(user,task.period)))
       : kind==="jahresabschluss"
         ? await prisma.annualChecklistTask.findUnique({where:{id:taskId},select:{standardTaskId:true,annualChecklist:{select:{processorUserId:true,reviewerUserId:true,managementUserId:true}}}}).then(task=>Boolean(task&&task.standardTaskId===attachment.standardTaskId&&canViewAnnualChecklist(user,task.annualChecklist)))
-        : false;
+        : kind==="fibu-lohn"
+          ? await prisma.payrollReconciliationItem.findUnique({where:{id:taskId},select:{
+              sourceTopic:{select:{campusStandardTaskId:true}},
+              reconciliation:{select:{processorUserId:true,reviewerUserId:true,payrollUserId:true}},
+            }}).then(item=>Boolean(item&&item.sourceTopic.campusStandardTaskId===attachment.standardTaskId&&canViewPayrollReconciliation(user,item.reconciliation)))
+          : false;
     if(!allowed)return NextResponse.json({error:"Sie besitzen keine Berechtigung für diesen Download."},{status:403});
   }
   try{

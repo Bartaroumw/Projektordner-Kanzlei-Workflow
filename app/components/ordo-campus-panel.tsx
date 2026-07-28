@@ -24,7 +24,7 @@ export function OrdoCampusPanel({
   taskId,
   activeKnowledge,
 }: {
-  kind: "monat" | "jahresabschluss";
+  kind: "monat" | "jahresabschluss" | "fibu-lohn";
   taskId: number;
   activeKnowledge: boolean;
 }) {
@@ -123,7 +123,7 @@ export function OrdoCampusPanel({
   </>;
 }
 
-function CampusContents({ knowledge,kind,taskId }: { knowledge: CampusKnowledge;kind:"monat"|"jahresabschluss";taskId:number }) {
+function CampusContents({ knowledge,kind,taskId }: { knowledge: CampusKnowledge;kind:"monat"|"jahresabschluss"|"fibu-lohn";taskId:number }) {
   return <>
     <CampusSection title="Kurzbeschreibung" value={knowledge.shortDescription}/>
     <CampusSection title="Ziel der Aufgabe" value={knowledge.objective}/>

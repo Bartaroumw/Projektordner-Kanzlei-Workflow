@@ -8,37 +8,47 @@ datasource db {
 }
 
 model Client {
-  id                           Int                           @id @default(autoincrement())
-  clientNumber                 String                        @unique
+  id                           Int                                  @id @default(autoincrement())
+  clientNumber                 String                               @unique
   name                         String
   processor                    String?
   reviewer                     String?
   team                         String? // Veraltet: nur zur verlustfreien Altdaten-Kompatibilität
   cadence                      String // Veraltet: neue Logik verwendet vatFilingPeriod
-  vatFilingPeriod              String                        @default("Monatlich")
+  vatFilingPeriod              String                               @default("Monatlich")
   managementName               String?
   processorUserId              Int?
   reviewerUserId               Int?
   managementUserId             Int?
-  active                       Boolean                       @default(true)
+  payrollPreparedByFirm        Boolean                              @default(false)
+  payrollUserId                Int?
+  payrollServiceStart          DateTime?
+  payrollServiceEnd            DateTime?
+  payrollResponsibilityNote    String?
+  active                       Boolean                              @default(true)
   internalNote                 String?
-  createdAt                    DateTime                      @default(now())
-  updatedAt                    DateTime                      @updatedAt
+  createdAt                    DateTime                             @default(now())
+  updatedAt                    DateTime                             @updatedAt
   annualProfiles               AnnualProfile[]
   periods                      AccountingPeriod[]
   customTasks                  CustomClientTask[]
   annualChecklists             AnnualChecklist[]
   customAnnualTasks            CustomAnnualTask[]
+  payrollReconciliations       PayrollReconciliation[]
+  vehicles                     ClientVehicle[]
+  payrollResponsibilityHistory ClientPayrollResponsibilityHistory[]
   functionSeparationExceptions FunctionSeparationException[]
-  processorUser                User?                         @relation("ClientProcessor", fields: [processorUserId], references: [id], onDelete: SetNull)
-  reviewerUser                 User?                         @relation("ClientReviewer", fields: [reviewerUserId], references: [id], onDelete: SetNull)
-  managementUser               User?                         @relation("ClientManagement", fields: [managementUserId], references: [id], onDelete: SetNull)
+  processorUser                User?                                @relation("ClientProcessor", fields: [processorUserId], references: [id], onDelete: SetNull)
+  reviewerUser                 User?                                @relation("ClientReviewer", fields: [reviewerUserId], references: [id], onDelete: SetNull)
+  managementUser               User?                                @relation("ClientManagement", fields: [managementUserId], references: [id], onDelete: SetNull)
+  payrollUser                  User?                                @relation("ClientPayrollUser", fields: [payrollUserId], references: [id], onDelete: SetNull)
 
   @@index([name])
   @@index([active])
   @@index([processorUserId])
   @@index([reviewerUserId])
   @@index([managementUserId])
+  @@index([payrollUserId])
 }
 
 model AnnualProfile {
@@ -113,6 +123,7 @@ model StandardTask {
   campusKnowledgeHistory       StandardTaskKnowledgeHistory[]
   campusAttachments            StandardTaskKnowledgeAttachment[]
   planningHistory              StandardTaskPlanningHistory[]
+  payrollTopics                PayrollReconciliationTopic[]
 
   @@index([active, checklistType])
   @@index([categoryId, sortOrder])
@@ -256,6 +267,7 @@ model AccountingPeriod {
   reviewerUser                     User?                        @relation("PeriodReviewer", fields: [reviewerUserId], references: [id], onDelete: SetNull)
   managementUser                   User?                        @relation("PeriodManagement", fields: [managementUserId], references: [id], onDelete: SetNull)
   functionSeparationException      FunctionSeparationException? @relation("PeriodFunctionSeparation", fields: [functionSeparationExceptionId], references: [id], onDelete: SetNull)
+  payrollReconciliation            PayrollReconciliation?
 
   @@unique([clientId, calendarYear, month, checklistType])
   @@index([calendarYear, month, processingStatus])
@@ -266,25 +278,25 @@ model AccountingPeriod {
 }
 
 model ChecklistTask {
-  id                           Int                   @id @default(autoincrement())
+  id                           Int                    @id @default(autoincrement())
   periodId                     Int
   standardTaskId               Int?
   customClientTaskId           Int?
   sourceTaskId                 Int?
   taskIdSnapshot               String
   categorySnapshot             String
-  categorySortOrder            Int                   @default(0)
+  categorySortOrder            Int                    @default(0)
   subcategorySnapshot          String?
   titleSnapshot                String
   workInstructionSnapshot      String?
   reviewInstructionSnapshot    String?
-  mandatorySnapshot            Boolean               @default(false)
+  mandatorySnapshot            Boolean                @default(false)
   sortOrderSnapshot            Int?
   professionalVersionSnapshot  String?
   origin                       String
-  status                       String                @default("Offen")
+  status                       String                 @default("Offen")
   processingNote               String?
-  carryProcessingNote          Boolean               @default(false)
+  carryProcessingNote          Boolean                @default(false)
   carriedNoteSourceTaskId      Int?
   carriedNoteSourcePeriodLabel String?
   processedAt                  DateTime?
@@ -296,7 +308,7 @@ model ChecklistTask {
   transferActorName            String?
   transferExpectedAction       String?
   transferredAt                DateTime?
-  reviewStatus                 String                @default("Nicht geprüft")
+  reviewStatus                 String                 @default("Nicht geprüft")
   reviewerInitials             String?
   reviewNote                   String?
   reviewedAt                   DateTime?
@@ -312,15 +324,16 @@ model ChecklistTask {
   respondedBy                  String?
   respondedAt                  DateTime?
   finalReviewedAt              DateTime?
-  createdAt                    DateTime              @default(now())
-  updatedAt                    DateTime              @updatedAt
-  period                       AccountingPeriod      @relation(fields: [periodId], references: [id], onDelete: Restrict)
-  standardTask                 StandardTask?         @relation(fields: [standardTaskId], references: [id], onDelete: SetNull)
-  customClientTask             CustomClientTask?     @relation(fields: [customClientTaskId], references: [id], onDelete: SetNull)
-  sourceTask                   ChecklistTask?        @relation("TaskTransfer", fields: [sourceTaskId], references: [id], onDelete: Restrict)
-  transferredTasks             ChecklistTask[]       @relation("TaskTransfer")
+  createdAt                    DateTime               @default(now())
+  updatedAt                    DateTime               @updatedAt
+  period                       AccountingPeriod       @relation(fields: [periodId], references: [id], onDelete: Restrict)
+  standardTask                 StandardTask?          @relation(fields: [standardTaskId], references: [id], onDelete: SetNull)
+  customClientTask             CustomClientTask?      @relation(fields: [customClientTaskId], references: [id], onDelete: SetNull)
+  sourceTask                   ChecklistTask?         @relation("TaskTransfer", fields: [sourceTaskId], references: [id], onDelete: Restrict)
+  transferredTasks             ChecklistTask[]        @relation("TaskTransfer")
   history                      WorkflowHistory[]
-  annualDerivedTasks           AnnualChecklistTask[] @relation("AnnualTaskMonthlySource")
+  annualDerivedTasks           AnnualChecklistTask[]  @relation("AnnualTaskMonthlySource")
+  payrollReconciliation        PayrollReconciliation?
 
   @@unique([periodId, sourceTaskId])
   @@index([periodId, categorySortOrder, sortOrderSnapshot])
@@ -355,40 +368,57 @@ model WorkflowHistory {
 }
 
 model User {
-  id                                   Int                               @id @default(autoincrement())
+  id                                   Int                                  @id @default(autoincrement())
   fullName                             String
-  username                             String                            @unique
-  email                                String?                           @unique
+  username                             String                               @unique
+  email                                String?                              @unique
   passwordHash                         String
-  active                               Boolean                           @default(true)
+  active                               Boolean                              @default(true)
   shortLabel                           String?
   lastLoginAt                          DateTime?
   passwordChangedAt                    DateTime?
-  mustChangePassword                   Boolean                           @default(true)
-  sessionVersion                       Int                               @default(1)
-  createdAt                            DateTime                          @default(now())
-  updatedAt                            DateTime                          @updatedAt
+  mustChangePassword                   Boolean                              @default(true)
+  sessionVersion                       Int                                  @default(1)
+  createdAt                            DateTime                             @default(now())
+  updatedAt                            DateTime                             @updatedAt
   roles                                UserRole[]
   sessions                             Session[]
-  processorClients                     Client[]                          @relation("ClientProcessor")
-  reviewerClients                      Client[]                          @relation("ClientReviewer")
-  managementClients                    Client[]                          @relation("ClientManagement")
-  processorPeriods                     AccountingPeriod[]                @relation("PeriodProcessor")
-  reviewerPeriods                      AccountingPeriod[]                @relation("PeriodReviewer")
-  managementPeriods                    AccountingPeriod[]                @relation("PeriodManagement")
+  processorClients                     Client[]                             @relation("ClientProcessor")
+  reviewerClients                      Client[]                             @relation("ClientReviewer")
+  managementClients                    Client[]                             @relation("ClientManagement")
+  payrollClients                       Client[]                             @relation("ClientPayrollUser")
+  processorPeriods                     AccountingPeriod[]                   @relation("PeriodProcessor")
+  reviewerPeriods                      AccountingPeriod[]                   @relation("PeriodReviewer")
+  managementPeriods                    AccountingPeriod[]                   @relation("PeriodManagement")
   historyEntries                       WorkflowHistory[]
-  annualProcessorChecklists            AnnualChecklist[]                 @relation("AnnualProcessor")
-  annualReviewerChecklists             AnnualChecklist[]                 @relation("AnnualReviewer")
-  annualManagementChecklists           AnnualChecklist[]                 @relation("AnnualManagement")
+  annualProcessorChecklists            AnnualChecklist[]                    @relation("AnnualProcessor")
+  annualReviewerChecklists             AnnualChecklist[]                    @relation("AnnualReviewer")
+  annualManagementChecklists           AnnualChecklist[]                    @relation("AnnualManagement")
   annualHistoryEntries                 AnnualWorkflowHistory[]
-  createdAnnualTasks                   AnnualChecklistTask[]             @relation("AnnualTaskCreator")
-  releasedAnnualChecklists             AnnualChecklist[]                 @relation("AnnualReleaseUser")
-  approvedFunctionSeparationExceptions FunctionSeparationException[]     @relation("FunctionSeparationApprover")
-  assignedFunctionSeparationExceptions FunctionSeparationException[]     @relation("FunctionSeparationAssigned")
+  createdAnnualTasks                   AnnualChecklistTask[]                @relation("AnnualTaskCreator")
+  releasedAnnualChecklists             AnnualChecklist[]                    @relation("AnnualReleaseUser")
+  approvedFunctionSeparationExceptions FunctionSeparationException[]        @relation("FunctionSeparationApprover")
+  assignedFunctionSeparationExceptions FunctionSeparationException[]        @relation("FunctionSeparationAssigned")
   campusKnowledgeHistory               StandardTaskKnowledgeHistory[]
   standardTaskPlanningHistory          StandardTaskPlanningHistory[]
-  uploadedCampusAttachments            StandardTaskKnowledgeAttachment[] @relation("CampusAttachmentUploader")
-  archivedCampusAttachments            StandardTaskKnowledgeAttachment[] @relation("CampusAttachmentArchiver")
+  uploadedCampusAttachments            StandardTaskKnowledgeAttachment[]    @relation("CampusAttachmentUploader")
+  archivedCampusAttachments            StandardTaskKnowledgeAttachment[]    @relation("CampusAttachmentArchiver")
+  createdPayrollTopics                 PayrollReconciliationTopic[]         @relation("PayrollTopicCreator")
+  payrollReconciliations               PayrollReconciliation[]              @relation("PayrollReconciliationAssignee")
+  processedPayrollItems                PayrollReconciliationItem[]          @relation("PayrollItemProcessor")
+  payrollQuestionsSent                 PayrollReconciliationQuestion[]      @relation("PayrollQuestionSender")
+  payrollQuestionsReceived             PayrollReconciliationQuestion[]      @relation("PayrollQuestionRecipient")
+  uploadedPayrollDocuments             PayrollDocumentReference[]           @relation("PayrollDocumentUploader")
+  archivedPayrollDocuments             PayrollDocumentReference[]           @relation("PayrollDocumentArchiver")
+  createdVehicles                      ClientVehicle[]                      @relation("VehicleCreator")
+  updatedVehicles                      ClientVehicle[]                      @relation("VehicleUpdater")
+  createdVehicleChanges                ClientVehicleChange[]                @relation("VehicleChangeCreator")
+  payrollHistoryEntries                PayrollReconciliationHistory[]
+  changedPayrollResponsibilities       ClientPayrollResponsibilityHistory[] @relation("PayrollResponsibilityChanger")
+  assignedPayrollResponsibilities      ClientPayrollResponsibilityHistory[] @relation("PayrollResponsibilityAssignee")
+  processorPayrollReconciliations      PayrollReconciliation[]              @relation("PayrollReconciliationProcessor")
+  reviewerPayrollReconciliations       PayrollReconciliation[]              @relation("PayrollReconciliationReviewer")
+  payrollTopicHistory                  PayrollReconciliationTopicHistory[]
 
   @@index([active, fullName])
 }
@@ -629,4 +659,281 @@ model FunctionSeparationException {
   @@index([clientId, fiscalYear, active])
   @@index([assignedUserId])
   @@index([approvedByUserId])
+}
+
+model PayrollReconciliationTopic {
+  id                     Int                                 @id @default(autoincrement())
+  key                    String                              @unique
+  title                  String
+  shortDescription       String?
+  reviewQuestion         String
+  sortOrder              Int                                 @default(0)
+  status                 String                              @default("Aktiv")
+  validFrom              DateTime
+  validUntil             DateTime?
+  topicType              String
+  vehicleRelated         Boolean                             @default(false)
+  followUpAllowed        Boolean                             @default(false)
+  campusStandardTaskId   Int?
+  requiredStandardFields String
+  requiredDocumentTypes  String
+  notes                  String?
+  createdByUserId        Int
+  createdAt              DateTime                            @default(now())
+  updatedAt              DateTime                            @updatedAt
+  createdBy              User                                @relation("PayrollTopicCreator", fields: [createdByUserId], references: [id], onDelete: Restrict)
+  campusStandardTask     StandardTask?                       @relation(fields: [campusStandardTaskId], references: [id], onDelete: SetNull)
+  reconciliationItems    PayrollReconciliationItem[]
+  history                PayrollReconciliationTopicHistory[]
+
+  @@index([status, validFrom, validUntil, sortOrder])
+  @@index([campusStandardTaskId])
+}
+
+model ClientPayrollResponsibilityHistory {
+  id                      Int       @id @default(autoincrement())
+  clientId                Int
+  payrollPreparedByFirm   Boolean
+  payrollUserId           Int?
+  payrollUserNameSnapshot String?
+  validFrom               DateTime?
+  validUntil              DateTime?
+  note                    String?
+  changedByUserId         Int
+  createdAt               DateTime  @default(now())
+  client                  Client    @relation(fields: [clientId], references: [id], onDelete: Restrict)
+  payrollUser             User?     @relation("PayrollResponsibilityAssignee", fields: [payrollUserId], references: [id], onDelete: Restrict)
+  changedBy               User      @relation("PayrollResponsibilityChanger", fields: [changedByUserId], references: [id], onDelete: Restrict)
+
+  @@index([clientId, createdAt])
+  @@index([payrollUserId])
+  @@index([changedByUserId])
+}
+
+model PayrollReconciliationTopicHistory {
+  id                Int                        @id @default(autoincrement())
+  topicId           Int
+  actorUserId       Int
+  actorNameSnapshot String
+  action            String
+  summary           String
+  previousValue     String?
+  newValue          String?
+  occurredAt        DateTime                   @default(now())
+  topic             PayrollReconciliationTopic @relation(fields: [topicId], references: [id], onDelete: Restrict)
+  actorUser         User                       @relation(fields: [actorUserId], references: [id], onDelete: Restrict)
+
+  @@index([topicId, occurredAt])
+  @@index([actorUserId, occurredAt])
+}
+
+model PayrollReconciliation {
+  id                      Int                             @id @default(autoincrement())
+  clientId                Int
+  accountingYear          Int
+  accountingMonth         Int
+  payrollYear             Int
+  payrollMonth            Int
+  accountingPeriodId      Int                             @unique
+  checklistTaskId         Int                             @unique
+  processorUserId         Int?
+  processorNameSnapshot   String?
+  reviewerUserId          Int?
+  reviewerNameSnapshot    String?
+  payrollUserId           Int
+  payrollUserNameSnapshot String
+  accountingStatus        String                          @default("Offen")
+  payrollStatus           String                          @default("Neu")
+  transferredAt           DateTime?
+  seenAt                  DateTime?
+  completedAt             DateTime?
+  createdAt               DateTime                        @default(now())
+  updatedAt               DateTime                        @updatedAt
+  client                  Client                          @relation(fields: [clientId], references: [id], onDelete: Restrict)
+  accountingPeriod        AccountingPeriod                @relation(fields: [accountingPeriodId], references: [id], onDelete: Restrict)
+  checklistTask           ChecklistTask                   @relation(fields: [checklistTaskId], references: [id], onDelete: Restrict)
+  processorUser           User?                           @relation("PayrollReconciliationProcessor", fields: [processorUserId], references: [id], onDelete: Restrict)
+  reviewerUser            User?                           @relation("PayrollReconciliationReviewer", fields: [reviewerUserId], references: [id], onDelete: Restrict)
+  payrollUser             User                            @relation("PayrollReconciliationAssignee", fields: [payrollUserId], references: [id], onDelete: Restrict)
+  items                   PayrollReconciliationItem[]
+  questions               PayrollReconciliationQuestion[]
+  history                 PayrollReconciliationHistory[]
+
+  @@unique([clientId, payrollYear, payrollMonth])
+  @@index([payrollUserId, payrollStatus, payrollYear, payrollMonth])
+  @@index([clientId, accountingYear, accountingMonth])
+}
+
+model PayrollReconciliationItem {
+  id                        Int                             @id @default(autoincrement())
+  reconciliationId          Int
+  sourceTopicId             Int
+  topicKeySnapshot          String
+  topicTitleSnapshot        String
+  descriptionSnapshot       String?
+  reviewQuestionSnapshot    String
+  sortOrderSnapshot         Int                             @default(0)
+  topicTypeSnapshot         String
+  vehicleRelatedSnapshot    Boolean                         @default(false)
+  requiredFieldsSnapshot    String
+  requiredDocumentsSnapshot String
+  status                    String                          @default("Noch nicht geprüft")
+  matterPresent             String                          @default("Noch offen")
+  payrollProcessingStatus   String                          @default("Offen")
+  payrollProcessedAt        DateTime?
+  processedByUserId         Int?
+  reviewedAt                DateTime?
+  fullyTransferredAt        DateTime?
+  note                      String?
+  detailsJson               String?
+  missingDocumentType       String?
+  documentToFollow          Boolean                         @default(false)
+  followUpReason            String?
+  expectedFollowUpAt        DateTime?
+  followUpAllowed           Boolean                         @default(false)
+  createdAt                 DateTime                        @default(now())
+  updatedAt                 DateTime                        @updatedAt
+  reconciliation            PayrollReconciliation           @relation(fields: [reconciliationId], references: [id], onDelete: Restrict)
+  sourceTopic               PayrollReconciliationTopic      @relation(fields: [sourceTopicId], references: [id], onDelete: Restrict)
+  processedBy               User?                           @relation("PayrollItemProcessor", fields: [processedByUserId], references: [id], onDelete: SetNull)
+  documents                 PayrollDocumentReference[]
+  questions                 PayrollReconciliationQuestion[]
+  vehicleChanges            ClientVehicleChange[]
+  history                   PayrollReconciliationHistory[]
+
+  @@unique([reconciliationId, sourceTopicId])
+  @@index([reconciliationId, sortOrderSnapshot])
+  @@index([sourceTopicId])
+}
+
+model PayrollDocumentReference {
+  id                   Int                            @id @default(autoincrement())
+  reconciliationItemId Int
+  questionId           Int?
+  displayName          String
+  originalFileName     String
+  storedFileName       String                         @unique
+  storageKey           String                         @unique
+  fileExtension        String
+  mimeType             String
+  fileSizeBytes        Int
+  documentType         String
+  description          String?
+  status               String                         @default("Aktiv")
+  uploadedAt           DateTime                       @default(now())
+  uploadedByUserId     Int
+  archivedAt           DateTime?
+  archivedByUserId     Int?
+  reconciliationItem   PayrollReconciliationItem      @relation(fields: [reconciliationItemId], references: [id], onDelete: Restrict)
+  question             PayrollReconciliationQuestion? @relation(fields: [questionId], references: [id], onDelete: SetNull)
+  uploadedBy           User                           @relation("PayrollDocumentUploader", fields: [uploadedByUserId], references: [id], onDelete: Restrict)
+  archivedBy           User?                          @relation("PayrollDocumentArchiver", fields: [archivedByUserId], references: [id], onDelete: Restrict)
+
+  @@index([reconciliationItemId, status])
+  @@index([questionId])
+}
+
+model PayrollReconciliationQuestion {
+  id                   Int                        @id @default(autoincrement())
+  reconciliationId     Int
+  reconciliationItemId Int
+  senderUserId         Int
+  recipientUserId      Int
+  senderDepartment     String
+  recipientDepartment  String
+  message              String
+  status               String                     @default("Offen beim Rechnungswesen")
+  answer               String?
+  createdAt            DateTime                   @default(now())
+  answeredAt           DateTime?
+  completedAt          DateTime?
+  reconciliation       PayrollReconciliation      @relation(fields: [reconciliationId], references: [id], onDelete: Restrict)
+  reconciliationItem   PayrollReconciliationItem  @relation(fields: [reconciliationItemId], references: [id], onDelete: Restrict)
+  sender               User                       @relation("PayrollQuestionSender", fields: [senderUserId], references: [id], onDelete: Restrict)
+  recipient            User                       @relation("PayrollQuestionRecipient", fields: [recipientUserId], references: [id], onDelete: Restrict)
+  documents            PayrollDocumentReference[]
+
+  @@index([recipientUserId, status, createdAt])
+  @@index([reconciliationId, reconciliationItemId])
+}
+
+model ClientVehicle {
+  id                    Int                            @id @default(autoincrement())
+  clientId              Int
+  referenceNumber       String?
+  description           String
+  licensePlate          String?
+  userName              String
+  userFunction          String
+  contractAvailable     Boolean                        @default(false)
+  contractReference     String?
+  contractDate          DateTime?
+  ownershipType         String
+  grossListPriceCents   Int?
+  documentReference     String?
+  onePercentRule        Boolean                        @default(false)
+  logbook               Boolean                        @default(false)
+  commuteUse            Boolean                        @default(false)
+  accountingAccount     String?
+  accountingBasis       String?
+  accountingExplanation String?
+  validFrom             DateTime
+  validUntil            DateTime?
+  status                String                         @default("Aktiv")
+  note                  String?
+  createdByUserId       Int
+  updatedByUserId       Int
+  createdAt             DateTime                       @default(now())
+  updatedAt             DateTime                       @updatedAt
+  client                Client                         @relation(fields: [clientId], references: [id], onDelete: Restrict)
+  createdBy             User                           @relation("VehicleCreator", fields: [createdByUserId], references: [id], onDelete: Restrict)
+  updatedBy             User                           @relation("VehicleUpdater", fields: [updatedByUserId], references: [id], onDelete: Restrict)
+  changes               ClientVehicleChange[]
+  history               PayrollReconciliationHistory[]
+
+  @@unique([clientId, referenceNumber])
+  @@index([clientId, status, validFrom])
+}
+
+model ClientVehicleChange {
+  id                   Int                        @id @default(autoincrement())
+  vehicleId            Int
+  reconciliationItemId Int?
+  changeType           String
+  effectiveFrom        DateTime
+  summary              String
+  previousValueJson    String?
+  newValueJson         String?
+  createdByUserId      Int
+  createdAt            DateTime                   @default(now())
+  vehicle              ClientVehicle              @relation(fields: [vehicleId], references: [id], onDelete: Restrict)
+  reconciliationItem   PayrollReconciliationItem? @relation(fields: [reconciliationItemId], references: [id], onDelete: SetNull)
+  createdBy            User                       @relation("VehicleChangeCreator", fields: [createdByUserId], references: [id], onDelete: Restrict)
+
+  @@index([vehicleId, effectiveFrom])
+  @@index([reconciliationItemId])
+}
+
+model PayrollReconciliationHistory {
+  id                   Int                        @id @default(autoincrement())
+  reconciliationId     Int
+  reconciliationItemId Int?
+  vehicleId            Int?
+  actorUserId          Int
+  actorNameSnapshot    String
+  actorDepartment      String
+  action               String
+  summary              String
+  previousValue        String?
+  newValue             String?
+  occurredAt           DateTime                   @default(now())
+  reconciliation       PayrollReconciliation      @relation(fields: [reconciliationId], references: [id], onDelete: Restrict)
+  reconciliationItem   PayrollReconciliationItem? @relation(fields: [reconciliationItemId], references: [id], onDelete: Restrict)
+  vehicle              ClientVehicle?             @relation(fields: [vehicleId], references: [id], onDelete: SetNull)
+  actorUser            User                       @relation(fields: [actorUserId], references: [id], onDelete: Restrict)
+
+  @@index([reconciliationId, occurredAt])
+  @@index([reconciliationItemId, occurredAt])
+  @@index([vehicleId, occurredAt])
+  @@index([actorUserId, occurredAt])
 }

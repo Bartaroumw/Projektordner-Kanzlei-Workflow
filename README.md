@@ -171,6 +171,7 @@ Mehrfachrollen sind möglich:
 - `Prüfer`: Mandanten sowie mandantenspezifische Aufgabenvorlagen verwalten und zugeordnete Checklisten prüfen.
 - `Kanzleileitung`: kanzleiweite Fachsicht, Standardaufgaben, begründete Ausnahmen, Rollenänderungen und Wiederöffnungen.
 - `Administrator`: lokale Benutzerkonten und Passwörter verwalten, jedoch keine fachliche Prüfung allein aufgrund der Administratorrolle.
+- `Lohnsachbearbeiter`: ausschließlich zugeordnete FiBu-Lohn-Abstimmungen, Belege, Rückfragen und den erforderlichen Fahrzeugbestand bearbeiten beziehungsweise einsehen; keine Rechnungswesen-, Jahresabschluss-, Leitungs- oder Administrationsrechte.
 - `Standardaufgaben verwalten`: zusätzliche ausdrückliche Fachberechtigung für Standardaufgaben und Excel-Import.
 - `Mandanten verwalten`: ausdrückliche Zusatzberechtigung für Benutzer ohne fachliche Standardrolle.
 - `Mandantenspezifische Aufgaben verwalten`: ausdrückliche Zusatzberechtigung neben Prüfer und Kanzleileitung.
@@ -203,6 +204,12 @@ Benutzer werden nie physisch gelöscht. Eine Deaktivierung beendet Sitzungen und
 | `anton.admin` | Administrator | `Test-Anton-2026!` |
 | `max.beispiel` | Mitarbeiter | `Test-Max-2026!` |
 | `nina.test` | deaktiviertes Testkonto | `Test-Nina-2026!` |
+| `anna.rechnungswesen` | Mitarbeiter | `Test-Anna-2027!` |
+| `peter.pruefer` | Prüfer | `Test-Peter-2027!` |
+| `laura.lohn` | Lohnsachbearbeiter | `Test-Laura-2027!` |
+| `leon.lohn` | Lohnsachbearbeiter | `Test-Leon-2027!` |
+| `klaus.leitung` | Kanzleileitung, Prüfer, FiBu-Lohn-Themen verwalten | `Test-Klaus-2027!` |
+| `admin.test` | Administrator | `Test-Admin-2027!` |
 
 Diese Zugangsdaten sind ausschließlich für lokale Tests bestimmt. Vor einem echten Kanzleieinsatz müssen die künstlichen Benutzer entfernt oder abgesichert und alle Erstpasswörter geändert werden. Nach einer administrativen Passwortzurücksetzung muss das temporäre Passwort beim nächsten Login geändert werden.
 
@@ -257,9 +264,10 @@ Ein vollständiges Backup von Ordo Caroli umfasst mindestens:
 
 - die SQLite-Datenbank aus `prisma/`,
 - den vollständigen Ordner `storage/ordo-campus`,
+- den vollständigen Ordner `storage/fibu-lohn`,
 - die lokal verwendete, nicht versionierte Umgebungskonfiguration.
 
-**Das Sichern ausschließlich der SQLite-Datenbank reicht nach Einführung der Campus-Anhänge nicht mehr aus.** Datenbank und Anhangsordner sollten im selben konsistenten Sicherungslauf kopiert werden. Bei einer Wiederherstellung oder einem Rechnerumzug werden Datenbank und Anhangsordner an ihre dokumentierten Pfade zurückgespielt; danach sind Migrationen, Diagnose und ein kontrollierter Download zu prüfen. Der Speicherordner ist absichtlich von Git ausgeschlossen.
+**Das Sichern ausschließlich der SQLite-Datenbank reicht nach Einführung lokaler Anhänge nicht mehr aus.** Datenbank, Campus-Anhangsordner und FiBu-Lohn-Belegordner sollten im selben konsistenten Sicherungslauf kopiert werden. Bei einer Wiederherstellung oder einem Rechnerumzug werden Datenbank und Speicherordner an ihre dokumentierten Pfade zurückgespielt; danach sind Migrationen, Diagnose und ein kontrollierter Download zu prüfen. Die Speicherordner sind absichtlich von Git ausgeschlossen.
 
 Ordo Campus ist für allgemeine Kanzleistandards und fachliche Anleitungen bestimmt. Echte Mandantendaten, personenbezogene Testdaten und mandantenbezogene Originalunterlagen gehören nicht in zentrale Standardaufgaben-Anhänge. DATEV-Dokumente werden grundsätzlich verlinkt und nicht kopiert. Eine Virenscanner-Integration, Dokumentversionierung, Office-Vorschau, OCR, DMS-Integration und Dateivolltextsuche sind noch nicht Bestandteil von Version 1.0.
 
@@ -313,6 +321,39 @@ Die Mandantenübersicht ist natürlich nach Nummer auf- oder absteigend sowie na
 
 Die additive Migration `20260727230000_workflow_ux_corrections` ergänzt ausschließlich Workflow-Metadaten; historische Aufgaben, Snapshots, Campus-Inhalte und Verläufe bleiben erhalten. Eine ältere, mit `db push` erzeugte Entwicklungsdatenbank kann eine abweichende Migrationshistorie besitzen. In diesem Fall darf sie nicht ungeprüft zurückgesetzt werden.
 
+## FiBu-Lohn-Abstimmung
+
+Teil 1 des Moduls bildet den monatlichen QM- und Informationsübergabeprozess vom Rechnungswesen an die Lohnabteilung fachlich und technisch ab. Für einen Mandanten wird die Standardaufgabe `Monatliche FiBu-Lohn-Abstimmung` nur erzeugt, wenn `Lohnabrechnung durch Kanzlei` aktiviert und ein aktiver Benutzer mit der Rolle `Lohnsachbearbeiter` zugeordnet ist.
+
+Pro Mandant und Lohnabrechnungsmonat ist genau eine Abstimmung zulässig. Rechnungswesenmonat und vorgesehener Lohnabrechnungsmonat werden getrennt gespeichert; als verständlicher Standard wird der Folgemonat vorgeschlagen. Jede Abstimmung speichert Benutzer-IDs und Namenssnapshots von Bearbeiter, Prüfer und Lohnsachbearbeiter. Spätere Stammdatenänderungen verändern historische Zuständigkeiten nicht.
+
+Der konfigurierbare Startkatalog enthält sechs aktive Themen:
+
+1. Arbeitnehmerbezogene Geschenke, Aufmerksamkeiten, Sachbezüge und Betriebsveranstaltungen
+2. Steuerfreie Reisekostenerstattungen
+3. Firmenfahrzeuge, Pkw, E-Bike und Fahrrad
+4. Scheinselbstständigkeit und mögliche abhängige Beschäftigung
+5. Geschenke an Nichtarbeitnehmer
+6. Künstlersozialkasse
+
+Beim Anlegen werden diese Themen als eigenständige Themenkarten mit Bezeichnung, Prüffrage, Reihenfolge, Pflichtfeldern und Belegarten kopiert. Änderungen oder Archivierungen im zentralen Katalog verändern eine bestehende Abstimmung nicht.
+
+Rechnungswesenstatus und Lohnstatus sind bewusst getrennt. Das Rechnungswesen arbeitet von `Offen` über `In Bearbeitung` und `Übergabebereit` bis `Vollständig übergeben`. Lohn arbeitet anschließend unabhängig mit `Neu`, `Gesehen`, `Rückfrage offen`, `Erledigt` oder optional `Storniert`. Die verknüpfte Rechnungswesenaufgabe wird bei der verbindlichen Gesamtübergabe erledigt. Spätere Lohnbearbeitung, Rückfragen oder Lohnerledigung blockieren und öffnen die Monatscheckliste nicht und ändern keinen Prüfstatus.
+
+Belege werden getrennt von Ordo Campus standardmäßig unter `storage/fibu-lohn` gespeichert. Zulässig sind PDF, DOCX, XLSX, PNG und JPG/JPEG bis 15 MB. Endung, MIME-Typ und grundlegende Dateisignatur werden serverseitig geprüft; physische UUID-Dateinamen und Pfadgrenzen verhindern die Offenlegung oder freie Wahl interner Speicherpfade. Das Datenmodell hält eine Dokumentenreferenz, sodass später ein DMS- oder Dokumentendienst angebunden werden kann, ohne die fachliche Themenbeziehung neu zu entwerfen.
+
+Der Fahrzeugbestand ist ein dauerhaftes Mandantenobjekt und nicht an einen einzelnen Monat gebunden. Stammdaten, Eigentum oder Leasing, Versteuerungsmethode, Nutzer, Gültigkeit und Rechnungswesenbehandlung werden gespeichert. Wesentliche Änderungen erhalten eigene Verlaufsdatensätze und können mit der betroffenen Monats-Themenkarte verknüpft werden.
+
+Die additive Migration `20260728100000_fibu_payroll_reconciliation_foundation` ergänzt Mandantenkonfiguration, Themenkatalog, Monatsabstimmungen, Themen-Snapshots, Rückfragen, Belegreferenzen, Fahrzeuge und fachliche Verläufe. Bestehende Mandanten erhalten `Lohnabrechnung durch Kanzlei = Nein`; vorhandene Monats- und Jahresabschlussdaten werden nicht verändert.
+
+Wegen der dokumentierten fehlenden Migrationsbaseline der aktiven Entwicklungsdatenbank wird diese Migration dort nicht automatisch ausgeführt. Sie wird ausschließlich auf einer leeren Testdatenbank, einer separaten Workflow-Testdatenbank und einer vollständigen Datenbankkopie geprüft. Die fachlichen und technischen Einzelheiten stehen in:
+
+- `docs/FIBU_LOHN_ABSTIMMUNG_FACHKONZEPT.md`
+- `docs/FIBU_LOHN_DATENMODELL.md`
+- `docs/FIBU_LOHN_ROLLEN_UND_BERECHTIGUNGEN.md`
+- `docs/FIBU_LOHN_THEMENKATALOG.md`
+- `docs/FIBU_LOHN_FAHRZEUGBESTAND.md`
+
 ## Bekannte Einschränkungen
 
 - keine externe Identitätsverwaltung, Mehrfaktor-Anmeldung oder zentrale Kennwortrichtlinie
@@ -320,7 +361,7 @@ Die additive Migration `20260727230000_workflow_ux_corrections` ergänzt ausschl
 - Sitzungen sind auf eine einzelne lokale Installation ausgelegt
 - keine automatische Jahresabschlusserstellung oder Übertragung offener Jahresabschlussaufgaben in das Folgejahr
 - keine Stellvertreterregelung für die Kanzleileitungsfreigabe
-- keine Datei-Uploads außer dem vorhandenen lokalen `.xlsx`-Import für Standardaufgaben
+- Datei-Uploads sind auf den lokalen `.xlsx`-Import, Campus-Anhänge und geschützte FiBu-Lohn-Belege begrenzt; Virenscanner, DMS und allgemeine Mandanten-Cloud fehlen
 - keine Exporte, Benachrichtigungen oder E-Mails
 - der fachliche Verlauf ist nachvollziehbar, aber kein revisionssicherer Audit-Trail
 - veraltete technische Felder bleiben zur Altdaten-Kompatibilität im Schema
@@ -372,3 +413,50 @@ Mandantenspezifische wiederkehrende Aufgaben unterstützen dieselben Ausführung
 Bei **Nicht zutreffend** wird die Begründung nur nach Auswahl dieses Status eingeblendet und serverseitig verlangt. Eine gespeicherte Begründung bleibt bei späteren Statuswechseln erhalten und erscheint bei erneuter Auswahl wieder. **Aufgabe übertragen** ist als geschlossene Zusatzaktion ausgeführt; erst nach dem Öffnen erscheinen Begründung und Folgemonat.
 
 Bekannte Einschränkung: Die Ausführungsmonate beziehen sich in dieser Version auf das Kalenderjahr. Eine relative Verschiebung anhand eines abweichenden Wirtschaftsjahres ist noch nicht implementiert.
+## FiBu-Lohn-Abstimmung – Benutzeroberfläche
+
+Die FiBu-Lohn-Abstimmung ist als eigener, lokaler Arbeitsbereich integriert. Für Kanzleilohn-Mandanten wird bei der Erstellung einer Monatscheckliste genau eine Abstimmung für den vorgesehenen Lohnabrechnungsmonat angelegt. Die zugehörige Checklistenaufgabe zeigt Themenfortschritt, Sachverhalte, offene Rückfragen, Lohnzuständigkeit und den direkten Einstieg.
+
+Rechnungswesenbearbeiter prüfen sechs Themen bewusst einzeln. Vorhandene Sachverhalte werden mit themenspezifischen Angaben und geschützten Belegen erfasst. Erst die ausdrücklich bestätigte Gesamtübergabe erfüllt die Informationspflicht des Rechnungswesens. Der anschließende Lohnstatus (`Neu`, `Gesehen`, `Rückfrage offen`, `Erledigt`) verändert die abgeschlossene Rechnungswesenbearbeitung nicht.
+
+Lohnsachbearbeiter werden nach der Anmeldung direkt zu „Meine FiBu-Lohn-Abstimmungen“ geführt. Die Ansicht enthält Abrechnungsmonat, Mandantensuche, Statusfilter, Kennzahlen und direkte Links. Rückfragen führen zur betreffenden Themenkarte. Antworten und Nachreichungen öffnen die Monatscheckliste nicht wieder. Nach der Gesamtübergabe bleiben nachvollziehbare Ergänzungen und das kontrollierte Abschließen angekündigter Nachreichungen möglich; beide Aktionen werden gesondert protokolliert und verändern die ursprüngliche Übergabe nicht.
+
+Belege liegen ausschließlich unter `storage/fibu-lohn` und werden nur über authentifizierte Routen bereitgestellt. Campus-Anhänge und FiBu-Lohn-Belege bleiben technisch getrennt. Der dauerhafte Fahrzeugbestand ist unter „Fahrzeuge“ sowie am Mandanten erreichbar; Fahrzeugänderungen können mit einer Abstimmung verknüpft werden.
+
+Die Teil-2-Oberfläche nutzt die vorhandene additive Migration `20260728100000_fibu_payroll_reconciliation_foundation`; eine weitere Migration ist nicht erforderlich. Ausführliche Unterlagen:
+
+* `docs/FIBU_LOHN_BENUTZEROBERFLAECHE.md`
+* `docs/FIBU_LOHN_RUECKFRAGENPROZESS.md`
+* `docs/FIBU_LOHN_LOHNDASHBOARD.md`
+* `docs/FIBU_LOHN_BEDIENANLEITUNG.md`
+
+### Getrennter FiBu-Lohn-Abnahmebestand
+
+Die Modulabnahme arbeitet ausschließlich mit künstlichen Daten in `prisma/fibu-lohn-acceptance.db` und mit Dateien unter `tmp/fibu-lohn-acceptance-storage`. Die aktive Entwicklungsdatenbank und die regulären Speicherordner werden nicht verwendet.
+
+```powershell
+# Abnahmedatenbank neu aus allen Migrationen aufbauen, deterministisch befüllen
+# und anschließend die Konsistenz prüfen. Der Befehl löscht ausschließlich
+# den klar benannten künstlichen FiBu-Lohn-Abnahmebestand.
+npm.cmd run testdata:fibu-lohn
+
+# Diagnose ohne Datenänderung
+npm.cmd run testdata:fibu-lohn:diagnose
+
+# Sicherung und vollständige Wiederherstellung von Datenbank und Dateispeicher prüfen
+npm.cmd run testdata:fibu-lohn:backup-test
+
+# Getrennten synthetischen Lastbestand erzeugen und Abfragen messen
+npm.cmd run testdata:fibu-lohn:performance
+```
+
+Der deterministische Abnahmebestand enthält die künstlichen Mandanten 92001 bis 92008. Er deckt Übergaben ohne und mit Sachverhalten, Rückfragen, Nachreichungen, Fahrzeugänderungen, Zuständigkeitswechsel, einen abgeschlossenen Fall und einen Mandanten ohne Kanzleilohn ab. Der Seed bricht ab, sobald Rollenreferenzen, Themenanzahl, Zuständigkeiten oder Statusfolgen inkonsistent sind.
+
+Die fachliche Prüfung erfolgt mit:
+
+* `docs/FIBU_LOHN_ABNAHMEPRUEFBOGEN.md`
+* `docs/FIBU_LOHN_FACHLICHE_ENDABNAHME.md`
+* `docs/FIBU_LOHN_SCHULUNG.md`
+* `docs/FIBU_LOHN_ABNAHMEBERICHT.md`
+
+Für einen späteren Pilotbetrieb gilt weiterhin: Datenbank, `storage/ordo-campus` und `storage/fibu-lohn` müssen gemeinsam gesichert und wiederhergestellt werden. Nur die Datenbank zu kopieren ist unvollständig.

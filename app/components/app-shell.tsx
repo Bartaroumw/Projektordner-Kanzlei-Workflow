@@ -22,7 +22,17 @@ export function AppShell({ children, user }: { children: React.ReactNode; user:A
   const canStandards=Boolean(user?.roles.some(role=>["KANZLEILEITUNG","STANDARDAUFGABEN_VERWALTEN","ORDO_CAMPUS_VERWALTEN"].includes(role)));
   const canUsers=Boolean(user?.roles.includes("ADMINISTRATOR"));
   const hasProfessionalAccess=Boolean(user?.roles.some(role=>["MITARBEITER","PRUEFER","KANZLEILEITUNG","MANDANTEN_VERWALTEN"].includes(role)));
-  const navigation=[{label:"Dashboard",href:"/"},...(hasProfessionalAccess?[{label:"Mandanten",href:"/mandanten"},{label:"Rechnungswesenaufgaben",href:"/monatschecklisten"},{label:"Jahresabschlussaufgaben",href:"/jahresabschluesse"}]:[]),...(canStandards?[{label:"Standardaufgaben",href:"/standardaufgaben"}]:[]),...(canUsers?[{label:"Benutzerverwaltung",href:"/administration/benutzer"},{label:"Testdaten-Diagnose",href:"/administration/diagnose"}]:[])];
+  const hasPayrollAccess=Boolean(user?.roles.some(role=>["LOHNSACHBEARBEITER","MITARBEITER","PRUEFER","KANZLEILEITUNG"].includes(role)));
+  const canManagePayrollTopics=Boolean(user?.roles.some(role=>["KANZLEILEITUNG","FIBU_LOHN_THEMEN_VERWALTEN"].includes(role)));
+  const payrollOnly=Boolean(user?.roles.includes("LOHNSACHBEARBEITER")&&!hasProfessionalAccess);
+  const navigation=[
+    ...(!payrollOnly?[{label:"Dashboard",href:"/"}]:[]),
+    ...(hasProfessionalAccess?[{label:"Mandanten",href:"/mandanten"},{label:"Rechnungswesenaufgaben",href:"/monatschecklisten"},{label:"Jahresabschlussaufgaben",href:"/jahresabschluesse"}]:[]),
+    ...(hasPayrollAccess?[{label:payrollOnly?"Meine Abstimmungen":"FiBu-Lohn-Abstimmung",href:"/fibu-lohn"},{label:"Offene Lohnrückfragen",href:"/fibu-lohn#rueckfragen"},{label:"Fahrzeuge",href:"/fibu-lohn/fahrzeuge"}]:[]),
+    ...(canManagePayrollTopics?[{label:"FiBu-Lohn-Themen",href:"/fibu-lohn/themen"}]:[]),
+    ...(canStandards?[{label:"Standardaufgaben",href:"/standardaufgaben"}]:[]),
+    ...(canUsers?[{label:"Benutzerverwaltung",href:"/administration/benutzer"},{label:"Testdaten-Diagnose",href:"/administration/diagnose"}]:[])
+  ];
   const roleDisplay=user?formatRoleDisplay(user.roles):null;
   return (
     <div className="min-h-screen bg-[var(--color-background)] text-[var(--color-text)]">
@@ -50,6 +60,8 @@ export function AppShell({ children, user }: { children: React.ReactNode; user:A
                         ? pathname.startsWith("/jahresabschluesse")
                       : entry.href === "/standardaufgaben"
                         ? pathname.startsWith("/standardaufgaben")
+                      : entry.href.startsWith("/fibu-lohn")
+                        ? pathname.startsWith(entry.href.split("#")[0])
                         : false;
                 return (
                   <li key={entry.label} className="shrink-0">
@@ -81,14 +93,14 @@ export function AppShell({ children, user }: { children: React.ReactNode; user:A
 
 export function formatRoleDisplay(roles:string[]) {
   const labels:Record<string,string>={
-    KANZLEILEITUNG:"Kanzleileitung",PRUEFER:"Prüfer",MITARBEITER:"Mitarbeiter",ADMINISTRATOR:"Administrator",
-    STANDARDAUFGABEN_VERWALTEN:"Standardaufgaben verwalten",ORDO_CAMPUS_VERWALTEN:"Ordo Campus verwalten",
+    KANZLEILEITUNG:"Kanzleileitung",PRUEFER:"Prüfer",MITARBEITER:"Mitarbeiter",LOHNSACHBEARBEITER:"Lohnsachbearbeiter",ADMINISTRATOR:"Administrator",
+    STANDARDAUFGABEN_VERWALTEN:"Standardaufgaben verwalten",ORDO_CAMPUS_VERWALTEN:"Ordo Campus verwalten",FIBU_LOHN_THEMEN_VERWALTEN:"FiBu-Lohn-Themen verwalten",
     MANDANTEN_VERWALTEN:"Mandanten verwalten",MANDANTENSPEZIFISCHE_AUFGABEN_VERWALTEN:"Mandantenspezifische Aufgaben verwalten",
   };
   const unique=[...new Set(roles)];
-  const professional=["KANZLEILEITUNG","PRUEFER","MITARBEITER"].filter(role=>unique.includes(role)).map(role=>labels[role]);
+  const professional=["KANZLEILEITUNG","PRUEFER","MITARBEITER","LOHNSACHBEARBEITER"].filter(role=>unique.includes(role)).map(role=>labels[role]);
   const technical=unique.includes("ADMINISTRATOR")?[labels.ADMINISTRATOR]:[];
-  const shown=new Set(["KANZLEILEITUNG","PRUEFER","MITARBEITER","ADMINISTRATOR"]);
+  const shown=new Set(["KANZLEILEITUNG","PRUEFER","MITARBEITER","LOHNSACHBEARBEITER","ADMINISTRATOR"]);
   const additional=unique.filter(role=>!shown.has(role)).map(role=>labels[role]??role).sort((a,b)=>a.localeCompare(b,"de"));
   return {professional,technical,additional};
 }

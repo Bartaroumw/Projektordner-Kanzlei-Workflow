@@ -38,6 +38,17 @@ export const clientSchema = z.object({
   processorUserId: z.number().int().positive().nullable().optional(),
   reviewerUserId: z.number().int().positive().nullable().optional(),
   managementUserId: z.number().int().positive().nullable().optional(),
+  payrollPreparedByFirm: z.boolean().default(false),
+  payrollUserId: z.number().int().positive().nullable().optional(),
+  payrollServiceStart: z.date().nullable().optional(),
+  payrollServiceEnd: z.date().nullable().optional(),
+  payrollResponsibilityNote: z
+    .preprocess(
+      (value) => value ?? "",
+      z.string().trim().max(2000, "Der Hinweis zur Lohnzuständigkeit darf höchstens 2.000 Zeichen lang sein."),
+    )
+    .transform((value) => value || null)
+    .optional(),
   vatFilingPeriod: z.enum(VAT_FILING_PERIODS, {
     message: "Bitte wählen Sie einen gültigen USt-Voranmeldungszeitraum.",
   }),
@@ -54,6 +65,21 @@ export const clientSchema = z.object({
         ),
     )
     .transform((value) => value || null),
+}).superRefine((value, context) => {
+  if (value.payrollPreparedByFirm && !value.payrollUserId) {
+    context.addIssue({
+      code: "custom",
+      path: ["payrollUserId"],
+      message: "Bei Lohnabrechnung durch die Kanzlei ist ein Lohnsachbearbeiter erforderlich.",
+    });
+  }
+  if (value.payrollServiceStart && value.payrollServiceEnd && value.payrollServiceEnd < value.payrollServiceStart) {
+    context.addIssue({
+      code: "custom",
+      path: ["payrollServiceEnd"],
+      message: "Das Ende der Lohnbetreuung darf nicht vor dem Beginn liegen.",
+    });
+  }
 });
 
 export const annualProfileSchema = z
@@ -91,5 +117,5 @@ export const annualProfileSchema = z
     }
   });
 
-export type ClientInput = z.infer<typeof clientSchema>;
+export type ClientInput = z.input<typeof clientSchema>;
 export type AnnualProfileInput = z.infer<typeof annualProfileSchema>;

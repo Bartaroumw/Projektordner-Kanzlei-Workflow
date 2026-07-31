@@ -419,6 +419,8 @@ model User {
   processorPayrollReconciliations      PayrollReconciliation[]              @relation("PayrollReconciliationProcessor")
   reviewerPayrollReconciliations       PayrollReconciliation[]              @relation("PayrollReconciliationReviewer")
   payrollTopicHistory                  PayrollReconciliationTopicHistory[]
+  createdPayrollPositions              PayrollReconciliationPosition[]      @relation("PayrollPositionCreator")
+  updatedPayrollPositions              PayrollReconciliationPosition[]      @relation("PayrollPositionUpdater")
 
   @@index([active, fullName])
 }
@@ -797,6 +799,7 @@ model PayrollReconciliationItem {
   sourceTopic               PayrollReconciliationTopic      @relation(fields: [sourceTopicId], references: [id], onDelete: Restrict)
   processedBy               User?                           @relation("PayrollItemProcessor", fields: [processedByUserId], references: [id], onDelete: SetNull)
   documents                 PayrollDocumentReference[]
+  positions                 PayrollReconciliationPosition[]
   questions                 PayrollReconciliationQuestion[]
   vehicleChanges            ClientVehicleChange[]
   history                   PayrollReconciliationHistory[]
@@ -806,9 +809,44 @@ model PayrollReconciliationItem {
   @@index([sourceTopicId])
 }
 
+model PayrollReconciliationPosition {
+  id                       Int                          @id @default(autoincrement())
+  reconciliationItemId     Int
+  positionType             String                       @default("Einzelposition")
+  title                    String
+  caseCount                Int                          @default(1)
+  totalAmountCents         Int?
+  period                   String?
+  summary                  String?
+  peopleJson               String?
+  detailsJson              String?
+  requiredListType         String?
+  requiredListDocumentName String?
+  status                   String                       @default("Entwurf")
+  duplicatedFromId         Int?
+  createdByUserId          Int
+  updatedByUserId          Int
+  createdAt                DateTime                     @default(now())
+  updatedAt                DateTime                     @updatedAt
+  archivedAt               DateTime?
+  reconciliationItem       PayrollReconciliationItem    @relation(fields: [reconciliationItemId], references: [id], onDelete: Restrict)
+  duplicatedFrom           PayrollReconciliationPosition? @relation("PayrollPositionDuplicate", fields: [duplicatedFromId], references: [id], onDelete: SetNull)
+  duplicates               PayrollReconciliationPosition[] @relation("PayrollPositionDuplicate")
+  createdBy                User                         @relation("PayrollPositionCreator", fields: [createdByUserId], references: [id], onDelete: Restrict)
+  updatedBy                User                         @relation("PayrollPositionUpdater", fields: [updatedByUserId], references: [id], onDelete: Restrict)
+  documents                PayrollDocumentReference[]
+  history                  PayrollReconciliationHistory[]
+
+  @@index([reconciliationItemId, status, createdAt])
+  @@index([duplicatedFromId])
+  @@index([createdByUserId])
+  @@index([updatedByUserId])
+}
+
 model PayrollDocumentReference {
   id                   Int                            @id @default(autoincrement())
   reconciliationItemId Int
+  positionId           Int?
   questionId           Int?
   displayName          String
   originalFileName     String
@@ -825,11 +863,13 @@ model PayrollDocumentReference {
   archivedAt           DateTime?
   archivedByUserId     Int?
   reconciliationItem   PayrollReconciliationItem      @relation(fields: [reconciliationItemId], references: [id], onDelete: Restrict)
+  position             PayrollReconciliationPosition? @relation(fields: [positionId], references: [id], onDelete: SetNull)
   question             PayrollReconciliationQuestion? @relation(fields: [questionId], references: [id], onDelete: SetNull)
   uploadedBy           User                           @relation("PayrollDocumentUploader", fields: [uploadedByUserId], references: [id], onDelete: Restrict)
   archivedBy           User?                          @relation("PayrollDocumentArchiver", fields: [archivedByUserId], references: [id], onDelete: Restrict)
 
   @@index([reconciliationItemId, status])
+  @@index([positionId, status])
   @@index([questionId])
 }
 
@@ -918,6 +958,7 @@ model PayrollReconciliationHistory {
   id                   Int                        @id @default(autoincrement())
   reconciliationId     Int
   reconciliationItemId Int?
+  positionId           Int?
   vehicleId            Int?
   actorUserId          Int
   actorNameSnapshot    String
@@ -929,11 +970,13 @@ model PayrollReconciliationHistory {
   occurredAt           DateTime                   @default(now())
   reconciliation       PayrollReconciliation      @relation(fields: [reconciliationId], references: [id], onDelete: Restrict)
   reconciliationItem   PayrollReconciliationItem? @relation(fields: [reconciliationItemId], references: [id], onDelete: Restrict)
+  position             PayrollReconciliationPosition? @relation(fields: [positionId], references: [id], onDelete: SetNull)
   vehicle              ClientVehicle?             @relation(fields: [vehicleId], references: [id], onDelete: SetNull)
   actorUser            User                       @relation(fields: [actorUserId], references: [id], onDelete: Restrict)
 
   @@index([reconciliationId, occurredAt])
   @@index([reconciliationItemId, occurredAt])
+  @@index([positionId, occurredAt])
   @@index([vehicleId, occurredAt])
   @@index([actorUserId, occurredAt])
 }

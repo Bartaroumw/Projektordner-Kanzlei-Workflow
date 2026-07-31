@@ -24,8 +24,16 @@
 # local databases and temporary files
 *.db
 *.db-journal
+*.db-shm
+*.db-wal
 *.sqlite
+*.sqlite-journal
+*.sqlite-shm
+*.sqlite-wal
 *.sqlite3
+*.sqlite3-journal
+*.sqlite3-shm
+*.sqlite3-wal
 /tmp/
 /temp/
 /outputs/
@@ -33,6 +41,7 @@
 /storage/ordo-campus/
 /storage/fibu-lohn/
 *.tmp
+*.log
 
 # misc
 .DS_Store
@@ -47,6 +56,7 @@ yarn-error.log*
 # env files (can opt-in for committing if needed)
 .env*
 !.env.example
+!.env.integration.example
 
 # vercel
 .vercel

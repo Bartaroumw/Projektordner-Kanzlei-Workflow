@@ -11,6 +11,13 @@ export const PAYROLL_RECONCILIATION_KNOWLEDGE_KEY = "FIBU_LOHN_ABSTIMMUNG";
 export const PAYROLL_TOPIC_STATUSES = ["Noch nicht geprüft", "Kein Sachverhalt", "Übergabe in Vorbereitung", "Vollständig an Lohn übergeben"] as const;
 export const PAYROLL_ACCOUNTING_STATUSES = ["Offen", "In Bearbeitung", "Übergabebereit", "Vollständig übergeben"] as const;
 export const PAYROLL_STATUSES = ["Neu", "Gesehen", "Rückfrage offen", "Erledigt", "Storniert"] as const;
+export const PAYROLL_USER_DECISIONS = ["Noch nicht geprüft", "Kein relevanter Sachverhalt", "Sachverhalt vorhanden"] as const;
+export const PAYROLL_COLLECTION_TOPICS = new Set([
+  "ARBEITNEHMER_VORTEILE",
+  "REISEKOSTEN",
+  "GESCHENKE_NICHTARBEITNEHMER",
+  "KSK",
+]);
 
 export type PayrollReconciliationSummaryInput = {
   status:string;
@@ -207,7 +214,7 @@ export async function updatePayrollReconciliationItem(
   user:AuthUser,
 ) {
   if(!PAYROLL_TOPIC_STATUSES.includes(input.status as typeof PAYROLL_TOPIC_STATUSES[number]))throw new PayrollReconciliationError("INVALID_INPUT","Der Themenstatus ist ungültig.");
-  const item=await prisma.payrollReconciliationItem.findUnique({where:{id:itemId},include:{reconciliation:true,documents:{where:{status:"Aktiv"}}}});
+  const item=await prisma.payrollReconciliationItem.findUnique({where:{id:itemId},include:{reconciliation:true,documents:{where:{status:"Aktiv"}},positions:{where:{status:{not:"Archiviert"}}}}});
   if(!item)throw new PayrollReconciliationError("NOT_FOUND","Das Abstimmungsthema wurde nicht gefunden.");
   if(!canProcessPayrollReconciliation(user,item.reconciliation))throw new PayrollReconciliationError("NOT_ALLOWED","Sie dürfen dieses Abstimmungsthema nicht bearbeiten.");
   if(item.reconciliation.accountingStatus==="Vollständig übergeben")throw new PayrollReconciliationError("INVALID_INPUT","Eine bereits vollständig übergebene Abstimmung kann nicht nachträglich geändert werden.");
@@ -228,9 +235,231 @@ export async function updatePayrollReconciliationItem(
       expectedFollowUpAt:input.expectedFollowUpAt??null,missingDocumentType:input.missingDocumentType?.trim()||null,
     }});
     await tx.payrollReconciliationHistory.create({data:{reconciliationId:item.reconciliationId,reconciliationItemId:item.id,actorUserId:user.id,actorNameSnapshot:user.fullName,actorDepartment:"Rechnungswesen",action:"Thema geprüft",summary:`Thema „${item.topicTitleSnapshot}“ wurde auf „${input.status}“ gesetzt.`,previousValue:item.status,newValue:input.status}});
+    if(input.status==="Übergabe in Vorbereitung"&&item.positions.length)await refreshPositionBasedTopicStatus(tx,item.id);
     await updateAccountingSummary(tx,item.reconciliationId);
     return updated;
   });
+}
+
+export type PayrollPositionInput = {
+  positionType: "Einzelposition" | "Sammelposition";
+  title: string;
+  caseCount: number;
+  totalAmount?: string;
+  period?: string;
+  summary?: string;
+  people?: string[];
+  details?: Record<string, unknown>;
+  requiredListType?: string;
+  requiredListDocumentName?: string;
+};
+
+export function validatePayrollPositionInput(
+  topicKey: string,
+  input: PayrollPositionInput,
+  requiredFields: string[] = [],
+) {
+  const title = input.title.trim();
+  if (!title) throw new PayrollReconciliationError("INVALID_INPUT", "Die Position benötigt eine verständliche Bezeichnung.");
+  if (!["Einzelposition", "Sammelposition"].includes(input.positionType)) {
+    throw new PayrollReconciliationError("INVALID_INPUT", "Die Positionsart ist ungültig.");
+  }
+  if (input.positionType === "Sammelposition" && !PAYROLL_COLLECTION_TOPICS.has(topicKey)) {
+    throw new PayrollReconciliationError("INVALID_INPUT", "Für dieses Abstimmungsthema sind keine Sammelpositionen zulässig.");
+  }
+  const caseCount = input.positionType === "Sammelposition" ? Number(input.caseCount) : 1;
+  if (!Number.isInteger(caseCount) || caseCount < 1 || (input.positionType === "Sammelposition" && caseCount < 2)) {
+    throw new PayrollReconciliationError("INVALID_INPUT", "Bitte geben Sie eine gültige Anzahl der enthaltenen Fälle an.");
+  }
+  const details = input.details ?? {};
+  const missing = requiredFields.filter((field) => !hasValue(details[field]));
+  const requiresRecipientList = topicKey === "GESCHENKE_NICHTARBEITNEHMER" && input.positionType === "Sammelposition";
+  const requiresInvoiceList = topicKey === "KSK" && input.positionType === "Sammelposition";
+  const requiredListType = requiresRecipientList ? "Empfängerliste" : requiresInvoiceList ? "Rechnungsliste" : input.requiredListType?.trim() || null;
+  const complete = Boolean(input.summary?.trim()) && missing.length === 0 &&
+    (!requiredListType || Boolean(input.requiredListDocumentName?.trim()));
+  return {
+    positionType: input.positionType,
+    title,
+    caseCount,
+    totalAmountCents: moneyToCents(input.totalAmount),
+    period: input.period?.trim() || null,
+    summary: input.summary?.trim() || null,
+    peopleJson: JSON.stringify((input.people ?? []).map((entry) => entry.trim()).filter(Boolean)),
+    detailsJson: JSON.stringify(details),
+    requiredListType,
+    requiredListDocumentName: input.requiredListDocumentName?.trim() || null,
+    status: complete ? "Vollständig" : "Entwurf",
+    missing,
+  };
+}
+
+export async function savePayrollPosition(
+  itemId: number,
+  positionId: number | null,
+  input: PayrollPositionInput,
+  user: AuthUser,
+) {
+  const item = await prisma.payrollReconciliationItem.findUnique({
+    where: { id: itemId },
+    include: { reconciliation: true },
+  });
+  if (!item) throw new PayrollReconciliationError("NOT_FOUND", "Das Abstimmungsthema wurde nicht gefunden.");
+  if (!canProcessPayrollReconciliation(user, item.reconciliation)) {
+    throw new PayrollReconciliationError("NOT_ALLOWED", "Sie dürfen Positionen dieses Abstimmungsthemas nicht bearbeiten.");
+  }
+  if (item.reconciliation.accountingStatus === "Vollständig übergeben") {
+    throw new PayrollReconciliationError("INVALID_INPUT", "Nach der Gesamtübergabe können Positionen nur noch nachvollziehbar ergänzt werden.");
+  }
+  const existing = positionId
+    ? await prisma.payrollReconciliationPosition.findFirst({ where: { id: positionId, reconciliationItemId: itemId } })
+    : null;
+  if (positionId && !existing) throw new PayrollReconciliationError("NOT_FOUND", "Die Position wurde nicht gefunden.");
+  const data = validatePayrollPositionInput(item.topicKeySnapshot, input, parseConfiguredList(item.requiredFieldsSnapshot));
+  const requiredListUploaded = existing && data.requiredListType
+    ? await prisma.payrollDocumentReference.count({
+        where: {
+          positionId: existing.id,
+          status: "Aktiv",
+          fileExtension: { in: ["PDF", "XLSX"] },
+        },
+      }) > 0
+    : false;
+  const { missing: _missing, ...validatedPositionData } = data;
+  const positionData = {
+    ...validatedPositionData,
+    status: data.requiredListType && !requiredListUploaded ? "Entwurf" : validatedPositionData.status,
+  };
+  return prisma.$transaction(async (tx) => {
+    const position = existing
+      ? await tx.payrollReconciliationPosition.update({ where: { id: existing.id }, data: { ...positionData, updatedByUserId: user.id } })
+      : await tx.payrollReconciliationPosition.create({ data: { ...positionData, reconciliationItemId: item.id, createdByUserId: user.id, updatedByUserId: user.id } });
+    await tx.payrollReconciliationItem.update({
+      where: { id: item.id },
+      data: { matterPresent: "Ja", status: "Übergabe in Vorbereitung", processedByUserId: user.id, reviewedAt: new Date() },
+    });
+    await tx.payrollReconciliationHistory.create({ data: {
+      reconciliationId: item.reconciliationId,
+      reconciliationItemId: item.id,
+      positionId: position.id,
+      actorUserId: user.id,
+      actorNameSnapshot: user.fullName,
+      actorDepartment: "Rechnungswesen",
+      action: existing ? "Position geändert" : "Position angelegt",
+      summary: `${position.positionType} „${position.title}“ wurde ${existing ? "geändert" : "angelegt"}.`,
+      previousValue: existing ? JSON.stringify(existing) : null,
+      newValue: JSON.stringify({ ...positionData, missingRequiredFields: _missing }),
+    } });
+    await refreshPositionBasedTopicStatus(tx, item.id);
+    await updateAccountingSummary(tx, item.reconciliationId);
+    return position;
+  });
+}
+
+export async function duplicatePayrollPosition(positionId: number, user: AuthUser) {
+  const position = await prisma.payrollReconciliationPosition.findUnique({
+    where: { id: positionId },
+    include: { reconciliationItem: { include: { reconciliation: true } } },
+  });
+  if (!position) throw new PayrollReconciliationError("NOT_FOUND", "Die Position wurde nicht gefunden.");
+  if (!canProcessPayrollReconciliation(user, position.reconciliationItem.reconciliation)) {
+    throw new PayrollReconciliationError("NOT_ALLOWED", "Sie dürfen diese Position nicht duplizieren.");
+  }
+  if (position.reconciliationItem.reconciliation.accountingStatus === "Vollständig übergeben") {
+    throw new PayrollReconciliationError("INVALID_INPUT", "Nach der Gesamtübergabe kann eine Position nicht dupliziert werden.");
+  }
+  return prisma.$transaction(async (tx) => {
+    const copy = await tx.payrollReconciliationPosition.create({ data: {
+      reconciliationItemId: position.reconciliationItemId,
+      positionType: position.positionType,
+      title: `${position.title} – Kopie`,
+      caseCount: position.positionType === "Sammelposition" ? position.caseCount : 1,
+      period: position.period,
+      summary: position.summary,
+      detailsJson: position.detailsJson,
+      requiredListType: position.requiredListType,
+      status: "Entwurf",
+      duplicatedFromId: position.id,
+      createdByUserId: user.id,
+      updatedByUserId: user.id,
+    } });
+    await tx.payrollReconciliationHistory.create({ data: {
+      reconciliationId: position.reconciliationItem.reconciliationId,
+      reconciliationItemId: position.reconciliationItemId,
+      positionId: copy.id,
+      actorUserId: user.id,
+      actorNameSnapshot: user.fullName,
+      actorDepartment: "Rechnungswesen",
+      action: "Position dupliziert",
+      summary: `Position „${position.title}“ wurde als Entwurf dupliziert; Personen, Beträge und Belege wurden nicht übernommen.`,
+    } });
+    return copy;
+  });
+}
+
+export async function removePayrollPosition(positionId: number, user: AuthUser) {
+  const position = await prisma.payrollReconciliationPosition.findUnique({
+    where: { id: positionId },
+    include: { reconciliationItem: { include: { reconciliation: true } } },
+  });
+  if (!position) throw new PayrollReconciliationError("NOT_FOUND", "Die Position wurde nicht gefunden.");
+  if (!canProcessPayrollReconciliation(user, position.reconciliationItem.reconciliation)) {
+    throw new PayrollReconciliationError("NOT_ALLOWED", "Sie dürfen diese Position nicht entfernen.");
+  }
+  return prisma.$transaction(async (tx) => {
+    if (position.reconciliationItem.reconciliation.accountingStatus === "Vollständig übergeben") {
+      const archived = await tx.payrollReconciliationPosition.update({
+        where: { id: position.id },
+        data: { status: "Archiviert", archivedAt: new Date(), updatedByUserId: user.id },
+      });
+      await tx.payrollReconciliationHistory.create({ data: {
+        reconciliationId: position.reconciliationItem.reconciliationId,
+        reconciliationItemId: position.reconciliationItemId,
+        positionId: position.id,
+        actorUserId: user.id, actorNameSnapshot: user.fullName, actorDepartment: "Rechnungswesen",
+        action: "Position archiviert", summary: `Position „${position.title}“ wurde nach der Übergabe archiviert.`,
+      } });
+      return archived;
+    }
+    if (position.status !== "Entwurf") throw new PayrollReconciliationError("INVALID_INPUT", "Nur Entwürfe dürfen gelöscht werden. Vollständige Positionen können archiviert werden.");
+    await tx.payrollReconciliationHistory.create({ data: {
+      reconciliationId: position.reconciliationItem.reconciliationId,
+      reconciliationItemId: position.reconciliationItemId,
+      actorUserId: user.id, actorNameSnapshot: user.fullName, actorDepartment: "Rechnungswesen",
+      action: "Positionsentwurf gelöscht", summary: `Entwurf „${position.title}“ wurde gelöscht.`,
+      previousValue: JSON.stringify(position),
+    } });
+    await tx.payrollReconciliationPosition.delete({ where: { id: position.id } });
+    await refreshPositionBasedTopicStatus(tx, position.reconciliationItemId);
+    await updateAccountingSummary(tx, position.reconciliationItem.reconciliationId);
+    return null;
+  });
+}
+
+async function refreshPositionBasedTopicStatus(tx: ReconciliationTransaction, itemId: number) {
+  const positions = await tx.payrollReconciliationPosition.findMany({
+    where: { reconciliationItemId: itemId, status: { not: "Archiviert" } },
+    select: { status: true },
+  });
+  const status = positions.length > 0 && positions.every((position) => position.status === "Vollständig")
+    ? "Vollständig an Lohn übergeben"
+    : positions.length > 0 ? "Übergabe in Vorbereitung" : "Noch nicht geprüft";
+  await tx.payrollReconciliationItem.update({
+    where: { id: itemId },
+    data: {
+      status,
+      matterPresent: positions.length ? "Ja" : "Noch offen",
+      fullyTransferredAt: status === "Vollständig an Lohn übergeben" ? new Date() : null,
+    },
+  });
+}
+
+function moneyToCents(value: string | undefined) {
+  const normalized = value?.trim().replace(/\./g, "").replace(",", ".");
+  if (!normalized) return null;
+  const amount = Number(normalized);
+  if (!Number.isFinite(amount) || amount < 0) throw new PayrollReconciliationError("INVALID_INPUT", "Der Gesamtbetrag ist ungültig.");
+  return Math.round(amount * 100);
 }
 
 export async function changePayrollTargetMonth(

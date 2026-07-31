@@ -1,5 +1,7 @@
 # FiBu-Lohn-Abstimmung – Bedienanleitung
 
+> Ergänzung: Die persönliche Startansicht zeigt standardmäßig alle offenen Abstimmungen monatsübergreifend. Rechnungswesenmonat und Lohnabrechnungsmonat werden getrennt ausgewiesen. Sachverhalte werden innerhalb eines Themas als Einzel- oder fachlich zulässige Sammelpositionen erfasst; Details stehen in `FIBU_LOHN_MEHRFACHSACHVERHALTE.md`.
+
 ## Rechnungswesenbearbeiter
 
 1. Öffnen Sie die Monatscheckliste und dort „Monatliche FiBu-Lohn-Abstimmung“.

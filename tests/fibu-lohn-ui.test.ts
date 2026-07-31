@@ -72,7 +72,7 @@ describe("FiBu-Lohn-Benutzeroberflächen",()=>{
     const shell=await source("app/components/app-shell.tsx");
     const dashboard=await source("app/page.tsx");
     expect(shell).toContain("payrollOnly");
-    expect(shell).toContain("Meine Abstimmungen");
+    expect(shell).toContain("FiBu ↔ Lohn");
     expect(dashboard).toContain("redirect(\"/fibu-lohn\")");
   });
 

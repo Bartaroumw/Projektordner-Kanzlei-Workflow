@@ -23,6 +23,7 @@ import {
   markPayrollReconciliationSeen,
   submitPayrollReconciliation,
   updatePayrollReconciliationItem,
+  savePayrollPosition,
 } from "../lib/payroll-reconciliation-service.ts";
 import {
   createClientVehicle,
@@ -354,6 +355,16 @@ await updatePayrollReconciliationItem(travelItem.id,{
 await updatePayrollReconciliationItem(contractorItem.id,{
   status:"Übergabe in Vorbereitung",note:"Künstlicher Hinweis ohne rechtliche Einstufung.",
   details:{"Betroffene Person oder Unternehmen":"Künstliche Fremdleistung GmbH",Leistungsart:"Künstliche Beratung",Zeitraum:"Januar 2026","Auffällige Merkmale":"Regelmäßige Monatsrechnung",Beschreibung:"Nur zur fachlichen Weiterbearbeitung durch Lohn."},
+},anna);
+await savePayrollPosition(travelItem.id,null,{
+  positionType:"Einzelposition",title:"Künstliche Dienstreise Person A",caseCount:1,totalAmount:"184,50",period:"Januar 2026",
+  summary:"Künstliche Einzelposition zur Demonstration einer Reisekostenübergabe.",people:["Künstliche Person A"],
+  details:{Arbeitnehmer:"Künstliche Person A",Reisezeitraum:"12.01.2026 bis 13.01.2026",Reisebeginn:"2026-01-12",Reiseende:"2026-01-13","Art der Erstattung":"Fahrtkosten",Zahlungsweg:"Bank",Fahrtkosten:"184,50",Abrechnungsmonat:"Februar 2026",Beschreibung:"Künstliche Einzelreise mit vollständigen Testangaben."},
+},anna);
+await savePayrollPosition(travelItem.id,null,{
+  positionType:"Sammelposition",title:"Künstliche Reisekostensammlung",caseCount:3,totalAmount:"426,00",period:"Januar 2026",
+  summary:"Drei künstliche Reisekostenfälle als zulässige Sammelposition.",people:["Künstliche Person B","Künstliche Person C","Künstliche Person D"],
+  details:{Arbeitnehmer:"Künstliche Personengruppe",Reisezeitraum:"Januar 2026",Reisebeginn:"2026-01-01",Reiseende:"2026-01-31","Art der Erstattung":"Reisekostensammlung",Zahlungsweg:"Bank",Gesamtbetrag:"426,00",Abrechnungsmonat:"Februar 2026",Beschreibung:"Künstliche Sammlung mit drei vollständig beschriebenen Fällen."},
 },anna);
 
 const jan91003=await createMonthlyPeriod(clients.get("91003")!.id,2026,1);

@@ -54,3 +54,19 @@ Diese Next.js-Version kann neue oder geänderte Konventionen enthalten. Vor Änd
 - Die FiBu-Lohn-Abnahme verwendet ausschließlich `prisma/fibu-lohn-acceptance.db` und `tmp/fibu-lohn-acceptance-storage`; Reset- und Prüfbefehle müssen bei abweichenden Pfaden abbrechen.
 - FiBu-Lohn-Tests und Abnahmen dürfen weder `prisma/dev.db` noch die regulären Ordner `storage/ordo-campus` und `storage/fibu-lohn` verändern.
 - Ein Lohnabschluss ist bei offenen Rückfragen, unverarbeiteten Sachverhalten oder angekündigten, noch nicht abgeschlossenen Nachreichungen serverseitig gesperrt.
+- Die Systemintegration verwendet ausschließlich `prisma/system-integration.db` und `tmp/system-integration-storage` mit getrennten Unterordnern für Campus und FiBu-Lohn.
+- Der Systemintegrationsreset muss bei jedem abweichenden Datenbank- oder Speicherpfad abbrechen und darf niemals `prisma/dev.db` oder reguläre Speicherordner verändern.
+- Bis zu einer gesondert geprüften Migrationsbaseline dürfen gegen `prisma/dev.db` weder `prisma migrate reset`, `prisma migrate deploy` noch `prisma db push` ausgeführt werden.
+- Unberechtigte Seitenaufrufe müssen serverseitig auf eine neutrale Zugriffsseite führen; technische Fehlerseiten und bloßes Ausblenden von Navigation sind unzulässig.
+- Die Hauptnavigation bündelt laufendes Rechnungswesen, Jahresabschluss und Statusübersicht unter „Rechnungswesen“ sowie Abstimmungen, Lohnrückfragen und Fahrzeuge unter „FiBu ↔ Lohn“.
+- Die Rechnungswesen-Statusübersicht muss Monatslücken chronologisch erkennen; spätere abgeschlossene Checklisten dürfen frühere Lücken nicht verdecken.
+- Rückfragen aus Checklisten werden immer an die gespeicherte Prüfer-Benutzer-ID gerichtet, niemals an einen frei übermittelten Namen oder den aktuell angemeldeten Bearbeiter.
+- FiBu-Lohn-Themen unterscheiden Benutzerentscheidungen von automatisch berechneten technischen Status. Sammelpositionen sind nur für fachlich freigegebene Themen zulässig.
+- FiBu-Lohn-Positionsentwürfe dürfen vor der Übergabe gelöscht werden; übergebene Positionen und ihre Historie werden nur archiviert oder korrigiert.
+- Zentrale fachliche und technische Kanzleifunktionen werden in der Hauptnavigation ausschließlich unter „Verwaltung“ gebündelt; die Reiter und Karten sind rollenabhängig und zusätzlich serverseitig geschützt.
+- Ordo Campus bleibt ein eigenständiges Arbeits- und Wissensmodul. Persönliche Kontofunktionen gehören nicht in die Kanzleiverwaltung.
+- Mandantenspezifische Aufgaben werden primär beim Mandanten angelegt und gepflegt; die zentrale Verwaltungsansicht dient ausschließlich Suche, Filterung, Qualitätskontrolle und Navigation in den Mandantenkontext.
+- Eine reine Administratorrolle öffnet Benutzer-, Daten- und sichere Systemverwaltung, verleiht aber weiterhin keine fachlichen Standardaufgaben-, Campus-, Rechnungswesen- oder Lohnrechte.
+- Normale Bearbeitungsfelder von Rechnungswesen- und Jahresabschlussaufgaben werden zentral gesammelt gespeichert; Überträge, Rückfragen, Prüfungen, Statusübergänge, Uploads und FiBu-Lohn-Aktionen bleiben getrennte Workflowaktionen.
+- Sammelspeicherung liefert pro Aufgabe ein Ergebnis, erhält erfolgreiche Teiländerungen und lässt fehlerhafte lokale Eingaben sichtbar. `updatedAt` schützt vor stiller Überschreibung konkurrierender Änderungen.
+- Ungespeicherte Checklistenänderungen müssen beim Verlassen warnen und fachliche Workflowaktionen bis zum Speichern oder Verwerfen blockieren.

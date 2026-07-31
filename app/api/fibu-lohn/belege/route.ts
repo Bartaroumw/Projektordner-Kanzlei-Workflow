@@ -21,6 +21,7 @@ export async function POST(request:Request){
       mimeType:file.type,
       bytes:new Uint8Array(await file.arrayBuffer()),
       questionId:Number(form.get("questionId"))||undefined,
+      positionId:Number(form.get("positionId"))||undefined,
     },user);
     return NextResponse.json({id:document.id,message:"Der Beleg wurde geschützt bereitgestellt."},{status:201});
   }catch(error){

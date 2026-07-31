@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { textOrDash, formatDate } from "@/lib/format";
 import { calculateProgress, workflowSummary } from "@/lib/monthly-checklist-service";
 import { ClickableTableRow } from "@/app/components/clickable-table-row";
-import { requireUser } from "@/lib/auth";
+import { requireRole } from "@/lib/auth";
 import { canManageClients, hasRole } from "@/lib/permissions";
 import { canManageCustomTasks } from "@/lib/permissions";
 import { ClientActionsMenu, type ClientMenuAction } from "@/app/mandanten/client-actions-menu";
@@ -12,7 +12,7 @@ type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 const one = (value: string | string[] | undefined) => Array.isArray(value) ? value[0] ?? "" : value ?? "";
 
 export default async function ClientsPage({ searchParams }: { searchParams: SearchParams }) {
-  const user=await requireUser();
+  const user=await requireRole("MITARBEITER","PRUEFER","KANZLEILEITUNG","MANDANTEN_VERWALTEN");
   const params = await searchParams;
   const search = one(params.suche).trim();
   const status = one(params.status);

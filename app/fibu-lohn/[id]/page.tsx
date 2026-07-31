@@ -39,6 +39,9 @@ const successMessages:Record<string,string>={
   "nachreichung-erledigt":"Die Nachreichung wurde als abgeschlossen dokumentiert.",
   "beleg-archiviert":"Der Beleg wurde archiviert.",
   fahrzeug:"Das Fahrzeug wurde gespeichert und mit der Abstimmung verknüpft.",
+  position:"Die Sachverhaltsposition wurde gespeichert.",
+  "position-dupliziert":"Die Position wurde als Entwurf dupliziert.",
+  "position-entfernt":"Die Position wurde entfernt beziehungsweise nachvollziehbar archiviert.",
 };
 const one=(value:string|string[]|undefined)=>Array.isArray(value)?value[0]??"":value??"";
 
@@ -48,6 +51,7 @@ export default async function PayrollReconciliationPage({params,searchParams}:{p
     client:true,accountingPeriod:true,
     items:{include:{
       sourceTopic:{include:{campusStandardTask:{select:{campusKnowledge:{select:{status:true}}}}}},
+      positions:{where:{status:{not:"Archiviert"}},orderBy:{createdAt:"asc"}},
       documents:{include:{uploadedBy:true,archivedBy:true},orderBy:{uploadedAt:"desc"}},
       questions:{include:{sender:true,recipient:true},orderBy:{createdAt:"desc"}},
       vehicleChanges:{include:{vehicle:true},orderBy:{createdAt:"desc"}},
@@ -120,6 +124,7 @@ export default async function PayrollReconciliationPage({params,searchParams}:{p
 type LoadedReconciliation=Prisma.PayrollReconciliationGetPayload<{include:{
   items:{include:{
     sourceTopic:{include:{campusStandardTask:{select:{campusKnowledge:{select:{status:true}}}}}};
+    positions:true;
     documents:{include:{uploadedBy:true;archivedBy:true}};
     questions:{include:{sender:true;recipient:true}};
     vehicleChanges:{include:{vehicle:true}};
@@ -140,9 +145,10 @@ function TopicCard({item,reconciliation,process,payroll,transferred}:{item:Loade
     <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-5"><Data label="Sachverhalt" value={item.matterPresent}/><Data label="Belege" value={String(activeDocuments.length)}/><Data label="Offene Rückfragen" value={String(openQuestions.length)}/><Data label="Nachreichung" value={item.documentToFollow?"Offen":"Nein"}/><Data label="Letzte Änderung" value={formatDateTime(item.updatedAt)}/></div>
     <OrdoCampusPanel kind="fibu-lohn" taskId={item.id} activeKnowledge={campusActive}/>
     {item.detailsJson&&item.matterPresent==="Ja"&&<Details value={item.detailsJson}/>}
+    {!process&&item.positions.length>0&&<PositionReadOnlyList positions={item.positions}/>}
     {item.note&&<p className="mt-3 rounded border border-[var(--color-border)] bg-[var(--color-background)] p-3 text-sm"><strong>Interne Notiz:</strong> {item.note}</p>}
     {item.documentToFollow&&<div className="mt-3 rounded border border-[var(--color-warning)] bg-amber-50 p-3 text-sm"><p><strong>Unterlage zur Nachreichung offen:</strong> {item.missingDocumentType??"Beleg"} · {item.followUpReason??"ohne Begründung"}{item.expectedFollowUpAt?` · erwartet ${formatDateTime(item.expectedFollowUpAt)}`:""}</p>{process&&transferred&&<form action={completePayrollFollowUpAction.bind(null,item.id)} className="mt-3"><button className="button-secondary">Nachreichung als abgeschlossen dokumentieren</button></form>}</div>}
-    <ReconciliationItemForm itemId={item.id} topicKey={item.topicKeySnapshot} status={item.status} note={item.note} detailsJson={item.detailsJson} requiredFields={requiredFields} requiredDocuments={requiredDocuments} followUpAllowed={item.followUpAllowed} documentToFollow={item.documentToFollow} followUpReason={item.followUpReason} expectedFollowUpAt={item.expectedFollowUpAt?.toISOString().slice(0,10)??""} missingDocumentType={item.missingDocumentType} editable={process&&!transferred}/>
+    <ReconciliationItemForm itemId={item.id} topicKey={item.topicKeySnapshot} status={item.status} note={item.note} detailsJson={item.detailsJson} requiredFields={requiredFields} requiredDocuments={requiredDocuments} followUpAllowed={item.followUpAllowed} documentToFollow={item.documentToFollow} followUpReason={item.followUpReason} expectedFollowUpAt={item.expectedFollowUpAt?.toISOString().slice(0,10)??""} missingDocumentType={item.missingDocumentType} editable={process&&!transferred} positions={item.positions}/>
     {item.vehicleRelatedSnapshot&&process&&!transferred&&<Link className="button-secondary mt-4" href={`/fibu-lohn/fahrzeuge/neu?clientId=${reconciliation.clientId}&itemId=${item.id}&returnTo=/fibu-lohn/${reconciliation.id}`}>Neues Fahrzeug aus Abstimmung</Link>}
     {item.vehicleChanges.length>0&&<div className="mt-4"><h4 className="font-semibold">Verknüpfte Fahrzeugänderungen</h4><ul className="mt-2 space-y-2">{item.vehicleChanges.map(change=><li className="rounded border p-3 text-sm" key={change.id}><Link className="font-semibold text-[var(--color-primary-dark)] hover:underline" href={`/fibu-lohn/fahrzeuge/${change.vehicleId}`}>{change.summary}</Link></li>)}</ul></div>}
     <div className="mt-5 border-t border-[var(--color-border)] pt-4"><h4 className="font-semibold">Belege</h4><p className="mt-1 text-xs text-[var(--color-text-muted)]">Die Unterlagen werden ausschließlich intern für die FiBu-Lohn-Abstimmung bereitgestellt.</p>{activeDocuments.length?<ul className="mt-3 space-y-2">{activeDocuments.map(document=><li className="flex flex-wrap items-center justify-between gap-3 rounded border p-3 text-sm" key={document.id}><div><strong>{document.displayName}</strong>{reconciliation.transferredAt&&document.uploadedAt>reconciliation.transferredAt&&<span className="ml-2 inline-flex rounded-full border border-[var(--color-primary)] bg-[var(--color-primary-light)] px-2 py-0.5 text-xs font-semibold text-[var(--color-primary-dark)]">Nachträglich ergänzt</span>}<div className="text-xs text-[var(--color-text-muted)]">{document.documentType} · {formatBytes(document.fileSizeBytes)} · {document.uploadedBy.fullName} · {formatDateTime(document.uploadedAt)}</div>{document.description&&<p className="mt-1">{document.description}</p>}</div><div className="flex gap-2"><a className="button-secondary" href={`/api/fibu-lohn/belege/${document.id}/download`}>Herunterladen</a>{process&&<form action={archivePayrollDocumentAction.bind(null,document.id,reconciliation.id,item.id)}><button className="button-secondary">Archivieren</button></form>}</div></li>)}</ul>:<p className="mt-2 text-sm text-[var(--color-text-muted)]">Noch keine Belege bereitgestellt.</p>}{process&&<PayrollUploadForm itemId={item.id}/>}</div>
@@ -152,6 +158,16 @@ function TopicCard({item,reconciliation,process,payroll,transferred}:{item:Loade
   </article>;
 }
 function Details({value}:{value:string}){let entries:Array<[string,unknown]>=[];try{entries=Object.entries(JSON.parse(value))}catch{}return entries.length?<dl className="mt-4 grid gap-3 rounded border border-[var(--color-border)] bg-[var(--color-background)] p-4 sm:grid-cols-2">{entries.filter(([,v])=>String(v??"").trim()).map(([key,value])=><Data key={key} label={key} value={String(value)}/>)}</dl>:null}
+function PositionReadOnlyList({positions}:{positions:LoadedItem["positions"]}){
+  return <section className="mt-4 rounded border border-[var(--color-border)] bg-[var(--color-background)] p-4">
+    <h4 className="font-semibold">Übergebene Positionen · {positions.length}</h4>
+    <div className="mt-3 space-y-2">{positions.map((position)=><article className="rounded border border-[var(--color-border)] bg-white p-3 text-sm" key={position.id}>
+      <div className="flex flex-wrap items-start justify-between gap-2"><div><strong>{position.title}</strong><p className="text-xs text-[var(--color-text-muted)]">{position.positionType} · {position.caseCount} {position.caseCount===1?"Fall":"Fälle"}{position.period?` · ${position.period}`:""}</p></div><span className="rounded-full border border-[var(--color-border)] px-2 py-1 text-xs font-semibold">{position.status}</span></div>
+      {position.summary&&<p className="mt-2">{position.summary}</p>}
+      {position.totalAmountCents!==null&&<p className="mt-2 font-semibold">Gesamtbetrag: {new Intl.NumberFormat("de-DE",{style:"currency",currency:"EUR"}).format(position.totalAmountCents/100)}</p>}
+    </article>)}</div>
+  </section>;
+}
 function Data({label,value}:{label:string;value:string}){return <div><dt className="text-xs font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">{label}</dt><dd className="mt-1 text-sm font-medium">{value}</dd></div>}
 function Status({label,value}:{label:string;value:string}){return <div><span className="block text-xs font-semibold text-[var(--color-text-muted)]">{label}</span><span className="mt-1 inline-flex rounded-full border border-[var(--color-border)] bg-[var(--color-primary-light)] px-3 py-1 text-xs font-semibold text-[var(--color-primary-dark)]">{value}</span></div>}
 function monthLabel(year:number,month:number){return new Intl.DateTimeFormat("de-DE",{month:"long",year:"numeric",timeZone:"Europe/Berlin"}).format(new Date(Date.UTC(year,month-1,15)))}

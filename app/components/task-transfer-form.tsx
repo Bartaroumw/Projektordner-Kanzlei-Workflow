@@ -20,7 +20,7 @@ export function TaskTransferForm({
   return (
     <details ref={details} className="rounded border border-[var(--color-border)] bg-white p-3">
       <summary className="cursor-pointer font-semibold text-[var(--color-primary-dark)]">Aufgabe übertragen</summary>
-      <form action={action} className="mt-3">
+      <form action={action} data-workflow-action="true" className="mt-3 max-w-3xl">
         <p className="mb-3 text-sm">Ziel: <strong>{targetLabel}</strong> · Bearbeitet von: <strong>{person}</strong></p>
         <input type="hidden" name="transferTargetYear" value={targetYear} />
         <input type="hidden" name="transferTargetMonth" value={targetMonth} />

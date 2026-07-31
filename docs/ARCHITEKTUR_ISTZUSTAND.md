@@ -22,7 +22,7 @@ Ein Neustart ist nicht erforderlich. Vor einem weiteren großen Modul ist ein be
 | Validierung | Zod und zusätzliche fachliche Regelfunktionen |
 | Authentifizierung | lokale Konten, scrypt, opake serverseitige Sitzungen |
 | Tests | Vitest, sequenzielle dateibasierte Testdatenbank |
-| Umfang | 30 Seiten, 8 Server-Action-Dateien, 4 Route Handler, 23 Prisma-Modelle, 13 Migrationen |
+| Umfang | 44 `page.tsx`-Dateien, 9 Server-Action-Dateien, 6 Route Handler, 34 Prisma-Modelle, 15 Migrationen |
 
 ## Laufzeitarchitektur
 
@@ -92,7 +92,7 @@ flowchart LR
 
 - 13 additive SQL-Migrationen sind vorhanden und werden in Tests geordnet auf eine frische Datenbank angewendet.
 - Der deterministische Seed besitzt eine Konsistenzprüfung.
-- Kritischer Istbefund: `prisma migrate status` meldet für `prisma/dev.db` alle 13 Migrationen als nicht angewendet. Das Schema ist vorhanden, die Migrationshistorie der aktiven Entwicklungsdatenbank wurde offenbar früher über `db push` beziehungsweise direkte SQL-Ausführung aufgebaut.
+- Kritischer Istbefund: `prisma migrate status` meldet für `prisma/dev.db` alle 15 Migrationen als nicht angewendet. Das Schema ist vorhanden, die Migrationshistorie der aktiven Entwicklungsdatenbank wurde offenbar früher über `db push` beziehungsweise direkte SQL-Ausführung aufgebaut.
 - Deshalb darf die aktive Datenbank weder ungeprüft zurückgesetzt noch mit `migrate deploy` behandelt werden. Zuerst ist eine kontrollierte Baseline erforderlich.
 
 ## Tragfähige Bestandteile
@@ -118,4 +118,3 @@ flowchart LR
 - mehrere voneinander getrennte Verlaufsmodelle,
 - keine einheitliche Sicherheitsprotokollierung,
 - keine produktionsfähige Betriebs-, Backup- und Monitoringautomatisierung.
-

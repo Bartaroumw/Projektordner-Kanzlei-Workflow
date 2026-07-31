@@ -71,10 +71,13 @@ describe("Oberflächenregression",()=>{
     expect(annual).toContain("Bitte ausdrücklich auswählen");
   });
   it("speichert Aufgaben lokal asynchron mit sichtbarem Zustand",()=>{
+    const batch=readFileSync("app/components/checklist-batch-provider.tsx","utf8");
     expect(processing).toContain("Ungespeicherte Änderungen");
-    expect(processing).toContain("Wird gespeichert");
-    expect(processing).toContain("beforeunload");
-    expect(processing).toContain("sticky bottom-2");
+    expect(batch).toContain("Änderungen werden gespeichert");
+    expect(batch).toContain("beforeunload");
+    const checklist=readFileSync("app/monatschecklisten/[id]/page.tsx","utf8");
+    expect(checklist).toContain("sticky top-0");
+    expect(batch).toContain("sticky bottom-3");
   });
   it("kennzeichnet Campus und Überträge nicht nur farblich",()=>{
     expect(monthly).toContain("Übertrag aus");

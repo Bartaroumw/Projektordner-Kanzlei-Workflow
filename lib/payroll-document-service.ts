@@ -15,7 +15,7 @@ const allowed:Record<string,readonly string[]>={
   ".xlsx":["application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"],
   ".png":["image/png"],".jpg":["image/jpeg"],".jpeg":["image/jpeg"],
 };
-export type PayrollDocumentUpload={displayName:string;documentType:string;description?:string;originalFileName:string;mimeType:string;bytes:Uint8Array;questionId?:number};
+export type PayrollDocumentUpload={displayName:string;documentType:string;description?:string;originalFileName:string;mimeType:string;bytes:Uint8Array;questionId?:number;positionId?:number};
 
 function safeName(value:string){return basename(value.replaceAll("\\","/")).normalize("NFKC").replace(/[<>:"/\\|?*\u0000-\u001f]/g,"_").replace(/\s+/g," ").trim().slice(0,240)||"datei";}
 function starts(bytes:Uint8Array,signature:number[]){return signature.every((value,index)=>bytes[index]===value);}
@@ -43,11 +43,15 @@ export async function uploadPayrollDocument(itemId:number,input:PayrollDocumentU
     const question=await prisma.payrollReconciliationQuestion.findFirst({where:{id:input.questionId,reconciliationItemId:item.id}});
     if(!question)throw new PayrollReconciliationError("INVALID_INPUT","Die angegebene Rückfrage gehört nicht zu diesem Abstimmungsthema.");
   }
+  if(input.positionId){
+    const position=await prisma.payrollReconciliationPosition.findFirst({where:{id:input.positionId,reconciliationItemId:item.id}});
+    if(!position)throw new PayrollReconciliationError("INVALID_INPUT","Die angegebene Position gehört nicht zu diesem Abstimmungsthema.");
+  }
   const data=validate(input);await mkdir(PAYROLL_DOCUMENT_STORAGE_ROOT,{recursive:true});
   const storedFileName=`${randomUUID()}${data.extension}`,target=storagePath(storedFileName);
   try{await writeFile(target,input.bytes,{flag:"wx"});}catch{throw new PayrollReconciliationError("INVALID_INPUT","Der Beleg konnte nicht gespeichert werden.");}
   try{return await prisma.$transaction(async tx=>{
-    const document=await tx.payrollDocumentReference.create({data:{reconciliationItemId:item.id,questionId:input.questionId,displayName:data.displayName,originalFileName:data.originalFileName,storedFileName,storageKey:storedFileName,fileExtension:data.extension.slice(1).toUpperCase(),mimeType:data.mimeType,fileSizeBytes:input.bytes.byteLength,documentType:data.documentType,description:data.description,uploadedByUserId:user.id}});
+    const document=await tx.payrollDocumentReference.create({data:{reconciliationItemId:item.id,questionId:input.questionId,positionId:input.positionId,displayName:data.displayName,originalFileName:data.originalFileName,storedFileName,storageKey:storedFileName,fileExtension:data.extension.slice(1).toUpperCase(),mimeType:data.mimeType,fileSizeBytes:input.bytes.byteLength,documentType:data.documentType,description:data.description,uploadedByUserId:user.id}});
     await tx.payrollReconciliationHistory.create({data:{reconciliationId:item.reconciliationId,reconciliationItemId:item.id,actorUserId:user.id,actorNameSnapshot:user.fullName,actorDepartment:"Rechnungswesen",action:"Beleg hochgeladen",summary:`Beleg „${document.displayName}“ wurde geschützt bereitgestellt.`}});
     return document;
   });}catch{await unlink(target).catch(()=>undefined);throw new PayrollReconciliationError("INVALID_INPUT","Der Beleg konnte nicht gespeichert werden.");}
@@ -70,4 +74,3 @@ export async function readPayrollDocument(documentId:number,user:AuthUser){
   if(!canViewPayrollReconciliation(user,document.reconciliationItem.reconciliation))throw new PayrollReconciliationError("NOT_ALLOWED","Sie dürfen diesen Beleg nicht öffnen.");
   return{document,bytes:await readFile(storagePath(document.storageKey))};
 }
-

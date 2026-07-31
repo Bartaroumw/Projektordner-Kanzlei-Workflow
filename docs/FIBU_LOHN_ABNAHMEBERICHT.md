@@ -1,5 +1,7 @@
 # FiBu-Lohn-Abstimmung – technischer Modulabnahmebericht
 
+> Ergänzung vom 28.07.2026: Die anschließende systemweite Integrationsprüfung aller Ordo-Caroli-Module ist in `docs/SYSTEMINTEGRATION_ABNAHMEBERICHT.md` dokumentiert. Für weitere technische und fachliche Prüfungen ist bis zur Migrationsbaseline die dort beschriebene Systemintegrationsumgebung zu verwenden.
+
 Stand: 27.07.2026
 
 ## Geprüfter Stand
@@ -43,8 +45,8 @@ Geprüft wurden außerdem Gesamtübergabe, getrennte Rechnungswesen- und Lohnsta
 
 ## Migration und Datenkonsistenz
 
-- Leere FiBu-Lohn-Abnahmedatenbank: alle 14 Migrationen erfolgreich
-- Getrennte Workflow-Testdatenbank: alle 14 Migrationen erfolgreich
+- Historische FiBu-Lohn-Modulabnahme: die damals vorhandenen 14 Migrationen erfolgreich
+- Historische Workflow-Testdatenbank: die damals vorhandenen 14 Migrationen erfolgreich
 - Vollständige Kopie der vorhandenen Entwicklungsdatenbank: Prisma beendet `migrate deploy` erwartungsgemäß mit `P3005`, weil die bekannte Migrationsbaseline für das bereits bestehende Schema fehlt
 - Migration `20260728100000_fibu_payroll_reconciliation_foundation`: unverändert
 - Abnahmeseed: erfolgreich und reproduzierbar
@@ -60,7 +62,8 @@ Die bekannte Baseline-Abweichung blockiert eine ungeprüfte Aktualisierung der b
 - ESLint: erfolgreich
 - TypeScript: erfolgreich
 - Produktions-Build mit Next.js 16.2.12: erfolgreich
-- Tests: 249 erfolgreich, 1 bewusst übersprungen
+- Historischer Modulstand: 249 Tests erfolgreich, 1 bewusst übersprungen
+- Aktuelle Systemprüfung nach PC-Übertragung: 15 Migrationen, 305 Tests erfolgreich, 1 bewusst übersprungen
 
 Der übersprungene Test `tests/performance-smoke.test.ts` ist ein optionaler großer Lasttest. Er läuft nur mit `RUN_PERFORMANCE_SMOKE=1`, damit der reguläre Testlauf schnell und deterministisch bleibt. Für diese Abnahme wurde stattdessen der gezielte FiBu-Lohn-Lastbestand mit `npm.cmd run testdata:fibu-lohn:performance` ausgeführt.
 

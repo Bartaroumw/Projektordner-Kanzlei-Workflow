@@ -16,6 +16,7 @@ import {
   updateAnnualTask,
   type AnnualAction,
 } from "@/lib/annual-checklist-service";
+import type { ChecklistBatchSaveResult,ChecklistTaskChange,ChecklistTaskSaveResult } from "@/lib/checklist-batch";
 
 const message=(error:unknown)=>encodeURIComponent(error instanceof Error?error.message:"Die Aktion konnte nicht ausgeführt werden.");
 const isRedirect=(error:unknown)=>typeof error==="object"&&error!==null&&"digest" in error&&String(error.digest).startsWith("NEXT_REDIRECT");
@@ -36,6 +37,26 @@ export async function updateAnnualTaskAction(taskId:number,checklistId:number,fo
   const user=await requireUser();
   try{await updateAnnualTask(taskId,{status:String(formData.get("status")??""),processingNote:String(formData.get("processingNote")??""),notApplicableReason:String(formData.get("notApplicableReason")??"")},user);revalidatePath(`/jahresabschluesse/${checklistId}`);return {ok:true,message:"Gespeichert"}}
   catch(error){return {ok:false,message:error instanceof Error?error.message:"Die Aufgabe konnte nicht gespeichert werden."}}
+}
+
+export async function saveAnnualTaskChangesAction(checklistId:number,changes:ChecklistTaskChange[]):Promise<ChecklistBatchSaveResult>{
+  const user=await requireUser();
+  const ordered=[...changes].sort((left,right)=>left.taskId-right.taskId);
+  const results:ChecklistTaskSaveResult[]=[];
+  for(const change of ordered){
+    try{
+      const assignment=await prisma.annualChecklistTask.findUnique({where:{id:change.taskId},select:{annualChecklistId:true}});
+      if(!assignment)throw new Error("Die Jahresabschlussaufgabe wurde nicht gefunden.");
+      if(assignment.annualChecklistId!==checklistId)throw new Error("Diese Aufgabe gehört nicht zur ausgewählten Jahresabschlusscheckliste.");
+      const updated=await updateAnnualTask(change.taskId,{status:change.status,processingNote:change.processingNote,notApplicableReason:change.notApplicableReason,expectedUpdatedAt:change.expectedUpdatedAt},user);
+      results.push({taskId:change.taskId,ok:true,code:"SAVED",message:"Gespeichert",saved:{status:updated.status,processingNote:updated.processingNote??"",notApplicableReason:updated.notApplicableReason??"",carryProcessingNote:false,updatedAt:updated.updatedAt.toISOString()}});
+    }catch(error){
+      const code="code" in (error as object??{})?String((error as {code?:unknown}).code):"";
+      results.push({taskId:change.taskId,ok:false,code:code==="CONFLICT"?"CONFLICT":code==="NOT_ALLOWED"?"FORBIDDEN":code==="INVALID_INPUT"?"VALIDATION":code==="LOCKED"?"VALIDATION":error instanceof Error&&error.message.includes("gehört nicht")?"FORBIDDEN":"TECHNICAL",message:error instanceof Error?error.message:"Die Aufgabe konnte nicht gespeichert werden."});
+    }
+  }
+  if(results.some(result=>result.ok)){revalidatePath(`/jahresabschluesse/${checklistId}`);revalidatePath("/jahresabschluesse");}
+  return {results};
 }
 
 export async function reviewAnnualTaskAction(taskId:number,checklistId:number,formData:FormData){

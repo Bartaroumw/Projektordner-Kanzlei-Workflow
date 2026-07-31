@@ -1,4 +1,8 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
+import { AdministrationBreadcrumbs, AdministrationTabs } from "@/app/components/administration-navigation";
+import { requireUser } from "@/lib/auth";
+import { canManageStandardTasks } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
 import { createCategoryAction, updateCategoryAction } from "../actions";
 
@@ -7,6 +11,8 @@ const one = (value: string | string[] | undefined) =>
   Array.isArray(value) ? value[0] ?? "" : value ?? "";
 
 export default async function CategoriesPage({ searchParams }: { searchParams: SearchParams }) {
+  const user = await requireUser();
+  if (!canManageStandardTasks(user)) redirect("/zugriff-verweigert?bereich=Kategorien");
   const params = await searchParams;
   const categories = await prisma.taskCategory.findMany({
     include: { _count: { select: { standardTasks: true } } },
@@ -17,10 +23,12 @@ export default async function CategoriesPage({ searchParams }: { searchParams: S
 
   return (
     <div>
+      <AdministrationBreadcrumbs section="fachliche-grundlagen" current="Aufgabenbereiche und Kategorien"/>
+      <AdministrationTabs user={user} active="fachliche-grundlagen"/>
       <header className="mb-6 flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="mb-2 text-sm font-semibold uppercase tracking-wider text-blue-700">
-            Zentrale Struktur
+          <p className="mb-2 text-sm font-semibold uppercase tracking-wider text-[var(--color-primary)]">
+            Fachliche Grundlagen
           </p>
           <h1 className="text-3xl font-bold tracking-tight">Kategorien</h1>
           <p className="mt-2 text-slate-600">

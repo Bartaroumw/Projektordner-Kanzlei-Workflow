@@ -23,6 +23,7 @@ import { requireRole, requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { canManageClients, canManageCustomTasks, canProcessPeriod, canReviewPeriod, canUseAdministrationException, canViewClient } from "@/lib/permissions";
 import { serializeExecutionMonths } from "@/lib/task-execution-planning";
+import type { ChecklistBatchSaveResult, ChecklistTaskChange, ChecklistTaskSaveResult } from "@/lib/checklist-batch";
 
 async function processingUser(periodId:number){const user=await requireUser();const period=await prisma.accountingPeriod.findUniqueOrThrow({where:{id:periodId}});
   if(!canProcessPeriod(user,period))throw new Error("Sie dürfen diese Monatscheckliste nicht bearbeiten.");return {user,period};}
@@ -108,6 +109,63 @@ export async function updateChecklistTaskAction(taskId: number, periodId: number
   } catch (error) {
     return { ok: false, message: error instanceof Error ? error.message : "Die Aufgabe konnte nicht gespeichert werden." };
   }
+}
+
+export async function saveChecklistTaskChangesAction(periodId: number, changes: ChecklistTaskChange[]): Promise<ChecklistBatchSaveResult> {
+  let user;
+  try {
+    ({user}=await processingUser(periodId));
+  } catch (error) {
+    return { results: changes.map(({taskId}) => failedTaskResult(taskId, error, "FORBIDDEN")) };
+  }
+  const ordered = [...changes].sort((left,right)=>left.taskId-right.taskId);
+  const results: ChecklistTaskSaveResult[] = [];
+  for (const change of ordered) {
+    try {
+      const assignment=await prisma.checklistTask.findUnique({where:{id:change.taskId},select:{periodId:true}});
+      if(!assignment)throw new MonthlyChecklistError("TASK_NOT_FOUND","Die Checklistenaufgabe wurde nicht gefunden.");
+      if(assignment.periodId!==periodId)throw new Error("Diese Aufgabe gehört nicht zur ausgewählten Monatscheckliste.");
+      const updated = await updateChecklistTask(change.taskId, {
+        status: change.status,
+        processingNote: change.processingNote,
+        processorInitials: user.fullName,
+        notApplicableReason: change.notApplicableReason,
+        carryProcessingNote: change.carryProcessingNote,
+        expectedUpdatedAt: change.expectedUpdatedAt,
+      });
+      results.push({
+        taskId: change.taskId,
+        ok: true,
+        code: "SAVED",
+        message: "Gespeichert",
+        saved: {
+          status: updated.status,
+          processingNote: updated.processingNote ?? "",
+          notApplicableReason: updated.notApplicableReason ?? "",
+          carryProcessingNote: updated.carryProcessingNote,
+          updatedAt: updated.updatedAt.toISOString(),
+        },
+      });
+    } catch (error) {
+      results.push(failedTaskResult(change.taskId,error,error instanceof MonthlyChecklistError?undefined:"FORBIDDEN"));
+    }
+  }
+  if(results.some((result)=>result.ok)){
+    revalidatePath(`/monatschecklisten/${periodId}`);
+    revalidatePath("/monatschecklisten");
+  }
+  return {results};
+}
+
+function failedTaskResult(taskId:number,error:unknown,fallback:ChecklistTaskSaveResult["code"]="TECHNICAL"):ChecklistTaskSaveResult{
+  const message=error instanceof Error?error.message:"Die Aufgabe konnte nicht gespeichert werden.";
+  const code="code" in (error as object??{})?String((error as {code?:unknown}).code):"";
+  return {
+    taskId,
+    ok:false,
+    code:code==="CONFLICT"?"CONFLICT":code==="TASK_NOT_FOUND"?"NOT_FOUND":code==="NOT_ALLOWED"?"FORBIDDEN":["INVALID_INPUT","REASON_REQUIRED","PERIOD_CLOSED"].includes(code)?"VALIDATION":fallback,
+    message,
+  };
 }
 
 export async function addMissingStandardTasksAction(periodId: number) {

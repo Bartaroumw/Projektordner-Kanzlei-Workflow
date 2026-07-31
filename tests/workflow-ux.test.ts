@@ -24,8 +24,8 @@ describe("Kompakte Workflow-Bedienung", () => {
   });
 
   it("verwendet die fachlichen Modulbezeichnungen", () => {
-    expect(shell).toContain('label:"Rechnungswesenaufgaben"');
-    expect(shell).toContain('label:"Jahresabschlussaufgaben"');
+    expect(shell).toContain('label:"Rechnungswesen"');
+    expect(shell).toContain('label:"FiBu ↔ Lohn"');
     expect(shell).not.toContain('label:"Monatschecklisten"');
   });
 

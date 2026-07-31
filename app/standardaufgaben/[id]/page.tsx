@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { AdministrationBreadcrumbs } from "@/app/components/administration-navigation";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { formatDate, textOrDash } from "@/lib/format";
@@ -16,9 +17,10 @@ export default async function TaskDetailPage({ params, searchParams }: { params:
   if(!canManageStandardTasks(user)&&!canManageOrdoCampus(user))redirect("/zugriff-verweigert?bereich=Standardaufgaben");
   const success = (await searchParams).erfolg;
   return <div>
-    <div className="mb-5"><Link className="text-sm font-semibold text-blue-700 hover:underline" href="/standardaufgaben">← Zur Übersicht</Link></div>
+    <AdministrationBreadcrumbs section="fachliche-grundlagen" current="Standardaufgabe"/>
+    <div className="mb-5"><Link className="text-sm font-semibold text-[var(--color-primary-dark)] hover:underline" href="/standardaufgaben">← Zur Übersicht</Link></div>
     {success && <div role="status" className="mb-5 rounded-md border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">Die Standardaufgabe wurde erfolgreich {success === "angelegt" ? "angelegt" : "gespeichert"}.</div>}
-    <header className="mb-6 flex flex-wrap items-end justify-between gap-4"><div><p className="mb-2 text-sm font-semibold uppercase tracking-wider text-blue-700">{task.taskId}</p><h1 className="text-3xl font-bold">{task.title}</h1></div><div className="flex gap-2">{canManageOrdoCampus(user)&&<Link className="button-primary" href={`/standardaufgaben/${task.id}/campus`}>Ordo Campus pflegen</Link>}{canManageStandardTasks(user)&&<Link className="button-secondary" href={`/standardaufgaben/${task.id}/bearbeiten`}>Bearbeiten</Link>}</div></header>
+    <header className="mb-6 flex flex-wrap items-end justify-between gap-4"><div><p className="mb-2 text-sm font-semibold uppercase tracking-wider text-[var(--color-primary)]">{task.taskId}</p><h1 className="text-3xl font-bold">{task.title}</h1></div><div className="flex gap-2">{canManageOrdoCampus(user)&&<Link className="button-primary" href={`/standardaufgaben/${task.id}/campus`}>Ordo Campus pflegen</Link>}{canManageStandardTasks(user)&&<Link className="button-secondary" href={`/standardaufgaben/${task.id}/bearbeiten`}>Bearbeiten</Link>}</div></header>
     <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm"><dl className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
       <Data label="Status" value={task.active ? "Aktiv" : "Inaktiv"} /><Data label="Checklistenart" value={task.checklistType} /><Data label="Kategorie" value={task.category.name} /><Data label="Unterkategorie" value={textOrDash(task.subcategory)} /><Data label="Ausführungsplanung" value={task.checklistType==="Jahresabschluss"?"Jährlich":formatExecutionPlanning(task.rhythm,task.executionMonths)} /><Data label="Aufgabenbereich" value={task.taskArea??"–"} /><Data label="Pflichtaufgabe" value={task.mandatory ? "Ja" : "Nein"} /><Data label="Version" value={task.professionalVersion} /><Data label="Rechtsformgruppen" value={task.legalFormGroups} /><Data label="Gewinnermittlungsarten" value={task.profitDeterminationMethods} /><Data label="Sortierreihenfolge" value={task.sortOrder.toString()} /><Data label="Geändert am" value={formatDate(task.updatedAt)} />
     </dl></section>

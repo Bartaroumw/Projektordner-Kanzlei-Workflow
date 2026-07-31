@@ -1,8 +1,11 @@
 # Platform Readiness Review – Ordo Caroli
 
-Stand: 27.07.2026  
-Geprüfter Commit: `ec2b4d63badc040e58d372e99adfb7c79e9e47df`  
-Geprüfter Branch: `architecture/platform-readiness-review`  
+Dokumentationsstand: 31.07.2026
+
+Ursprünglich geprüfter Commit: `ec2b4d63badc040e58d372e99adfb7c79e9e47df`
+
+Ursprünglich geprüfter Branch: `architecture/platform-readiness-review`
+
 Letzter Abnahme-Tag in der Historie: `v1.0-abnahme-geprueft` auf Commit `8307928`
 
 ## Management Summary
@@ -41,7 +44,7 @@ Technischer Stand:
 - Node.js 24.18.0 LTS,
 - Prisma 6.19.3 und SQLite,
 - TypeScript strict, ESLint, Vitest,
-- 30 Seiten, 23 Prisma-Modelle und 13 Migrationen.
+- 44 `page.tsx`-Dateien, 34 Prisma-Modelle und 15 Migrationen.
 
 ## Gesamtbewertung
 
@@ -270,10 +273,10 @@ Am 27.07.2026 wurde nach Erstellung der Dokumentation geprüft:
 | Prüfung | Ergebnis |
 |---|---|
 | `prisma validate` | erfolgreich |
-| `prisma migrate status` | 13 Migrationen vorhanden; aktive Entwicklungsdatenbank ohne registrierte Baseline |
+| `prisma migrate status` | 15 Migrationen vorhanden; aktive Entwicklungsdatenbank ohne registrierte Baseline |
 | ESLint | erfolgreich |
 | TypeScript | erfolgreich |
-| automatisierte Tests | 210 erfolgreich, 1 bewusst übersprungen |
+| automatisierte Tests | 305 erfolgreich, 1 bewusst übersprungen |
 | Produktions-Build | erfolgreich |
 | Entwicklungsstart | erfolgreich auf lokalem Prüfport; `/` leitet zur Anmeldung, Anmeldung ist erreichbar |
 | produktionsnaher Start | erfolgreich auf lokalem Prüfport; `/` leitet zur Anmeldung, Anmeldung ist erreichbar |

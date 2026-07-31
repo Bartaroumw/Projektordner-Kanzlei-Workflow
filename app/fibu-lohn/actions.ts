@@ -17,6 +17,9 @@ import {
   updatePayrollReconciliationItem,
   createPayrollTopic,
   updatePayrollTopic,
+  savePayrollPosition,
+  duplicatePayrollPosition,
+  removePayrollPosition,
 } from "@/lib/payroll-reconciliation-service";
 import { archivePayrollDocument } from "@/lib/payroll-document-service";
 import { createClientVehicle, updateClientVehicle, type VehicleInput } from "@/lib/payroll-vehicle-service";
@@ -53,14 +56,46 @@ export async function updatePayrollItemAction(itemId:number,_state:PayrollFormSt
   const details:Record<string,unknown>={};
   for(const [key,value] of formData.entries())if(key.startsWith("detail."))details[key.slice(7)]=typeof value==="string"?value.trim():value;
   try{
+    const decision=text(formData,"decision");
+    const status=decision
+      ? decision==="Kein relevanter Sachverhalt"?"Kein Sachverhalt":decision==="Sachverhalt vorhanden"?"Übergabe in Vorbereitung":"Noch nicht geprüft"
+      : text(formData,"status")||"Noch nicht geprüft";
     await updatePayrollReconciliationItem(itemId,{
-      status:text(formData,"status"),note:text(formData,"note"),details,
+      status,note:text(formData,"note"),details,
       documentToFollow:checkbox(formData,"documentToFollow"),followUpReason:text(formData,"followUpReason"),
       expectedFollowUpAt:optionalDate(formData,"expectedFollowUpAt"),missingDocumentType:text(formData,"missingDocumentType"),
     },user);
     revalidatePath(`/fibu-lohn/${reconciliationId}`);
     return{success:"Das Abstimmungsthema wurde gespeichert."};
   }catch(error){return{error:friendly(error)}}
+}
+
+export async function savePayrollPositionAction(itemId:number,positionId:number|null,formData:FormData){
+  const user=await requireUser();const reconciliationId=await reconciliationIdForItem(itemId);
+  try{
+    const details:Record<string,unknown>={};
+    for(const [key,value] of formData.entries())if(key.startsWith("detail."))details[key.slice(7)]=typeof value==="string"?value.trim():value;
+    await savePayrollPosition(itemId,positionId,{
+      positionType:text(formData,"positionType") as "Einzelposition"|"Sammelposition",
+      title:text(formData,"title"),caseCount:Number(text(formData,"caseCount"))||1,totalAmount:text(formData,"totalAmount"),
+      period:text(formData,"period"),summary:text(formData,"summary"),people:text(formData,"people").split(/\r?\n/),
+      details,requiredListType:text(formData,"requiredListType"),requiredListDocumentName:text(formData,"requiredListDocumentName"),
+    },user);
+    revalidatePath(`/fibu-lohn/${reconciliationId}`);
+    redirect(target(reconciliationId,"position",undefined,itemId));
+  }catch(error){if(isRedirect(error))throw error;redirect(target(reconciliationId,undefined,friendly(error),itemId))}
+}
+
+export async function duplicatePayrollPositionAction(positionId:number,itemId:number){
+  const user=await requireUser();const reconciliationId=await reconciliationIdForItem(itemId);
+  try{await duplicatePayrollPosition(positionId,user);revalidatePath(`/fibu-lohn/${reconciliationId}`);redirect(target(reconciliationId,"position-dupliziert",undefined,itemId))}
+  catch(error){if(isRedirect(error))throw error;redirect(target(reconciliationId,undefined,friendly(error),itemId))}
+}
+
+export async function removePayrollPositionAction(positionId:number,itemId:number){
+  const user=await requireUser();const reconciliationId=await reconciliationIdForItem(itemId);
+  try{await removePayrollPosition(positionId,user);revalidatePath(`/fibu-lohn/${reconciliationId}`);redirect(target(reconciliationId,"position-entfernt",undefined,itemId))}
+  catch(error){if(isRedirect(error))throw error;redirect(target(reconciliationId,undefined,friendly(error),itemId))}
 }
 
 export async function submitPayrollAction(reconciliationId:number,formData:FormData){

@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { ToastMessage } from "@/app/components/toast-message";
 import { logoutAction } from "@/app/anmelden/actions";
+import { canOpenAdministration } from "@/lib/administration-navigation";
 import type { AuthUser } from "@/lib/permissions";
 
 export function AppShell({ children, user }: { children: React.ReactNode; user:AuthUser|null }) {
@@ -19,19 +20,17 @@ export function AppShell({ children, user }: { children: React.ReactNode; user:A
   }, [pathname]);
 
   if(pathname==="/anmelden") return children;
-  const canStandards=Boolean(user?.roles.some(role=>["KANZLEILEITUNG","STANDARDAUFGABEN_VERWALTEN","ORDO_CAMPUS_VERWALTEN"].includes(role)));
-  const canUsers=Boolean(user?.roles.includes("ADMINISTRATOR"));
   const hasProfessionalAccess=Boolean(user?.roles.some(role=>["MITARBEITER","PRUEFER","KANZLEILEITUNG","MANDANTEN_VERWALTEN"].includes(role)));
   const hasPayrollAccess=Boolean(user?.roles.some(role=>["LOHNSACHBEARBEITER","MITARBEITER","PRUEFER","KANZLEILEITUNG"].includes(role)));
-  const canManagePayrollTopics=Boolean(user?.roles.some(role=>["KANZLEILEITUNG","FIBU_LOHN_THEMEN_VERWALTEN"].includes(role)));
   const payrollOnly=Boolean(user?.roles.includes("LOHNSACHBEARBEITER")&&!hasProfessionalAccess);
+  const hasCampusAccess=hasProfessionalAccess;
+  const hasAdministrationAccess=Boolean(user&&canOpenAdministration(user));
   const navigation=[
-    ...(!payrollOnly?[{label:"Dashboard",href:"/"}]:[]),
-    ...(hasProfessionalAccess?[{label:"Mandanten",href:"/mandanten"},{label:"Rechnungswesenaufgaben",href:"/monatschecklisten"},{label:"Jahresabschlussaufgaben",href:"/jahresabschluesse"}]:[]),
-    ...(hasPayrollAccess?[{label:payrollOnly?"Meine Abstimmungen":"FiBu-Lohn-Abstimmung",href:"/fibu-lohn"},{label:"Offene Lohnrückfragen",href:"/fibu-lohn#rueckfragen"},{label:"Fahrzeuge",href:"/fibu-lohn/fahrzeuge"}]:[]),
-    ...(canManagePayrollTopics?[{label:"FiBu-Lohn-Themen",href:"/fibu-lohn/themen"}]:[]),
-    ...(canStandards?[{label:"Standardaufgaben",href:"/standardaufgaben"}]:[]),
-    ...(canUsers?[{label:"Benutzerverwaltung",href:"/administration/benutzer"},{label:"Testdaten-Diagnose",href:"/administration/diagnose"}]:[])
+    ...(!payrollOnly?[{label:"Übersicht",href:"/"}]:[]),
+    ...(hasProfessionalAccess?[{label:"Mandanten",href:"/mandanten"},{label:"Rechnungswesen",href:"/monatschecklisten"}]:[]),
+    ...(hasPayrollAccess?[{label:"FiBu ↔ Lohn",href:"/fibu-lohn"}]:[]),
+    ...(hasCampusAccess?[{label:"Ordo Campus",href:"/ordo-campus"}]:[]),
+    ...(hasAdministrationAccess?[{label:"Verwaltung",href:"/verwaltung"}]:[])
   ];
   const roleDisplay=user?formatRoleDisplay(user.roles):null;
   return (
@@ -55,13 +54,13 @@ export function AppShell({ children, user }: { children: React.ReactNode; user:A
                     : entry.href === "/mandanten"
                       ? pathname.startsWith("/mandanten")
                       : entry.href === "/monatschecklisten"
-                        ? pathname.startsWith("/monatschecklisten")
-                      : entry.href === "/jahresabschluesse"
-                        ? pathname.startsWith("/jahresabschluesse")
-                      : entry.href === "/standardaufgaben"
-                        ? pathname.startsWith("/standardaufgaben")
-                      : entry.href.startsWith("/fibu-lohn")
-                        ? pathname.startsWith(entry.href.split("#")[0])
+                        ? pathname.startsWith("/monatschecklisten") || pathname.startsWith("/jahresabschluesse") || pathname.startsWith("/rechnungswesen")
+                      : entry.href === "/fibu-lohn"
+                        ? pathname.startsWith("/fibu-lohn") && !pathname.startsWith("/fibu-lohn/themen")
+                      : entry.href === "/ordo-campus"
+                        ? pathname.startsWith("/ordo-campus") || /^\/standardaufgaben\/\d+\/campus/.test(pathname)
+                      : entry.href === "/verwaltung"
+                        ? pathname.startsWith("/verwaltung") || pathname.startsWith("/administration") || pathname.startsWith("/standardaufgaben") || pathname.startsWith("/fibu-lohn/themen")
                         : false;
                 return (
                   <li key={entry.label} className="shrink-0">

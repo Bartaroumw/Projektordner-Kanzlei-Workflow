@@ -34,6 +34,13 @@ npm.cmd run dev
 
 Die Anwendung ist danach unter [http://localhost:3000](http://localhost:3000) erreichbar.
 
+Wichtig: Der normale Start verwendet die bestehende `.env` und `prisma/dev.db`. Diese Datenbank besitzt noch keine verlässlich dokumentierte Prisma-Migrationsbaseline. Bis zur gesonderten Baseline dürfen gegen sie keine Reset-, Push- oder Deploy-Befehle ausgeführt werden. Für die sichere systemweite Weiterentwicklung ist die getrennte Integrationsumgebung zu verwenden:
+
+```powershell
+npm.cmd run testdata:system-integration
+npm.cmd run dev:integration
+```
+
 ## Datenbank und Migrationen
 
 Die lokale Verbindungsangabe steht in `.env`; `.env.example` enthält nur eine Vorlage. Datenbankdateien und lokale Umgebungsdateien werden nicht versioniert.
@@ -369,15 +376,15 @@ Wegen der dokumentierten fehlenden Migrationsbaseline der aktiven Entwicklungsda
 
 ## Bekannte Sicherheitshinweise
 
-`npm audit --omit=dev` meldete zuletzt drei hoch eingestufte betroffene Pakete im Abhängigkeitsbaum:
+`npm audit --omit=dev` meldete am 28.07.2026 drei hoch eingestufte betroffene Abhängigkeitsknoten:
 
-| Paket | Art | Betrieb | Kompatible Korrektur |
+| Paket | Schweregrad und Art | Betrieb | Kompatible Korrektur |
 | --- | --- | --- | --- |
-| Next.js 16.2.12 | direkt | Entwicklung, Build und möglicher lokaler Produktionsbetrieb | keine kompatible stabile Korrektur ausgewiesen; kein erzwungenes Downgrade |
-| PostCSS | indirekt über Next.js | vor allem Entwicklung und Build bei fremden CSS-Dateien | keine fremden CSS-Dateien verarbeiten und stabiles Next.js-Update abwarten |
-| Sharp/libvips | indirekt/optional über Next.js | Bildverarbeitung | keine Bild-Uploads oder fremden Bilder verarbeiten und stabiles Next.js-Update abwarten |
+| Next.js 16.2.12 | hoch, direkte Abhängigkeit; von npm wegen der beiden nachfolgenden Abhängigkeiten mitgeführt | Entwicklung, Build und lokaler Produktionsbetrieb | aktuell keine kompatible Korrektur ausgewiesen; stabiles Next.js-Update abwarten |
+| PostCSS bis 8.5.17 | hoch, indirekt über Next.js; drei gebündelte Advisories | CSS-Verarbeitung in Entwicklung, Build und Laufzeit | aktuell keine kompatible Korrektur ausgewiesen; stabiles Next.js-Update abwarten |
+| Sharp unter 0.35.0 | hoch, indirekt über Next.js; geerbte libvips-Schwachstellen | serverseitige Bildverarbeitung | aktuell keine kompatible Korrektur ausgewiesen; stabiles Next.js-Update abwarten |
 
-`npm audit fix --force` darf nicht verwendet werden.
+Die von npm angebotene `--force`-Korrektur würde Next.js auf 9.3.3 zurückstufen und ist inkompatibel. `npm audit fix --force` darf nicht verwendet werden.
 
 ## Abnahme und Betrieb
 
@@ -387,8 +394,18 @@ Die systemweite Abnahmevorbereitung und die Betriebsunterlagen befinden sich unt
 - `docs/ABNAHMEBERICHT_V1.md`
 - `docs/BACKUP_UND_WIEDERHERSTELLUNG.md`
 - `docs/ROADMAP_NACH_PILOT.md`
+- `docs/SERVERFEHLER_ANALYSE.md`
+- `docs/UMGEBUNGEN_UND_DATENBESTAENDE.md`
+- `docs/SYSTEMINTEGRATION_NACH_FIBU_LOHN.md`
+- `docs/SYSTEMINTEGRATION_PRUEFBOGEN.md`
+- `docs/SYSTEMINTEGRATION_ABNAHMEBERICHT.md`
+- `docs/TECHNISCHE_UEBERGABE.md`
+- `docs/AKTUELLER_SYSTEMSTAND.md`
+- `docs/MIGRATIONSBASELINE_WARNUNG.md`
 
 Die technische Abnahmevorbereitung ersetzt nicht die fachliche Endabnahme durch die Kanzlei.
+
+Die erneute technische Prüfung nach der PC-Übertragung am 31.07.2026 umfasst 15 Migrationen, 305 erfolgreiche automatisierte Tests und einen bewusst übersprungenen großen Performance-Grundtest. Prisma-Schema, Prisma Client, ESLint, TypeScript, Integrations-Build sowie Entwicklungs- und Produktionsstart der Integrationsumgebung wurden erfolgreich geprüft.
 
 ## Rechnungswesenaufgaben und Ausführungsplanung
 
@@ -460,3 +477,78 @@ Die fachliche Prüfung erfolgt mit:
 * `docs/FIBU_LOHN_ABNAHMEBERICHT.md`
 
 Für einen späteren Pilotbetrieb gilt weiterhin: Datenbank, `storage/ordo-campus` und `storage/fibu-lohn` müssen gemeinsam gesichert und wiederhergestellt werden. Nur die Datenbank zu kopieren ist unvollständig.
+
+## Getrennte Systemintegrationsumgebung
+
+Die systemweite Prüfung aller bisherigen Module verwendet ausschließlich künstliche Daten und folgende getrennte Pfade:
+
+- `prisma/system-integration.db`
+- `tmp/system-integration-storage/ordo-campus`
+- `tmp/system-integration-storage/fibu-lohn`
+
+```powershell
+# Löscht und erstellt ausschließlich die oben genannte Integrationsumgebung.
+# Alle 15 Migrationen, Seeds und die lesende Diagnose werden ausgeführt.
+npm.cmd run testdata:system-integration
+
+# Diagnose ohne Datenänderung
+npm.cmd run testdata:system-integration:diagnose
+
+# Entwicklungsbetrieb auf der Integrationsumgebung
+npm.cmd run dev:integration
+
+# Produktionsprüfung auf der Integrationsumgebung
+npm.cmd run build:integration
+npm.cmd run start:integration
+```
+
+Der Reset besitzt feste absolute Pfadprüfungen und lehnt Entwicklungs-, Workflow-, Abnahme-, Pilot- und Produktivpfade ab. Der Integrationsbestand umfasst Anmeldung, Mandanten, Rechnungswesen, Jahresabschluss, Standardaufgaben, Ordo Campus samt Anhang, FiBu-Lohn samt Beleg, Rückfragen und Fahrzeuge.
+
+Die aktuelle `prisma/dev.db` wurde in der systemweiten Prüfung nicht verändert. Sie ist strukturell wieder lauffähig, besitzt jedoch keine belastbare Prisma-Migrationsbaseline. Bis zu deren gesonderter Herstellung wird `dev:integration` für die sichere Weiterentwicklung empfohlen.
+
+## Workflow-, Navigations- und UX-Optimierung
+
+Die Hauptnavigation ist in **Rechnungswesen** und **FiBu ↔ Lohn** gebündelt. Rechnungswesen enthält das laufende Rechnungswesen, den Jahresabschluss und die neue lückenbasierte Statusübersicht. Die Lohnansicht startet für Lohnsachbearbeiter mit allen offenen Vorgängen über mehrere Monate; Rechnungswesen- und Lohnabrechnungsmonat werden getrennt angezeigt.
+
+FiBu-Lohn-Themen unterstützen mehrere Einzel- und – bei fachlich geeigneten Themen – Sammelpositionen. Die additive Migration `20260728140000_workflow_navigation_payroll_positions` ergänzt ausschließlich neue Positions- und Referenzstrukturen. Bestehende Abstimmungen, Belege, Checklisten und Verläufe bleiben erhalten.
+
+Weiterführende Dokumentation:
+
+- `docs/NAVIGATION_UND_MODULSTRUKTUR.md`
+- `docs/RECHNUNGSWESEN_STATUSUEBERSICHT.md`
+- `docs/FIBU_LOHN_MEHRFACHSACHVERHALTE.md`
+- `docs/CHECKLISTEN_UX.md`
+
+Bekannte Einschränkung: Die Statusübersicht arbeitet mit Kalenderjahren. Sammelpositionen verwenden in dieser ersten Fassung eine gemeinsame strukturierte Beschreibung und eine geschützte Listenunterlage; eine Tabellenbearbeitung einzelner Unterzeilen innerhalb einer Sammlung ist noch nicht implementiert.
+
+## Verwaltungsstruktur
+
+Die linke Hauptnavigation führt zentrale Kanzleifunktionen gebündelt unter **Verwaltung**. Der Hauptpunkt wird nur angezeigt, wenn der angemeldete Benutzer mindestens eine der enthaltenen Funktionen serverseitig verwenden darf. Benutzer mit mehreren Rollen sehen den Eintrag nur einmal.
+
+Die Verwaltungsseite besitzt vier berechtigungsabhängige Reiter:
+
+- **Fachliche Grundlagen**: Standardaufgaben, bestehende Aufgabenbereiche und Kategorien, FiBu-Lohn-Themen, eine mandantenübergreifende Such- und Qualitätsübersicht mandantenspezifischer Aufgaben sowie fachliche Ordo-Campus-Verknüpfungen.
+- **Benutzer und Rechte**: lokale Benutzer, Status, fachliche Rollen, technische Administratorrolle und Zusatzberechtigungen.
+- **Daten und Import**: der vorhandene mehrstufige Standardaufgaben-Import mit Vorschau, Validierung, Bestätigung und Historie.
+- **System**: ausschließlich sichere, bereits bekannte technische Eckdaten und im Entwicklungsmodus die Diagnose künstlicher Daten. Geheimnisse, Sitzungsschlüssel und vollständige lokale Pfade werden nicht angezeigt.
+
+Der erste für den Benutzer zulässige Reiter wird automatisch geöffnet. Ein vollständig leerer Verwaltungsbereich ist nicht erreichbar. Die sichtbare Navigation ersetzt keine Rechteprüfung: Bestehende Fachseiten und schreibende Aktionen prüfen die Berechtigung weiterhin serverseitig und leiten unberechtigte Direktaufrufe neutral ab.
+
+**Ordo Campus** bleibt ein eigenes Hauptmodul, weil Wissen im Arbeitsalltag gesucht und unmittelbar an Aufgaben gelesen wird. Die Wissenspflege bleibt an der führenden Standardaufgabe; Verwaltung ist kein verpflichtender Umweg. Ebenso bleiben mandantenspezifische Aufgaben fachlich beim Mandanten. Die zentrale Verwaltungsübersicht dient nur Suche, Filtern und Qualitätskontrolle und bietet keine losgelöste Neuanlage.
+
+Persönliche Funktionen wie **Passwort ändern** gehören nicht zur Verwaltung. Eine reine Administratorrolle verleiht weiterhin keine fachlichen Rechte an Standardaufgaben, Ordo Campus, Rechnungswesen oder FiBu-Lohn. Bestehende direkte Routen bleiben kompatibel und werden in der sichtbaren Oberfläche durch Verwaltungs-Breadcrumbs eingeordnet. Für diese reine Navigations- und Seitenstruktur war keine Prisma-Migration erforderlich.
+
+Weitere Einzelheiten:
+
+- `docs/VERWALTUNGSSTRUKTUR.md`
+- `docs/NAVIGATION_UND_MODULSTRUKTUR.md`
+
+## Zentrale Checklisten-Sammelspeicherung
+
+Normale Bearbeitungsfelder mehrerer Rechnungswesen- oder Jahresabschlussaufgaben werden über die mitlaufende Leiste gemeinsam gespeichert. Die Leiste zählt Aufgaben mit tatsächlichen Abweichungen und zeigt **Alle Änderungen speichern (n)**, **Alle verwerfen** oder **Alles gespeichert**.
+
+Gültige Aufgaben werden auch dann gespeichert, wenn eine andere Aufgabe einen Validierungs-, Berechtigungs- oder Konfliktfehler besitzt. Erfolgreiche Serverantworten werden sofort zum neuen lokalen Ausgangszustand; fehlerhafte Eingaben bleiben sichtbar. `updatedAt` verhindert das stille Überschreiben zwischenzeitlicher Änderungen. Deshalb war keine Prisma-Migration erforderlich.
+
+Überträge, Rückfragen, Prüfungen, Statusübergaben, Abschlüsse, Uploads und FiBu-Lohn-Aktionen bleiben ausdrücklich getrennte Workflowaktionen. Offene normale Änderungen blockieren diese Aktionen. Interne Navigation und Browser-Verlassen warnen vor Datenverlust. `Strg + S` beziehungsweise `Cmd + S` löst die Sammelspeicherung aus.
+
+Details: `docs/CHECKLISTEN_SAMMELSPEICHERUNG.md`.

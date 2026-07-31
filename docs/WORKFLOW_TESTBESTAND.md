@@ -2,6 +2,8 @@
 
 Der Workflow-Testbestand ist ein vollständig künstlicher, reproduzierbarer Prüfbestand für Rechnungswesen-, Prüfungs-, Jahresabschluss- und Ordo-Campus-Abläufe. Er ist strikt von Entwicklungs-, Abnahme-, Pilot- und Produktivdaten getrennt.
 
+Die ergänzende UX-Prüfung umfasst die lückenbasierte Rechnungswesen-Statusübersicht, die feste Prüferadressierung bei Rückfragen, den wiederholbaren Verwerfen-Zustand und mehrere FiBu-Lohn-Positionen. Reguläre Entwicklungsdaten werden dafür nicht verändert.
+
 ## Erstellung
 
 ```powershell

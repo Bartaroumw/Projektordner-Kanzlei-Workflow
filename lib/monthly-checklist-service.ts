@@ -42,6 +42,7 @@ export class MonthlyChecklistError extends Error {
       | "PERIOD_CLOSED"
       | "RESPONSE_REQUIRED"
       | "REOPEN_REASON_REQUIRED"
+      | "CONFLICT"
       | "ACTIVE_CHECKLIST_EXISTS"
       | "CHECKLIST_SEQUENCE_INVALID"
       | "TRANSFER_REASON_REQUIRED"
@@ -415,13 +416,16 @@ async function actorAudit(name:string|null|undefined){
 
 export async function updateChecklistTask(
   taskId: number,
-  input: { status: string; processingNote: string; processorInitials: string; notApplicableReason: string; carryProcessingNote?: boolean },
+  input: { status: string; processingNote: string; processorInitials: string; notApplicableReason: string; carryProcessingNote?: boolean; expectedUpdatedAt?: string },
 ) {
   if (!CHECKLIST_TASK_STATUSES.includes(input.status as never)) {
     throw new MonthlyChecklistError("INVALID_INPUT", "Der Aufgabenstatus ist ungültig.");
   }
   const task = await prisma.checklistTask.findUnique({ where: { id: taskId } });
   if (!task) throw new MonthlyChecklistError("TASK_NOT_FOUND", "Die Checklistenaufgabe wurde nicht gefunden.");
+  if (input.expectedUpdatedAt && task.updatedAt.toISOString() !== input.expectedUpdatedAt) {
+    throw new MonthlyChecklistError("CONFLICT", `Die Aufgabe „${task.titleSnapshot}“ wurde zwischenzeitlich geändert. Ihre Eingaben wurden nicht überschrieben.`);
+  }
   const period = await prisma.accountingPeriod.findUniqueOrThrow({ where: { id: task.periodId } });
   if (period.processingStatus === "Abgeschlossen") {
     throw new MonthlyChecklistError("PERIOD_CLOSED", "Eine abgeschlossene Monatscheckliste kann nicht bearbeitet werden.");
@@ -431,18 +435,25 @@ export async function updateChecklistTask(
     throw new MonthlyChecklistError("REASON_REQUIRED", "Für „Nicht zutreffend“ ist eine Begründung erforderlich.");
   }
   const processed = input.status !== "Offen";
+  const processingNote = input.processingNote.trim();
+  const carryProcessingNote = Boolean(input.carryProcessingNote && processingNote);
+  const nextReason = input.status === "Nicht zutreffend" ? reason : task.notApplicableReason;
   return prisma.$transaction(async (transaction) => {
-    const updated = await transaction.checklistTask.update({
-      where: { id: taskId },
+    const write = await transaction.checklistTask.updateMany({
+      where: { id: taskId, updatedAt: task.updatedAt },
       data: {
         status: input.status,
-        processingNote: input.processingNote.trim() || null,
-        carryProcessingNote: Boolean(input.carryProcessingNote && input.processingNote.trim()),
+        processingNote: processingNote || null,
+        carryProcessingNote,
         processorInitials: input.processorInitials.trim() || period.processorSnapshot,
-        notApplicableReason: input.status === "Nicht zutreffend" ? reason : task.notApplicableReason,
+        notApplicableReason: nextReason,
         processedAt: processed ? new Date() : null,
       },
     });
+    if (write.count !== 1) {
+      throw new MonthlyChecklistError("CONFLICT", `Die Aufgabe „${task.titleSnapshot}“ wurde zwischenzeitlich geändert. Ihre Eingaben wurden nicht überschrieben.`);
+    }
+    const updated = await transaction.checklistTask.findUniqueOrThrow({ where: { id: taskId } });
     if (processed) {
       await transaction.accountingPeriod.updateMany({
         where: { id: task.periodId, processingStatus: "Offen" },
@@ -463,7 +474,7 @@ export async function updateChecklistTask(
         },
       });
     }
-    if ((task.processingNote ?? "") !== input.processingNote.trim()) {
+    if ((task.processingNote ?? "") !== processingNote) {
       await transaction.workflowHistory.create({
         data: {
           periodId: task.periodId,
@@ -472,6 +483,34 @@ export async function updateChecklistTask(
           actorInitials: input.processorInitials.trim() || period.processorSnapshot,
           ...await actorAudit(input.processorInitials.trim() || period.processorSnapshot),
           description: `Bearbeitungsnotiz zu ${task.taskIdSnapshot} wurde geändert.`,
+        },
+      });
+    }
+    if ((task.notApplicableReason ?? "") !== (nextReason ?? "")) {
+      await transaction.workflowHistory.create({
+        data: {
+          periodId: task.periodId,
+          checklistTaskId: task.id,
+          eventType: "Begründung geändert",
+          actorInitials: input.processorInitials.trim() || period.processorSnapshot,
+          ...await actorAudit(input.processorInitials.trim() || period.processorSnapshot),
+          description: `Begründung für „Nicht zutreffend“ zu ${task.taskIdSnapshot} wurde geändert.`,
+        },
+      });
+    }
+    if (task.carryProcessingNote !== carryProcessingNote) {
+      await transaction.workflowHistory.create({
+        data: {
+          periodId: task.periodId,
+          checklistTaskId: task.id,
+          eventType: "Folgeperiodenübernahme geändert",
+          actorInitials: input.processorInitials.trim() || period.processorSnapshot,
+          ...await actorAudit(input.processorInitials.trim() || period.processorSnapshot),
+          description: carryProcessingNote
+            ? `Die Bearbeitungsnotiz zu ${task.taskIdSnapshot} wird in die nächste tatsächliche Ausführung übernommen.`
+            : `Die Übernahme der Bearbeitungsnotiz zu ${task.taskIdSnapshot} wurde aufgehoben.`,
+          previousValue: task.carryProcessingNote ? "Ja" : "Nein",
+          newValue: carryProcessingNote ? "Ja" : "Nein",
         },
       });
     }
@@ -890,6 +929,13 @@ export async function raiseChecklistQuestion(
   if (!["Offen", "In Bearbeitung", "Nachbearbeitung"].includes(task.period.processingStatus)) {
     throw new MonthlyChecklistError("INVALID_TRANSITION", "Eine Rückfrage an den Prüfer ist nur während der Bearbeitung möglich.");
   }
+  if (!task.period.reviewerUserId || !task.period.reviewerSnapshot?.trim()) {
+    throw new MonthlyChecklistError("INITIALS_REQUIRED", "Für diese Checkliste ist kein Prüfer hinterlegt. Die Rückfrage wurde nicht gesendet.");
+  }
+  const assignedReviewer = await prisma.user.findFirst({ where: { id: task.period.reviewerUserId, active: true } });
+  if (!assignedReviewer) {
+    throw new MonthlyChecklistError("INITIALS_REQUIRED", "Der zugeordnete Prüfer ist nicht aktiv. Die Rückfrage wurde nicht gesendet.");
+  }
   const actor = await prisma.user.findFirst({ where: { fullName: input.actorName, active: true } });
   const now = new Date();
   return prisma.$transaction(async (transaction) => {
@@ -904,7 +950,7 @@ export async function raiseChecklistQuestion(
         reviewIssueRaisedByName: input.actorName,
         reviewIssueRaisedByRole: "Bearbeiter",
         reviewIssueDirectedToUserId: task.period.reviewerUserId,
-        reviewIssueDirectedToName: task.period.reviewerSnapshot,
+        reviewIssueDirectedToName: assignedReviewer.fullName,
         reviewIssueDirectedToRole: "Prüfer",
       },
     });
@@ -915,7 +961,7 @@ export async function raiseChecklistQuestion(
         eventType: "Rückfrage an Prüfer erstellt",
         actorInitials: input.actorName,
         ...await actorAudit(input.actorName),
-        description: `${task.taskIdSnapshot}: Rückfrage von ${input.actorName} an ${task.period.reviewerSnapshot ?? "den Prüfer"}.`,
+        description: `${task.taskIdSnapshot}: Rückfrage von ${input.actorName} an ${assignedReviewer.fullName}.`,
         previousValue: task.reviewStatus,
         newValue: "Rückfrage",
       },

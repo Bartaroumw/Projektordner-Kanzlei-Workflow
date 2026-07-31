@@ -3,6 +3,7 @@
 import { useActionState, useState } from "react";
 import { useRouter } from "next/navigation";
 import { updatePayrollItemAction } from "@/app/fibu-lohn/actions";
+import { duplicatePayrollPositionAction, removePayrollPositionAction, savePayrollPositionAction } from "@/app/fibu-lohn/actions";
 import type { PayrollFormState } from "@/app/fibu-lohn/actions";
 
 type ItemFormProps={
@@ -19,6 +20,10 @@ type ItemFormProps={
   expectedFollowUpAt:string;
   missingDocumentType:string|null;
   editable:boolean;
+  positions:Array<{
+    id:number;positionType:string;title:string;caseCount:number;totalAmountCents:number|null;period:string|null;summary:string|null;
+    peopleJson:string|null;detailsJson:string|null;requiredListType:string|null;requiredListDocumentName:string|null;status:string;
+  }>;
 };
 
 const topicFields:Record<string,Array<{name:string;label:string;type?:"text"|"date"|"number"|"textarea"|"select";options?:string[]}>>={
@@ -70,19 +75,16 @@ const topicFields:Record<string,Array<{name:string;label:string;type?:"text"|"da
 
 export function ReconciliationItemForm(props:ItemFormProps){
   const [state,action,pending]=useActionState(updatePayrollItemAction.bind(null,props.itemId),{} satisfies PayrollFormState);
-  const details=readDetails(props.detailsJson);
-  const fields=mergeFields(topicFields[props.topicKey]??[],props.requiredFields);
   if(!props.editable)return null;
-  return <form action={action} className="mt-4 space-y-4 rounded-lg border border-[var(--color-border)] bg-[var(--color-background)] p-4">
+  return <><form action={action} className="mt-4 space-y-4 rounded-lg border border-[var(--color-border)] bg-[var(--color-background)] p-4">
     {state.error&&<p role="alert" className="rounded border border-[var(--color-error)] bg-white p-3 text-sm text-[var(--color-error)]">{state.error}</p>}
     {state.success&&<p role="status" className="rounded border border-[var(--color-success)] bg-white p-3 text-sm text-[var(--color-success)]">{state.success}</p>}
     {props.topicKey==="SCHEINSELBSTAENDIGKEIT"&&<p className="rounded border border-[var(--color-warning)] bg-white p-3 text-sm"><strong>Hinweis:</strong> Ordo Caroli trifft keine rechtliche Einstufung. Der Sachverhalt wird lediglich zur weiteren fachlichen Prüfung übergeben.</p>}
     <div className="grid gap-3 md:grid-cols-2">
-      <Field label="Themenentscheidung"><select className="input" name="status" defaultValue={props.status} required>
-        <option>Noch nicht geprüft</option><option>Kein Sachverhalt</option><option>Übergabe in Vorbereitung</option><option>Vollständig an Lohn übergeben</option>
+      <Field label="Themenentscheidung"><select className="input" name="decision" defaultValue={decisionForStatus(props.status)} required>
+        <option>Noch nicht geprüft</option><option>Kein relevanter Sachverhalt</option><option>Sachverhalt vorhanden</option>
       </select></Field>
       <Field label="Interne Notiz"><input className="input" name="note" defaultValue={props.note??""}/></Field>
-      {fields.map(field=><DetailField key={field.name} field={field} value={details[field.name]}/>)}
     </div>
     {props.requiredDocuments.length>0&&<p className="text-xs text-[var(--color-text-muted)]">Erforderliche Belegarten: {props.requiredDocuments.join(" · ")}</p>}
     {props.followUpAllowed&&<details className="rounded border border-[var(--color-border)] bg-white p-3" open={props.documentToFollow}>
@@ -95,13 +97,45 @@ export function ReconciliationItemForm(props:ItemFormProps){
       </div>
     </details>}
     <button className="button-primary" disabled={pending}>{pending?"Wird gespeichert …":"Thema speichern"}</button>
+  </form>{props.status!=="Kein Sachverhalt"&&<PositionSection {...props}/>}</>;
+}
+
+function PositionSection(props:ItemFormProps){
+  const collectionAllowed=["ARBEITNEHMER_VORTEILE","REISEKOSTEN","GESCHENKE_NICHTARBEITNEHMER","KSK"].includes(props.topicKey);
+  const fields=mergeFields(topicFields[props.topicKey]??[],props.requiredFields);
+  return <section className="border-t border-[var(--color-border)] pt-4">
+    <div className="flex flex-wrap items-center justify-between gap-3"><div><h4 className="font-semibold">Sachverhaltspositionen · {props.positions.length}</h4><p className="text-xs text-[var(--color-text-muted)]">Mehrere Personen oder Vorgänge werden getrennt oder als fachlich zulässige Sammlung erfasst.</p></div></div>
+    <div className="mt-3 space-y-3">{props.positions.map(position=><article id={`position-${position.id}`} className="rounded border border-[var(--color-border)] bg-white p-3" key={position.id}>
+      <div className="flex flex-wrap items-start justify-between gap-3"><div><p className="font-semibold">{position.title}</p><p className="text-xs text-[var(--color-text-muted)]">{position.positionType} · {position.caseCount} Fall/Fälle · {position.status}{position.period?` · ${position.period}`:""}</p>{position.summary&&<p className="mt-2 text-sm">{position.summary}</p>}</div><span className="rounded-full bg-[var(--color-primary-light)] px-2 py-1 text-xs font-semibold">{position.status}</span></div>
+      <div className="mt-3 flex flex-wrap gap-2"><details className="w-full rounded border border-[var(--color-border)] p-3"><summary className="cursor-pointer font-semibold">Position bearbeiten</summary><PositionForm itemId={props.itemId} position={position} topicKey={props.topicKey} fields={fields} collectionAllowed={collectionAllowed}/></details><form action={duplicatePayrollPositionAction.bind(null,position.id,props.itemId)}><button className="button-secondary">Duplizieren</button></form><form action={removePayrollPositionAction.bind(null,position.id,props.itemId)}><button className="button-secondary">{position.status==="Entwurf"?"Entwurf löschen":"Archivieren"}</button></form></div>
+      <PayrollUploadForm itemId={props.itemId} positionId={position.id}/>
+    </article>)}</div>
+    <details className="mt-3 rounded border border-[var(--color-primary)] bg-white p-3"><summary className="cursor-pointer font-semibold text-[var(--color-primary-dark)]">Position hinzufügen</summary><PositionForm itemId={props.itemId} position={null} topicKey={props.topicKey} fields={fields} collectionAllowed={collectionAllowed}/></details>
+  </section>;
+}
+
+function PositionForm({itemId,position,topicKey,fields,collectionAllowed}:{itemId:number;position:ItemFormProps["positions"][number]|null;topicKey:string;fields:Array<{name:string;label:string;type?:"text"|"date"|"number"|"textarea"|"select";options?:string[]}>;collectionAllowed:boolean}){
+  const details=readDetails(position?.detailsJson??null);
+  const people=readStringList(position?.peopleJson??null).join("\n");
+  const requiresList=topicKey==="GESCHENKE_NICHTARBEITNEHMER"?"Empfängerliste":topicKey==="KSK"?"Rechnungsliste":"";
+  return <form action={savePayrollPositionAction.bind(null,itemId,position?.id??null)} className="mt-3 grid gap-3 md:grid-cols-2">
+    <Field label="Positionsart"><select className="input" name="positionType" defaultValue={position?.positionType??"Einzelposition"}><option>Einzelposition</option>{collectionAllowed&&<option>Sammelposition</option>}</select></Field>
+    <Field label="Bezeichnung"><input className="input" name="title" defaultValue={position?.title??""} required/></Field>
+    <Field label="Anzahl Fälle"><input className="input" name="caseCount" type="number" min="1" defaultValue={position?.caseCount??1}/></Field>
+    <Field label="Gesamtbetrag (optional)"><input className="input" name="totalAmount" inputMode="decimal" defaultValue={position?.totalAmountCents!=null?(position.totalAmountCents/100).toFixed(2).replace(".",","):""}/></Field>
+    <Field label="Zeitraum"><input className="input" name="period" defaultValue={position?.period??""}/></Field>
+    <Field label="Personen / Empfänger, eine Zeile je Eintrag"><textarea className="input min-h-24" name="people" defaultValue={people}/></Field>
+    <div className="md:col-span-2"><Field label="Kurzbeschreibung"><textarea className="input min-h-20" name="summary" defaultValue={position?.summary??""}/></Field></div>
+    {fields.map(field=><DetailField key={field.name} field={field} value={details[field.name]}/>)}
+    {requiresList&&<><input type="hidden" name="requiredListType" value={requiresList}/><Field label={`${requiresList}: Anzeigename der bereitgestellten PDF-/XLSX-Datei`}><input className="input" name="requiredListDocumentName" defaultValue={position?.requiredListDocumentName??""}/></Field></>}
+    <div className="md:col-span-2 flex gap-2"><button className="button-primary">{position?"Position speichern":"Position anlegen"}</button></div>
   </form>;
 }
 
-export function PayrollUploadForm({itemId,questionId}:{itemId:number;questionId?:number}){
+export function PayrollUploadForm({itemId,questionId,positionId}:{itemId:number;questionId?:number;positionId?:number}){
   const router=useRouter();const [open,setOpen]=useState(false);const [pending,setPending]=useState(false);const [message,setMessage]=useState("");
   async function upload(formData:FormData){
-    setPending(true);setMessage("");formData.set("itemId",String(itemId));if(questionId)formData.set("questionId",String(questionId));
+    setPending(true);setMessage("");formData.set("itemId",String(itemId));if(questionId)formData.set("questionId",String(questionId));if(positionId)formData.set("positionId",String(positionId));
     try{const response=await fetch("/api/fibu-lohn/belege",{method:"POST",body:formData});const body=await response.json();if(!response.ok)throw new Error(body.error);setMessage(body.message);setOpen(false);router.refresh()}
     catch(error){setMessage(error instanceof Error?error.message:"Der Beleg konnte nicht gespeichert werden.")}
     finally{setPending(false)}
@@ -120,6 +154,8 @@ export function PayrollUploadForm({itemId,questionId}:{itemId:number;questionId?
 }
 
 function readDetails(value:string|null){try{const parsed=JSON.parse(value??"{}");return parsed&&typeof parsed==="object"?parsed as Record<string,unknown>:{};}catch{return{}}}
+function readStringList(value:string|null){try{const parsed=JSON.parse(value??"[]");return Array.isArray(parsed)?parsed.filter((entry):entry is string=>typeof entry==="string"):[];}catch{return[]}}
+function decisionForStatus(status:string){return status==="Kein Sachverhalt"?"Kein relevanter Sachverhalt":status==="Noch nicht geprüft"?"Noch nicht geprüft":"Sachverhalt vorhanden"}
 function mergeFields(fields:Array<{name:string;label:string;type?:"text"|"date"|"number"|"textarea"|"select";options?:string[]}>,required:string[]){
   const result=[...fields];for(const name of required)if(!result.some(field=>field.name===name))result.push({name,label:name});return result;
 }

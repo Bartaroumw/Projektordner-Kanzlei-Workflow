@@ -8,7 +8,7 @@ export const ANNUAL_TASK_STATUSES = ["Offen", "In Bearbeitung", "Erledigt", "Nic
 export const ANNUAL_REVIEW_STATUSES = ["Nicht geprüft", "In Prüfung", "In Ordnung", "Rückfrage", "Beanstandung", "Erledigt nach Nachbearbeitung"] as const;
 
 export class AnnualChecklistError extends Error {
-  constructor(public code: "CLIENT_NOT_FOUND"|"PROFILE_MISSING"|"ROLE_MISSING"|"CHECKLIST_EXISTS"|"INVALID_INPUT"|"NOT_ALLOWED"|"INVALID_TRANSITION"|"MANDATORY_OPEN"|"REVIEW_POINTS_OPEN"|"REASON_REQUIRED"|"LOCKED", message: string) {
+  constructor(public code: "CLIENT_NOT_FOUND"|"PROFILE_MISSING"|"ROLE_MISSING"|"CHECKLIST_EXISTS"|"INVALID_INPUT"|"NOT_ALLOWED"|"INVALID_TRANSITION"|"MANDATORY_OPEN"|"REVIEW_POINTS_OPEN"|"REASON_REQUIRED"|"LOCKED"|"CONFLICT", message: string) {
     super(message);
   }
 }
@@ -79,16 +79,23 @@ export async function createAnnualChecklist(clientId:number,fiscalYear:number,us
   return checklist;
 }
 
-export async function updateAnnualTask(taskId:number,input:{status:string;processingNote:string;notApplicableReason:string},user:AuthUser){
+export async function updateAnnualTask(taskId:number,input:{status:string;processingNote:string;notApplicableReason:string;expectedUpdatedAt?:string},user:AuthUser){
   const task=await prisma.annualChecklistTask.findUnique({where:{id:taskId},include:{annualChecklist:true}});
   if(!task)throw new AnnualChecklistError("INVALID_INPUT","Die Aufgabe wurde nicht gefunden.");
+  if(input.expectedUpdatedAt&&task.updatedAt.toISOString()!==input.expectedUpdatedAt)throw new AnnualChecklistError("CONFLICT",`Die Aufgabe „${task.titleSnapshot}“ wurde zwischenzeitlich geändert. Ihre Eingaben wurden nicht überschrieben.`);
   if(task.annualChecklist.processorUserId!==user.id)throw new AnnualChecklistError("NOT_ALLOWED","Nur der zugeordnete Bearbeiter darf diese Aufgabe bearbeiten.");
   if(!["Offen","In Vorbereitung","Nachbearbeitung"].includes(task.annualChecklist.status))throw new AnnualChecklistError("LOCKED","Die Jahresabschlusscheckliste ist für die Bearbeitung gesperrt.");
   if(!ANNUAL_TASK_STATUSES.includes(input.status as never))throw new AnnualChecklistError("INVALID_INPUT","Der Aufgabenstatus ist ungültig.");
   if(input.status==="Nicht zutreffend"&&!input.notApplicableReason.trim())throw new AnnualChecklistError("REASON_REQUIRED","Nicht zutreffend verlangt eine Begründung.");
-  const updated=await prisma.annualChecklistTask.update({where:{id:taskId},data:{status:input.status,processingNote:input.processingNote.trim()||null,notApplicableReason:input.status==="Nicht zutreffend"?input.notApplicableReason.trim():task.notApplicableReason,processedByName:user.fullName,processedAt:new Date()}});
+  const processingNote=input.processingNote.trim();
+  const nextReason=input.status==="Nicht zutreffend"?input.notApplicableReason.trim():task.notApplicableReason;
+  const write=await prisma.annualChecklistTask.updateMany({where:{id:taskId,updatedAt:task.updatedAt},data:{status:input.status,processingNote:processingNote||null,notApplicableReason:nextReason,processedByName:user.fullName,processedAt:new Date()}});
+  if(write.count!==1)throw new AnnualChecklistError("CONFLICT",`Die Aufgabe „${task.titleSnapshot}“ wurde zwischenzeitlich geändert. Ihre Eingaben wurden nicht überschrieben.`);
+  const updated=await prisma.annualChecklistTask.findUniqueOrThrow({where:{id:taskId}});
   if(task.annualChecklist.status==="Offen")await prisma.annualChecklist.update({where:{id:task.annualChecklistId},data:{status:"In Vorbereitung"}});
   await history(task.annualChecklistId,user,"Aufgabe bearbeitet",`${task.taskIdSnapshot} wurde bearbeitet.`,task.status,input.status,task.id);
+  if((task.processingNote??"")!==processingNote)await history(task.annualChecklistId,user,"Bearbeitungsnotiz geändert",`Bearbeitungsnotiz zu ${task.taskIdSnapshot} wurde geändert.`,undefined,undefined,task.id);
+  if((task.notApplicableReason??"")!==(nextReason??""))await history(task.annualChecklistId,user,"Begründung geändert",`Begründung für „Nicht zutreffend“ zu ${task.taskIdSnapshot} wurde geändert.`,undefined,undefined,task.id);
   return updated;
 }
 

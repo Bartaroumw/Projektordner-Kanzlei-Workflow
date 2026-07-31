@@ -22,7 +22,12 @@
     "testdata:fibu-lohn": "node scripts/reset-fibu-lohn-acceptance.mjs",
     "testdata:fibu-lohn:diagnose": "node --experimental-transform-types scripts/diagnose-fibu-lohn-acceptance.ts",
     "testdata:fibu-lohn:backup-test": "node scripts/verify-fibu-lohn-backup.mjs",
-    "testdata:fibu-lohn:performance": "node scripts/performance-fibu-lohn.mjs"
+    "testdata:fibu-lohn:performance": "node scripts/performance-fibu-lohn.mjs",
+    "testdata:system-integration": "node scripts/reset-system-integration.mjs",
+    "testdata:system-integration:diagnose": "node scripts/run-system-integration-diagnose.mjs",
+    "dev:integration": "node scripts/run-system-integration.mjs dev",
+    "build:integration": "node scripts/run-system-integration.mjs build",
+    "start:integration": "node scripts/run-system-integration.mjs start"
   },
   "dependencies": {
     "@prisma/client": "^6.19.3",

@@ -16,6 +16,8 @@ export async function requireUser() {
 
 export async function requireRole(...roles: Role[]) {
   const user = await requireUser();
-  if (!hasRole(user, ...roles)) throw new Error("Sie sind für diese Aktion nicht berechtigt.");
+  if (!hasRole(user, ...roles)) {
+    redirect("/zugriff-verweigert?bereich=angeforderter%20Bereich");
+  }
   return user;
 }

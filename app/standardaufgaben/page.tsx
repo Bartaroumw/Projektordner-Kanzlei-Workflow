@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { AdministrationBreadcrumbs, AdministrationTabs } from "@/app/components/administration-navigation";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/auth";
 import { canManageOrdoCampus,canManageStandardTasks } from "@/lib/permissions";
@@ -63,8 +64,10 @@ export default async function StandardTasksPage({ searchParams }: { searchParams
 
   return (
     <div>
+      <AdministrationBreadcrumbs section="fachliche-grundlagen" current="Standardaufgaben"/>
+      <AdministrationTabs user={user} active="fachliche-grundlagen"/>
       <header className="mb-6 flex flex-wrap items-end justify-between gap-4">
-        <div><p className="mb-2 text-sm font-semibold uppercase tracking-wider text-blue-700">Zentraler Aufgabenbestand</p><h1 className="text-3xl font-bold tracking-tight">Standardaufgaben</h1><p className="mt-2 text-slate-600">Fachliche Aufgaben verwalten und kontrolliert aus Excel übernehmen.</p></div>
+        <div><p className="mb-2 text-sm font-semibold uppercase tracking-wider text-[var(--color-primary)]">Fachliche Grundlagen</p><h1 className="text-3xl font-bold tracking-tight">Standardaufgaben</h1><p className="mt-2 text-slate-600">Fachliche Aufgaben verwalten und kontrolliert aus Excel übernehmen.</p></div>
         {canManageStandardTasks(user)&&<div className="flex flex-wrap gap-2"><Link className="button-secondary" href="/standardaufgaben/kategorien">Kategorien</Link><Link className="button-secondary" href="/standardaufgaben/import">Excel-Import</Link><Link className="button-primary" href="/standardaufgaben/neu">Standardaufgabe anlegen</Link></div>}
       </header>
       <form className="mb-5 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">

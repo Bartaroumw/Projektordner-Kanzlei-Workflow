@@ -57,3 +57,11 @@ Eine belastbare Baseline wird in einem eigenen technischen Auftrag ausschließli
 6. festes Rollback-Verfahren.
 
 Erst nach gesonderter Prüfung und Freigabe darf ein bestehender Entwicklungs- oder Pilotbestand in eine reguläre Prisma-Migrationshistorie überführt werden.
+
+Die Kopienprüfung vom 31.07.2026 ist dokumentiert in:
+
+- `docs/MIGRATIONSBASELINE_PLAN.md`,
+- `docs/MIGRATIONSBASELINE_TESTBERICHT.md`,
+- `docs/MIGRATIONSBASELINE_ABLAUFPROTOKOLL.md`.
+
+Sie begründet ein technisches Go mit Auflagen, ersetzt aber nicht die weiterhin erforderliche ausdrückliche Freigabe vor jeder Änderung an `prisma/dev.db`.

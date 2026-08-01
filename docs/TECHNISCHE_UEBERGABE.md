@@ -1,6 +1,6 @@
 # Technische Übergabe nach PC-Übertragung
 
-Stand: 31.07.2026
+Stand: 01.08.2026
 Projektpfad: `C:\Projekte\Kanzlei-Workflow`
 Branch bei Übernahme: `feature/fibu-lohn-grundlage`
 Ausgangscommit: `c9ad6faf69bca18ee4d47676f26b82418faf8eb5`
@@ -161,11 +161,13 @@ Der gesicherte Stand enthält nach Code-, Schema-, Test- und Dokumentationsabgle
 
 ## Weiterarbeit
 
-Bis zu einer gesondert geprüften Migrationsbaseline erfolgt die sichere Entwicklung ausschließlich mit:
+Die Migrationsbaseline von `prisma/dev.db` wurde am 31.07.2026 nach bestätigter Kopienprüfung hergestellt. Migrationen 1 bis 14 sind mit `migrate resolve --applied` registriert; ausschließlich Migration 15 wurde regulär ausgeführt. Prisma meldet 15 erfolgreiche Migrationen und einen aktuellen Status. Entwicklungsstart, Neustart und produktionsnaher Start gegen `dev.db` sind geprüft.
+
+Für isolierte systemweite Prüfungen bleiben diese Befehle vorgesehen:
 
 ```powershell
 npm.cmd run testdata:system-integration
 npm.cmd run dev:integration
 ```
 
-Ein neuer Entwicklungsbranch wird erst nach Bestätigung dieses Übergabestands angelegt.
+Kontrolliertes `prisma migrate deploy` ist gegen `dev.db` nach vollständiger gemeinsamer Sicherung und Prüfung zulässig. Wegen des weiterhin dokumentierten Schema-Historien-Drifts bleiben `prisma migrate dev`, `prisma db push`, `prisma migrate reset`, Seeds und Testresets gegen `dev.db` gesperrt. Details und Rollbackverfahren stehen in `docs/MIGRATIONSBASELINE_ABSCHLUSSBERICHT.md`.

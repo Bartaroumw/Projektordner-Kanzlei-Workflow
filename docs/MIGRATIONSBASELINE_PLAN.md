@@ -1,20 +1,21 @@
 # Plan zur Prisma-Migrationsbaseline von `prisma/dev.db`
 
-Stand: 31.07.2026
+Stand: 01.08.2026
 
 ## Ziel und Schutzgrenze
 
-Dieser Plan bereitet die Migrationsbaseline der bestehenden Entwicklungsdatenbank vor. Er autorisiert keine Änderung an `prisma/dev.db`. Die echte Datenbank darf erst nach ausdrücklicher Bestätigung des Testberichts bearbeitet werden.
+Dieser Plan dokumentiert die vorbereitete und am 31.07.2026 nach ausdrücklicher Bestätigung exakt ausgeführte Migrationsbaseline der bestehenden Entwicklungsdatenbank. Die Umsetzung erfolgte ohne Änderung einer vorhandenen Migration und ohne Driftbereinigung.
 
-Bis dahin bleiben gegen `prisma/dev.db` verboten:
+Unabhängig von der nun hergestellten Baseline bleiben gegen `prisma/dev.db` verboten:
 
 - `prisma migrate reset`,
-- `prisma migrate deploy`,
 - `prisma db push`,
 - `prisma migrate dev`,
 - Seeds und Testresets,
 - manuelle Änderungen an `_prisma_migrations`,
 - Änderungen, Umbenennungen, Löschungen oder Zusammenführungen der 15 vorhandenen Migrationen.
+
+`prisma migrate deploy` darf seit der erfolgreichen Baseline ausschließlich kontrolliert für zuvor geprüfte, unveränderte Migrationen und erst nach vollständiger gemeinsamer Sicherung verwendet werden.
 
 ## Ausgangslage
 
@@ -93,4 +94,4 @@ SQLite-Migrationen werden nicht rückwärts manipuliert. Der garantierte Rollbac
 
 ## Freigabekriterium
 
-Technisch besteht ein **Go mit Auflagen** für die exakt getestete Methode. Operativ bleibt die echte `dev.db` bis zur ausdrücklichen Bestätigung des Testberichts **No-Go**. Auch nach der Baseline bleibt `prisma migrate dev` gesperrt, bis der dokumentierte Schema-Historien-Drift separat behandelt wurde.
+Das Freigabekriterium wurde am 31.07.2026 erfüllt. Die echte `dev.db` besitzt nun 15 erfolgreiche Migrationseinträge und das Schema nach Migration 15. Sie ist für den normalen lokalen Entwicklungsbetrieb technisch freigegeben. `prisma migrate dev`, `prisma db push` und `prisma migrate reset` bleiben bis zur separat beauftragten, datenbewahrenden Driftbereinigung gesperrt.

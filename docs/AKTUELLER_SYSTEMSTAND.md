@@ -1,6 +1,6 @@
 # Aktueller Systemstand
 
-Stand: 31.07.2026
+Stand: 01.08.2026
 
 ## Technischer Stand
 
@@ -58,6 +58,14 @@ npm.cmd run start:integration
 - produktionsnaher Integrationsstart: erfolgreich
 - Systemintegrationsdiagnose: keine Inkonsistenzen
 
+## Migrationsbaseline der Entwicklungsdatenbank
+
+Die Migrationsbaseline von `prisma/dev.db` wurde am 31.07.2026 nach bestätigter Kopienprüfung hergestellt. Ausgangshash war `A7EAE68B946262B7985C7690DEFA6BC39FD1251D4B2A71F7E872DAFA9B91A796`. Die ersten 14 bereits strukturell vorhandenen Migrationen wurden ausschließlich mit `migrate resolve --applied` registriert; ausschließlich Migration 15 wurde regulär mit `migrate deploy` angewendet.
+
+Der aktuelle Strukturstand umfasst 34 Anwendungstabellen, 565 Spalten, 92 Fremdschlüssel, 109 Indizes, 25 eindeutige Regeln und 15 erfolgreiche Prisma-Migrationseinträge. Die neue Tabelle `PayrollReconciliationPosition` ist erwartungsgemäß leer. Alle 33 vorher vorhandenen Anwendungstabellen behielten beim strukturellen Vorher-/Nachher-Vergleich ihre Zeilenzahlen und Datenhashes.
+
+Prisma-Schema und Client, ESLint, TypeScript, 305 automatisierte Tests, Produktions-Build, authentifizierter Entwicklungsstart, Neustartpersistenz und produktionsnaher Start gegen `dev.db` wurden erfolgreich geprüft. Der große Performance-Smoke-Test blieb bewusst übersprungen. Browserkonsole sowie aufgezeichnete Entwicklungs- und Produktionsserverprotokolle waren fehlerfrei.
+
 ## Lokale Bestände
 
 `prisma/dev.db` und die regulären Speicherordner gehören nicht in Git. Die beiden vorhandenen Dateien unter `storage/ordo-campus` dürfen nicht ungeprüft gelöscht werden. Sie stimmen mit der lokalen Sicherung überein, obwohl `dev.db` aktuell keine Campus-Anhangsreferenzen enthält.
@@ -66,14 +74,14 @@ npm.cmd run start:integration
 
 ## Bekannte Warnungen
 
-- `prisma/dev.db` besitzt keine belastbare Prisma-Migrationshistorie.
+- Die Migrationsbaseline von `prisma/dev.db` ist hergestellt. Der separate, dokumentierte Drift zwischen `schema.prisma` und Migrationshistorie bleibt bestehen; `prisma migrate dev` und `prisma db push` bleiben bis zu dessen gesonderter Bereinigung gesperrt.
 - Prisma warnt vor der in Version 7 entfallenden Prisma-Konfiguration in `package.json`; dafür wird künftig eine eigene Prisma-Konfigurationsdatei benötigt.
 - Die TypeScript-Ausführung über Node verwendet derzeit die experimentelle Transform-Types-Funktion.
 - Für TypeScript-Skripte ohne gesetzten Pakettyp erscheint eine `MODULE_TYPELESS_PACKAGE_JSON`-Warnung.
 - `npm audit --omit=dev` meldet weiterhin 3 hoch eingestufte betroffene Produktions-Abhängigkeitsknoten; die vollständige Installationsprüfung meldet einschließlich Entwicklungsabhängigkeiten 12 hohe Hinweise. Die angebotene erzwungene Korrektur wäre inkompatibel; `npm audit fix --force` ist unzulässig.
 - Der fachliche Verlauf ist nachvollziehbar, aber kein revisionssicherer Audit-Trail.
-- Vor einem Pilot- oder Mehrbenutzerbetrieb bleiben Migrationsbaseline, Backup/Restore, HTTPS, Zugriffsschutz und Betriebskonzept erforderlich.
+- Vor einem Pilot- oder Mehrbenutzerbetrieb bleiben eine erneut geprüfte gemeinsame Backup/Restore-Prozedur, HTTPS, Zugriffsschutz und Betriebskonzept erforderlich.
 
 ## Freigabe für die Weiterentwicklung
 
-Der Projektstand ist für die konsistente lokale Weiterentwicklung auf Basis der Systemintegrationsumgebung geeignet. Neue fachliche Arbeiten beginnen erst nach Bestätigung dieser Sicherung und auf einem gesonderten Entwicklungsbranch.
+Der Projektstand ist für die konsistente lokale Weiterentwicklung gegen die baselined `prisma/dev.db` sowie weiterhin gegen die geschützte Systemintegrationsumgebung geeignet. Kontrolliertes `prisma migrate deploy` ist nach vollständiger Sicherung und Prüfung zulässig. Neue fachliche Arbeiten und die Driftbereinigung beginnen nur in gesonderten Aufträgen und auf geeigneten Entwicklungsbranches.

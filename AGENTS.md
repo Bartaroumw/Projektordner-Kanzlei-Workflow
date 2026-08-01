@@ -56,7 +56,7 @@ Diese Next.js-Version kann neue oder geänderte Konventionen enthalten. Vor Änd
 - Ein Lohnabschluss ist bei offenen Rückfragen, unverarbeiteten Sachverhalten oder angekündigten, noch nicht abgeschlossenen Nachreichungen serverseitig gesperrt.
 - Die Systemintegration verwendet ausschließlich `prisma/system-integration.db` und `tmp/system-integration-storage` mit getrennten Unterordnern für Campus und FiBu-Lohn.
 - Der Systemintegrationsreset muss bei jedem abweichenden Datenbank- oder Speicherpfad abbrechen und darf niemals `prisma/dev.db` oder reguläre Speicherordner verändern.
-- Bis zu einer gesondert geprüften Migrationsbaseline dürfen gegen `prisma/dev.db` weder `prisma migrate reset`, `prisma migrate deploy` noch `prisma db push` ausgeführt werden.
+- Die Migrationsbaseline von `prisma/dev.db` ist seit dem 31.07.2026 hergestellt. Kontrolliertes `prisma migrate deploy` ist nur für zuvor geprüfte, unveränderte Migrationen nach vollständiger gemeinsamer Sicherung zulässig; `prisma migrate reset`, `prisma migrate dev`, `prisma db push`, Seeds und Testresets gegen `prisma/dev.db` bleiben bis zur gesonderten Driftbereinigung verboten.
 - Unberechtigte Seitenaufrufe müssen serverseitig auf eine neutrale Zugriffsseite führen; technische Fehlerseiten und bloßes Ausblenden von Navigation sind unzulässig.
 - Die Hauptnavigation bündelt laufendes Rechnungswesen, Jahresabschluss und Statusübersicht unter „Rechnungswesen“ sowie Abstimmungen, Lohnrückfragen und Fahrzeuge unter „FiBu ↔ Lohn“.
 - Die Rechnungswesen-Statusübersicht muss Monatslücken chronologisch erkennen; spätere abgeschlossene Checklisten dürfen frühere Lücken nicht verdecken.

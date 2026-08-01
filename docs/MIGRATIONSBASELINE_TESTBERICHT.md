@@ -1,12 +1,12 @@
 # Testbericht zur Prisma-Migrationsbaseline
 
-Stand: 31.07.2026
+Stand: 01.08.2026
 
 ## Prüfurteil
 
-Die Baseline wurde ausschließlich auf bytegenauen Kopien geprüft. `prisma/dev.db` blieb unverändert. Die getestete Methode ist technisch geeignet: 14 bestehende Migrationen werden als angewendet registriert, die tatsächlich noch fehlende 15. Migration wird anschließend regulär auf der Kopie angewendet.
+Die Baseline wurde zunächst ausschließlich auf bytegenauen Kopien geprüft. Die getestete Methode erwies sich als technisch geeignet: 14 bestehende Migrationen werden als angewendet registriert, die tatsächlich noch fehlende 15. Migration wird anschließend regulär angewendet. Nach ausdrücklicher Bestätigung wurde dieses Verfahren am 31.07.2026 unverändert auf `prisma/dev.db` ausgeführt.
 
-Aktuelle Entscheidung: **No-Go für die echte `dev.db` bis zur ausdrücklichen Bestätigung dieses Berichts; danach technisches Go mit den im Plan genannten Auflagen.**
+Aktuelle Entscheidung: **Technisches Go für den normalen lokalen Entwicklungsbetrieb. Kontrolliertes `migrate deploy` ist nach Sicherung und Prüfung wieder zulässig; die Driftbereinigung und `migrate dev` bleiben gesperrt.**
 
 ## Schutz- und Sicherungsnachweis
 
@@ -94,6 +94,16 @@ Die vollständig baselined Datenbank, `.env`-Kopie, beide Campus-Dateien und der
 
 ## Go-/No-Go-Empfehlung
 
-- **Technisches Go mit Auflagen:** Die echte `dev.db` kann nach ausdrücklicher Freigabe mit der exakt getesteten Methode baselined und um Migration 15 ergänzt werden.
-- **Aktuelles operatives No-Go:** In diesem Arbeitsschritt wird die echte Datenbank nicht verändert.
+- **Technisches Go:** Die echte `dev.db` wurde mit der exakt getesteten Methode baselined und um Migration 15 ergänzt.
+- **Lokaler Betrieb:** Entwicklungs- und produktionsnaher Start gegen `dev.db` sind freigegeben und geprüft.
 - **Weiteres No-Go:** Kein `migrate dev`, `db push` oder allgemeines Refactoring, bevor der dokumentierte Schema-Historien-Drift in einem eigenen Auftrag bewertet und mit einer datenbewahrenden Migration geprüft wurde.
+
+## Bestätigung auf der echten Entwicklungsdatenbank
+
+Der reale Ausgangscheckpoint entsprach bytegenau und strukturell der Kopienprüfung: SHA-256 `A7EAE68B946262B7985C7690DEFA6BC39FD1251D4B2A71F7E872DAFA9B91A796`, 33 Anwendungstabellen, 544 Spalten, 86 Fremdschlüssel, 103 Indizes, 25 eindeutige Regeln, 351 Anwendungsdatensätze und keine Migrationstabelle. `quick_check` war erfolgreich und `foreign_key_check` leer.
+
+Nach 14 einzelnen `migrate resolve --applied`-Schritten blieben Schema, Zeilenzahlen und Datenhashes aller 33 Anwendungstabellen unverändert. Ausschließlich `20260728140000_workflow_navigation_payroll_positions` wurde anschließend mit `migrate deploy` ausgeführt. Danach bestanden 34 Anwendungstabellen, 565 Spalten, 92 Fremdschlüssel, 109 Indizes, 25 eindeutige Regeln und 15 erfolgreiche Migrationseinträge. Die neue Positionstabelle war leer; alle vorher vorhandenen Tabellen behielten Zeilenzahl und Datenhash.
+
+Die reale technische Gesamtprüfung ergab erneut 305 erfolgreiche Tests und einen bewusst übersprungenen Performance-Smoke-Test. Prisma-Schema, Prisma Client, ESLint, TypeScript und Produktions-Build waren erfolgreich. Authentifizierter Entwicklungsstart, vollständiger Neustart und produktionsnaher Start funktionierten. Browserkonsole sowie die kontrolliert aufgezeichneten Entwicklungs- und Produktionsserverprotokolle enthielten keine Anwendungs-, Prisma- oder Schemafehler.
+
+Die Anmeldungen für die Laufprüfungen erzeugten erwartungsgemäß zwei zusätzliche Sitzungseinträge und aktualisierten `User.lastLoginAt`. Diese kontrollierten Laufzeitänderungen erfolgten erst nach dem abgeschlossenen fachlichen Vorher-/Nachher-Datenvergleich; alle übrigen Anwendungsdaten blieben unverändert.

@@ -1,67 +1,59 @@
-# Warnung zur Migrationsbaseline von `prisma/dev.db`
+# Schutzstatus der Migrationsbaseline von `prisma/dev.db`
 
-Stand: 31.07.2026
+Stand: 01.08.2026
 
-## Verbindlicher Schutzstatus
+## Baseline hergestellt
 
-Die Datei `prisma/dev.db` ist strukturell lesbar und besteht die SQLite-Integritätsprüfung. Sie besitzt jedoch keine verlässlich registrierte Prisma-Migrationshistorie. `prisma migrate status` erkennt deshalb alle 15 im Projekt vorhandenen Migrationen als nicht angewendet, obwohl Teile oder der gesamte heutige Tabellenstand bereits vorhanden sind.
+Die Migrationsbaseline von `prisma/dev.db` wurde am 31.07.2026 nach vollständiger Kopienprüfung und ausdrücklicher Freigabe hergestellt. Prisma erkennt alle 15 unveränderten Projektmigrationen als erfolgreich angewendet. Das aktuelle Datenbankschema entspricht dem Endstand der 15. Migration; SQLite-Integrität und Fremdschlüsselprüfung sind ohne Befund.
 
-Gegen `prisma/dev.db` dürfen bis zu einer gesondert geprüften Baseline ausdrücklich nicht ausgeführt werden:
+Die Migrationen 1 bis 14 wurden einzeln mit `prisma migrate resolve --applied` registriert, ohne ihr SQL erneut auszuführen. Ausschließlich `20260728140000_workflow_navigation_payroll_positions` wurde regulär mit `prisma migrate deploy` ausgeführt. Keine bestehende Migration wurde verändert, gelöscht, umbenannt oder zusammengeführt.
+
+Vollständige Nachweise:
+
+- `docs/MIGRATIONSBASELINE_PLAN.md`
+- `docs/MIGRATIONSBASELINE_TESTBERICHT.md`
+- `docs/MIGRATIONSBASELINE_ABLAUFPROTOKOLL.md`
+- `docs/MIGRATIONSBASELINE_ABSCHLUSSBERICHT.md`
+
+## Zulässiger Prisma-Betrieb
+
+`prisma migrate deploy` darf gegen `prisma/dev.db` wieder kontrolliert verwendet werden, wenn sämtliche folgenden Bedingungen erfüllt sind:
+
+1. Die anzuwendenden Migrationen sind unverändert, geprüft und datenbewahrend.
+2. Datenbank, `.env`, Campus-Speicher und vorhandener FiBu-Lohn-Speicher wurden gemeinsam gesichert und gehasht.
+3. Alle Anwendungen und Datenbankzugriffe sind gestoppt.
+4. `prisma migrate status` zeigt ausschließlich die erwarteten neuen Migrationen als ausstehend.
+5. Nach dem Deploy werden Migrationstatus, SQLite-Integrität, Fremdschlüssel, Daten und Anwendung vollständig geprüft.
+
+`prisma validate`, `prisma generate` und `prisma migrate status` sind weiterhin zulässige Prüfkommandos.
+
+## Weiterhin ausdrücklich verboten
+
+Bis zur separat beauftragten und auf Kopien geprüften Driftbereinigung dürfen gegen `prisma/dev.db` nicht ausgeführt werden:
 
 ```powershell
 prisma migrate reset
-prisma migrate deploy
+prisma migrate dev
 prisma db push
 npm.cmd run db:reset
 npm.cmd run db:reset:test
 npm.cmd run db:migrate
 ```
 
-Ebenso dürfen keine Seeds, Testresets oder manuell angepassten Migrationen gegen diesen Bestand ausgeführt werden.
+Ebenso verboten sind Seeds, Testresets, improvisierte Direktreparaturen in SQLite sowie Änderungen, Umbenennungen, Löschungen oder Zusammenführungen vorhandener Migrationen.
 
-## Sichere Entwicklungsumgebung
+## Verbleibender Schema-Historien-Drift
 
-Für Entwicklung, Migrationstest, Seed und systemweite Prüfung ist ausschließlich die getrennte Systemintegrationsumgebung freigegeben:
+Die Baseline korrigiert den bekannten Drift ausdrücklich nicht:
 
-- Datenbank: `prisma/system-integration.db`
-- Campus-Speicher: `tmp/system-integration-storage/ordo-campus`
-- FiBu-Lohn-Speicher: `tmp/system-integration-storage/fibu-lohn`
+- zusätzlicher nicht eindeutiger Index `AnnualChecklist_functionSeparationExceptionId_idx` neben der eindeutigen Regel,
+- `AccountingPeriod.lastStatusChangedAt` ist in der Migrationshistorie nullable und ohne Standardwert, im Prisma-Schema verpflichtend mit `now()`,
+- einzelne `User`-Fremdschlüssel in `AccountingPeriod`, `Client` und `WorkflowHistory` besitzen in SQLite `ON UPDATE NO ACTION`, während `schema.prisma` `CASCADE` beschreibt.
 
-Zulässige Projektbefehle:
+Dieser Drift ist kein Hindernis für den normalen lokalen Anwendungsstart oder kontrolliertes `migrate deploy`. Er verhindert jedoch weiterhin den sicheren Einsatz von `prisma migrate dev` und `prisma db push`.
 
-```powershell
-npm.cmd run testdata:system-integration
-npm.cmd run testdata:system-integration:diagnose
-npm.cmd run dev:integration
-npm.cmd run build:integration
-npm.cmd run start:integration
-```
+## Lokale Dateispeicher und Rollback
 
-Das Reset-Skript prüft die absoluten Zielpfade und muss bei jeder Abweichung abbrechen. Es darf weder `prisma/dev.db` noch reguläre Speicherordner verändern.
+Ein vollständiges Backup umfasst `prisma/dev.db`, `.env`, `storage/ordo-campus` und den vorhandenen Zustand von `storage/fibu-lohn` gemeinsam. Die beiden vorhandenen Campus-Dateien dürfen nicht ungeprüft gelöscht, verschoben oder überschrieben werden. Ein fehlender regulärer FiBu-Lohn-Speicher ist bei leerem Belegbestand zulässig.
 
-## Lokale Dateispeicher
-
-Die beiden vorhandenen Dateien unter `storage/ordo-campus` besitzen derzeit keine Referenz in `prisma/dev.db`. Sie sind jedoch Bestandteil der übertragenen lokalen Sicherung und dürfen nicht ungeprüft gelöscht, verschoben oder überschrieben werden.
-
-Der reguläre Ordner `storage/fibu-lohn` kann bei einem Bestand ohne Belegreferenzen fehlen. Er wird erst beim ersten regulären Upload durch den Belegservice angelegt. Sein Fehlen allein ist daher kein Nachweis eines unvollständigen Transfers.
-
-## Herstellung einer späteren Baseline
-
-Eine belastbare Baseline wird in einem eigenen technischen Auftrag ausschließlich auf einer vollständigen Datenbankkopie vorbereitet. Erforderlich sind mindestens:
-
-1. vollständige Sicherung von Datenbank, Campus-Speicher, FiBu-Lohn-Speicher und lokaler Umgebungskonfiguration,
-2. Schemaabgleich zwischen Datenbank und den 15 Migrationen,
-3. dokumentierte Baseline-Entscheidung,
-4. Probe-Anwendung auf einer Kopie,
-5. vollständige Wiederherstellungsprobe,
-6. festes Rollback-Verfahren.
-
-Erst nach gesonderter Prüfung und Freigabe darf ein bestehender Entwicklungs- oder Pilotbestand in eine reguläre Prisma-Migrationshistorie überführt werden.
-
-Die Kopienprüfung vom 31.07.2026 ist dokumentiert in:
-
-- `docs/MIGRATIONSBASELINE_PLAN.md`,
-- `docs/MIGRATIONSBASELINE_TESTBERICHT.md`,
-- `docs/MIGRATIONSBASELINE_ABLAUFPROTOKOLL.md`.
-
-Sie begründet ein technisches Go mit Auflagen, ersetzt aber nicht die weiterhin erforderliche ausdrückliche Freigabe vor jeder Änderung an `prisma/dev.db`.
+Bei einem fehlgeschlagenen künftigen Migrationslauf wird nicht direkt repariert: Anwendung stoppen, fehlerhaften Datenbankstand separat sichern, vollständigen gemeinsamen Sicherungssatz physisch wiederherstellen und Hash, SQLite-Integrität, Fremdschlüssel, Migrationstatus und Anwendungsstart erneut prüfen.

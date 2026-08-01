@@ -34,7 +34,7 @@ npm.cmd run dev
 
 Die Anwendung ist danach unter [http://localhost:3000](http://localhost:3000) erreichbar.
 
-Wichtig: Der normale Start verwendet die bestehende `.env` und `prisma/dev.db`. Diese Datenbank besitzt noch keine verlässlich dokumentierte Prisma-Migrationsbaseline. Bis zur gesonderten Baseline dürfen gegen sie keine Reset-, Push- oder Deploy-Befehle ausgeführt werden. Für die sichere systemweite Weiterentwicklung ist die getrennte Integrationsumgebung zu verwenden:
+Wichtig: Der normale Start verwendet die bestehende `.env` und die am 31.07.2026 erfolgreich baselined `prisma/dev.db`. Prisma erkennt alle 15 vorhandenen Migrationen als angewendet. Ein kontrolliertes `prisma migrate deploy` ist nach vollständiger gemeinsamer Sicherung und Prüfung wieder zulässig. Wegen des bekannten, noch nicht bereinigten Schema-Historien-Drifts bleiben `prisma migrate dev`, `prisma db push`, `prisma migrate reset`, Seeds und Testresets gegen `dev.db` ausdrücklich gesperrt. Für isolierte systemweite Prüfungen steht weiterhin die getrennte Integrationsumgebung bereit:
 
 ```powershell
 npm.cmd run testdata:system-integration
@@ -153,19 +153,20 @@ Statustexte bleiben immer sichtbar; Farbe ist nie die einzige Information.
 
 Die deterministischen Seed-Daten verwenden nur künstliche Mandanten und neutrale vollständige Namen. Enthalten sind sechs Monatschecklisten, Standardaufgaben, eine Zusatzaufgabe und nachvollziehbare Workflowzustände. Alle aktiven Mandanten und Checklisten besitzen konsistente Benutzerreferenzen.
 
-Vollständiger lokaler Reset:
+Vollständiger Reset des geschützten künstlichen Systemintegrationsbestands:
 
 ```powershell
-npm.cmd run db:reset:test
+npm.cmd run testdata:system-integration
 ```
 
-Dabei gehen eigene lokale Testeingaben verloren. Der Befehl ist ausschließlich für die künstliche lokale Testdatenbank bestimmt. Er führt alle vorhandenen Migrationen in Reihenfolge aus, erzeugt den Seed neu und bricht bei einer fehlerhaften Konsistenzprüfung ab.
+Dabei gehen ausschließlich Eingaben im geschützten Systemintegrationsbestand verloren. Das Skript prüft feste Datenbank- und Speicherpfade, führt alle vorhandenen Migrationen in Reihenfolge aus, erzeugt den künstlichen Seed neu und bricht bei einer fehlerhaften Konsistenzprüfung ab. `prisma/dev.db` und die regulären Speicherordner dürfen dadurch nicht verändert werden.
 
 Unterschiede:
 
 - `npm.cmd run dev`: normaler Entwicklungsstart ohne Datenänderung.
-- `npm.cmd run db:migrate`: Migration ohne beabsichtigte Löschung bestehender Daten.
-- `npm.cmd run db:reset:test`: vollständiges Löschen und Neuaufbauen ausschließlich der lokalen künstlichen Testdaten.
+- `prisma migrate deploy`: kontrollierte Anwendung zuvor geprüfter Migrationen nach vollständiger Sicherung; kein allgemeiner Entwicklungsbefehl.
+- `npm.cmd run db:migrate`: gegen `prisma/dev.db` bis zur separaten Driftbereinigung verboten, da dieses Skript `prisma migrate dev` verwendet.
+- `npm.cmd run db:reset` und `npm.cmd run db:reset:test`: gegen `prisma/dev.db` ausdrücklich verboten.
 - `npm.cmd run db:diagnose`: lesender Diagnosebericht ohne Passwörter, Hashes oder Sitzungstoken.
 
 ## Lokale Anmeldung und Benutzerrollen
@@ -353,7 +354,7 @@ Der Fahrzeugbestand ist ein dauerhaftes Mandantenobjekt und nicht an einen einze
 
 Die additive Migration `20260728100000_fibu_payroll_reconciliation_foundation` ergänzt Mandantenkonfiguration, Themenkatalog, Monatsabstimmungen, Themen-Snapshots, Rückfragen, Belegreferenzen, Fahrzeuge und fachliche Verläufe. Bestehende Mandanten erhalten `Lohnabrechnung durch Kanzlei = Nein`; vorhandene Monats- und Jahresabschlussdaten werden nicht verändert.
 
-Wegen der dokumentierten fehlenden Migrationsbaseline der aktiven Entwicklungsdatenbank wird diese Migration dort nicht automatisch ausgeführt. Sie wird ausschließlich auf einer leeren Testdatenbank, einer separaten Workflow-Testdatenbank und einer vollständigen Datenbankkopie geprüft. Die fachlichen und technischen Einzelheiten stehen in:
+Diese Migration war bereits vor Herstellung der Migrationsbaseline strukturell in der aktiven Entwicklungsdatenbank vorhanden und wurde deshalb am 31.07.2026 ausschließlich mit `migrate resolve --applied` registriert; ihr SQL wurde nicht erneut ausgeführt. Die fachlichen und technischen Einzelheiten stehen in:
 
 - `docs/FIBU_LOHN_ABSTIMMUNG_FACHKONZEPT.md`
 - `docs/FIBU_LOHN_DATENMODELL.md`
@@ -402,6 +403,10 @@ Die systemweite Abnahmevorbereitung und die Betriebsunterlagen befinden sich unt
 - `docs/TECHNISCHE_UEBERGABE.md`
 - `docs/AKTUELLER_SYSTEMSTAND.md`
 - `docs/MIGRATIONSBASELINE_WARNUNG.md`
+- `docs/MIGRATIONSBASELINE_PLAN.md`
+- `docs/MIGRATIONSBASELINE_TESTBERICHT.md`
+- `docs/MIGRATIONSBASELINE_ABLAUFPROTOKOLL.md`
+- `docs/MIGRATIONSBASELINE_ABSCHLUSSBERICHT.md`
 
 Die technische Abnahmevorbereitung ersetzt nicht die fachliche Endabnahme durch die Kanzlei.
 
@@ -504,7 +509,7 @@ npm.cmd run start:integration
 
 Der Reset besitzt feste absolute Pfadprüfungen und lehnt Entwicklungs-, Workflow-, Abnahme-, Pilot- und Produktivpfade ab. Der Integrationsbestand umfasst Anmeldung, Mandanten, Rechnungswesen, Jahresabschluss, Standardaufgaben, Ordo Campus samt Anhang, FiBu-Lohn samt Beleg, Rückfragen und Fahrzeuge.
 
-Die aktuelle `prisma/dev.db` wurde in der systemweiten Prüfung nicht verändert. Sie ist strukturell wieder lauffähig, besitzt jedoch keine belastbare Prisma-Migrationsbaseline. Bis zu deren gesonderter Herstellung wird `dev:integration` für die sichere Weiterentwicklung empfohlen.
+Die `prisma/dev.db` wurde nach der systemweiten Prüfung separat auf vollständigen Kopien analysiert und am 31.07.2026 mit der bestätigten Methode baselined. Die ersten 14 Migrationen wurden als bereits vorhanden registriert; ausschließlich `20260728140000_workflow_navigation_payroll_positions` wurde regulär angewendet. Prisma-Schema, Client, ESLint, TypeScript, 305 Tests, Build, Entwicklungsstart, Neustart und produktionsnaher Start gegen `dev.db` waren erfolgreich. `dev:integration` bleibt die sichere isolierte Umgebung für Reset-, Seed- und Systemintegrationsprüfungen.
 
 ## Workflow-, Navigations- und UX-Optimierung
 

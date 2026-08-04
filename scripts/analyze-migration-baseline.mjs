@@ -82,8 +82,14 @@ try {
       .filter((column) => Number(column.pk) > 0)
       .sort((left, right) => Number(left.pk) - Number(right.pk))
       .map((column) => quoteIdentifier(column.name));
+    const dataColumns = columns
+      .map((column) => String(column.name))
+      .sort((left, right) => left.localeCompare(right, "en"))
+      .map(quoteIdentifier);
     const orderBy = primaryKeyColumns.length > 0 ? primaryKeyColumns.join(", ") : "rowid";
-    const rows = await prisma.$queryRawUnsafe(`SELECT * FROM ${identifier} ORDER BY ${orderBy}`);
+    const rows = await prisma.$queryRawUnsafe(
+      `SELECT ${dataColumns.join(", ")} FROM ${identifier} ORDER BY ${orderBy}`,
+    );
 
     tables[tableName] = {
       columns,

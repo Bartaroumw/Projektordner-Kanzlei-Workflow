@@ -38,9 +38,9 @@ model Client {
   vehicles                     ClientVehicle[]
   payrollResponsibilityHistory ClientPayrollResponsibilityHistory[]
   functionSeparationExceptions FunctionSeparationException[]
-  processorUser                User?                                @relation("ClientProcessor", fields: [processorUserId], references: [id], onDelete: SetNull)
-  reviewerUser                 User?                                @relation("ClientReviewer", fields: [reviewerUserId], references: [id], onDelete: SetNull)
-  managementUser               User?                                @relation("ClientManagement", fields: [managementUserId], references: [id], onDelete: SetNull)
+  processorUser                User?                                @relation("ClientProcessor", fields: [processorUserId], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  reviewerUser                 User?                                @relation("ClientReviewer", fields: [reviewerUserId], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  managementUser               User?                                @relation("ClientManagement", fields: [managementUserId], references: [id], onDelete: SetNull, onUpdate: NoAction)
   payrollUser                  User?                                @relation("ClientPayrollUser", fields: [payrollUserId], references: [id], onDelete: SetNull)
 
   @@index([name])
@@ -263,9 +263,9 @@ model AccountingPeriod {
   tasks                            ChecklistTask[]
   history                          WorkflowHistory[]
   functionSeparationExceptionId    Int?                         @unique
-  processorUser                    User?                        @relation("PeriodProcessor", fields: [processorUserId], references: [id], onDelete: SetNull)
-  reviewerUser                     User?                        @relation("PeriodReviewer", fields: [reviewerUserId], references: [id], onDelete: SetNull)
-  managementUser                   User?                        @relation("PeriodManagement", fields: [managementUserId], references: [id], onDelete: SetNull)
+  processorUser                    User?                        @relation("PeriodProcessor", fields: [processorUserId], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  reviewerUser                     User?                        @relation("PeriodReviewer", fields: [reviewerUserId], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  managementUser                   User?                        @relation("PeriodManagement", fields: [managementUserId], references: [id], onDelete: SetNull, onUpdate: NoAction)
   functionSeparationException      FunctionSeparationException? @relation("PeriodFunctionSeparation", fields: [functionSeparationExceptionId], references: [id], onDelete: SetNull)
   payrollReconciliation            PayrollReconciliation?
 
@@ -358,7 +358,7 @@ model WorkflowHistory {
   reason                        String?
   period                        AccountingPeriod             @relation(fields: [periodId], references: [id], onDelete: Restrict)
   checklistTask                 ChecklistTask?               @relation(fields: [checklistTaskId], references: [id], onDelete: Restrict)
-  actorUser                     User?                        @relation(fields: [actorUserId], references: [id], onDelete: SetNull)
+  actorUser                     User?                        @relation(fields: [actorUserId], references: [id], onDelete: SetNull, onUpdate: NoAction)
   functionSeparationExceptionId Int?
   functionSeparationException   FunctionSeparationException? @relation("MonthlyHistoryFunctionSeparation", fields: [functionSeparationExceptionId], references: [id], onDelete: SetNull)
 

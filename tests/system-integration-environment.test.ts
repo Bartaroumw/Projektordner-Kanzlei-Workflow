@@ -54,8 +54,8 @@ describe("geschützte Systemintegrationsumgebung", () => {
       .filter((entry) => entry.isDirectory())
       .map((entry) => entry.name)
       .sort();
-    expect(migrations).toHaveLength(15);
-    expect(migrations.at(-1)).toBe("20260728140000_workflow_navigation_payroll_positions");
+    expect(migrations).toHaveLength(16);
+    expect(migrations.at(-1)).toBe("20260804080000_reconcile_schema_history_drift");
   });
 
   it("stellt eindeutige Reset-, Diagnose-, Entwicklungs- und Produktionsbefehle bereit", () => {

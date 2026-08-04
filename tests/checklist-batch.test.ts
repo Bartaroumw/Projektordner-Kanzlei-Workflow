@@ -46,6 +46,7 @@ describe("Validierung der Sammelspeicherung", () => {
 
 describe("Bedien- und Serverschnittstelle", () => {
   const provider=readFileSync("app/components/checklist-batch-provider.tsx","utf8");
+  const tools=readFileSync("app/components/checklist-workspace-tools.tsx","utf8");
   const taskForm=readFileSync("app/components/task-processing-form.tsx","utf8");
   const monthlyActions=readFileSync("app/monatschecklisten/actions.ts","utf8");
   const annualActions=readFileSync("app/jahresabschluesse/actions.ts","utf8");
@@ -56,14 +57,15 @@ describe("Bedien- und Serverschnittstelle", () => {
   });
   it("zählt geänderte Aufgaben statt einzelner Felder", () => {
     expect(provider).toContain("dirtyEntries.length");
-    expect(provider).toContain("Alle Änderungen speichern (");
+    expect(tools).toContain("Speichern (${batch.dirtyCount})");
   });
   it("setzt erfolgreiche Antworten als neuen Ausgangszustand", () => {
     expect(provider).toContain("baseline, current: baseline");
   });
   it("unterstützt Teil-Erfolg und den Sprung zur fehlerhaften Aufgabe", () => {
     expect(provider).toContain("Aufgaben wurden gespeichert");
-    expect(provider).toContain("Zur fehlerhaften Aufgabe");
+    expect(tools).toContain("Zur nächsten fehlerhaften Aufgabe");
+    expect(tools).toContain("von {errorTasks.length}");
     expect(provider).toContain(".filter((taskId) => localErrors.has(taskId) || !results.get(taskId)?.ok)");
   });
   it("bietet bestätigtes Gesamtverwerfen", () => {
@@ -82,8 +84,8 @@ describe("Bedien- und Serverschnittstelle", () => {
   });
   it("verwendet Strg+S und zugängliche Statusmeldungen", () => {
     expect(provider).toContain("event.ctrlKey || event.metaKey");
-    expect(provider).toContain('aria-live="polite"');
-    expect(provider).toContain('aria-label="Sammelspeicherung"');
+    expect(tools).toContain('aria-live="polite"');
+    expect(tools).toContain('aria-label="Kompakte Checklistenleiste"');
   });
   it("speichert Rechnungswesenaufgaben sequenziell und prüft die Checklistenzugehörigkeit", () => {
     expect(monthlyActions).toContain("saveChecklistTaskChangesAction");
@@ -100,7 +102,7 @@ describe("Bedien- und Serverschnittstelle", () => {
     expect(readFileSync("lib/annual-checklist-service.ts","utf8")).toContain("task.updatedAt.toISOString()!==input.expectedUpdatedAt");
   });
   it("hält die Sticky-Leiste bei kleinen Breiten umbruchfähig", () => {
-    expect(provider).toContain("flex flex-wrap");
-    expect(provider).toContain("sticky bottom-3");
+    expect(tools).toContain("flex flex-wrap");
+    expect(tools).toContain("sticky top-0");
   });
 });

@@ -561,3 +561,18 @@ Gültige Aufgaben werden auch dann gespeichert, wenn eine andere Aufgabe einen V
 Überträge, Rückfragen, Prüfungen, Statusübergaben, Abschlüsse, Uploads und FiBu-Lohn-Aktionen bleiben ausdrücklich getrennte Workflowaktionen. Offene normale Änderungen blockieren diese Aktionen. Interne Navigation und Browser-Verlassen warnen vor Datenverlust. `Strg + S` beziehungsweise `Cmd + S` löst die Sammelspeicherung aus.
 
 Details: `docs/CHECKLISTEN_SAMMELSPEICHERUNG.md`.
+
+## Mandantenarbeitsbereich und kompakte Checklisten-Navigation
+
+Der normale Zeilenklick in der Mandantenliste öffnet den Mandanten jetzt als zentralen Arbeitskontext. Konkrete Dashboard-, Rückfrage-, Prüfungs- und Drei-Punkte-Aktionen führen weiterhin direkt zum jeweiligen Fachvorgang. Der Mandantenarbeitsbereich bündelt Zuständigkeiten, Jahresprofil, Rechnungswesenstand, Jahresabschluss, FiBu ↔ Lohn, Fahrzeuge, mandantenspezifische Aufgaben, Qualitätshinweise und Historieneinstiege. Sichtbare Reiter und Aktionen folgen den vorhandenen Fachrollen; eine reine Administratorrolle erhält dadurch keine Fachrechte.
+
+Monats- und Jahresabschlusschecklisten besitzen einen ausführlichen Seitenkopf im normalen Lesefluss. Darunter bleibt beim Scrollen nur eine kompakte Leiste mit Fortschritt, offenen, fehlerhaften und ungespeicherten Aufgaben sowie Speichern, nächster offener Aufgabe und aufklappbaren Details sichtbar. Die seitliche **Aufgabenübersicht** sucht und filtert lange Checklisten und springt ohne Datenänderung direkt zur Aufgabe. Mehrere Speicherfehler werden in sichtbarer Reihenfolge zyklisch angesteuert.
+
+Die grüne Hauptnavigation lässt sich auf Desktopbreiten über den Pfeil auf eine schmale Iconleiste reduzieren. Der Zustand wird ausschließlich lokal im Browser gespeichert; Tooltips, zugängliche Namen, aktive Route und Tastaturfokus bleiben erhalten. Auf mobilen Breiten bleibt die vorhandene horizontale Navigation bestehen. Für dieses UX-Paket war keine Datenbankmigration erforderlich.
+
+Weitere Einzelheiten:
+
+- `docs/MANDANTENARBEITSBEREICH.md`
+- `docs/CHECKLISTEN_AUFGABENNAVIGATOR.md`
+- `docs/CHECKLISTEN_UX.md`
+- `docs/NAVIGATION_UND_MODULSTRUKTUR.md`

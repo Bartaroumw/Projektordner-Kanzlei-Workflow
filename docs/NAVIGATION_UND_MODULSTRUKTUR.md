@@ -13,6 +13,16 @@ Die Hauptnavigation ist dauerhaft auf wenige Arbeits- und Verwaltungsbereiche be
 
 Die Einträge werden aus den aktiven Rollen und Zusatzberechtigungen des angemeldeten Benutzers abgeleitet. Mehrfachrollen erzeugen keine doppelten Menüpunkte.
 
+Der Markenblock besteht ausschließlich aus dem OC-Zeichen, dem Produktnamen **Ordo Caroli** und der zurückhaltend gesetzten Kanzleimarke **CONCILIUM**. Es gibt keinen Produktuntertitel. Auf Desktopbreiten kann die Navigation über einen räumlich vom Markenblock getrennten Randbutton auf eine schmale Iconleiste reduziert werden. Im eingeklappten Markenblock bleibt ausschließlich das mittig angeordnete OC-Zeichen sichtbar; der Ausklappbutton sitzt mit Abstand darunter am rechten Rand und überlagert das Logo nicht. Tooltip, zugänglicher Name und sichtbarer Fokus beschreiben die jeweilige Aktion eindeutig.
+
+Modulicons, Benutzerzugang und Abmeldung bleiben im eingeklappten Zustand erreichbar. Der Zustand liegt nur in `localStorage`; es gibt keine Datenbankpräferenz. Auf mobilen Breiten bleibt die horizontale, scrollbar nutzbare Navigation erhalten und die Desktop-Einklappsteuerung ist ausgeblendet.
+
+## Mandant als Arbeitskontext
+
+Der normale Klick auf eine Mandantenzeile öffnet immer `/mandanten/[id]`. Der Mandantenarbeitsbereich bietet rollenabhängige Einstiege in Übersicht, laufendes Rechnungswesen, Jahresabschluss, FiBu ↔ Lohn, Fahrzeuge, mandantenspezifische Aufgaben und Historie. Allgemeines Ordo-Campus-Wissen bleibt an Standardaufgaben und FiBu-Lohn-Themen gebunden und wird nicht als künstlicher Mandantenreiter dupliziert.
+
+Gezielte Links wie **Aktuelle Monatscheckliste öffnen**, Dashboardaufgaben, Rückfragen und Prüfungen bleiben direkte Fachlinks. Diese Unterscheidung bewahrt gespeicherte Links und reduziert gleichzeitig unbeabsichtigte Sprünge aus dem Mandantenkontext.
+
 ## Rechnungswesen
 
 Innerhalb des Moduls stehen die Reiter **Laufendes Rechnungswesen**, **Jahresabschluss** und **Statusübersicht** zur Verfügung. Ein reiner Lohnsachbearbeiter sieht diese Daten nicht.

@@ -70,3 +70,7 @@ Diese Next.js-Version kann neue oder geänderte Konventionen enthalten. Vor Änd
 - Normale Bearbeitungsfelder von Rechnungswesen- und Jahresabschlussaufgaben werden zentral gesammelt gespeichert; Überträge, Rückfragen, Prüfungen, Statusübergänge, Uploads und FiBu-Lohn-Aktionen bleiben getrennte Workflowaktionen.
 - Sammelspeicherung liefert pro Aufgabe ein Ergebnis, erhält erfolgreiche Teiländerungen und lässt fehlerhafte lokale Eingaben sichtbar. `updatedAt` schützt vor stiller Überschreibung konkurrierender Änderungen.
 - Ungespeicherte Checklistenänderungen müssen beim Verlassen warnen und fachliche Workflowaktionen bis zum Speichern oder Verwerfen blockieren.
+- Der normale Zeilenklick in der Mandantenliste öffnet den Mandantenarbeitsbereich; ausdrücklich bezeichnete Fachaktionen dürfen weiterhin direkt zum konkreten Vorgang führen.
+- Monats- und Jahresabschlusschecklisten verwenden einen regulär mitscrollenden ausführlichen Kopf, eine kompakte Sticky-Leiste und eine standardmäßig geschlossene Aufgabenübersicht. Navigation allein verändert keine Fachdaten.
+- Mehrere Validierungsfehler der Sammelspeicherung werden in sichtbarer Aufgabenreihenfolge zyklisch angesteuert; behobene Fehler verschwinden aus der Fehlernavigation.
+- Die linke Desktop-Hauptnavigation darf clientseitig auf eine zugängliche Iconleiste reduziert werden. Sichtbarkeit von Modulen und Aktionen folgt weiterhin ausschließlich den vorhandenen Rollen und serverseitigen Berechtigungen.

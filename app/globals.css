@@ -131,4 +131,9 @@ a {
     border-color: var(--color-error) !important;
     background: #fff7f6 !important;
   }
+
+  .checklist-task-highlight {
+    border-color: var(--color-focus) !important;
+    box-shadow: 0 0 0 4px rgb(215 155 34 / 28%) !important;
+  }
 }

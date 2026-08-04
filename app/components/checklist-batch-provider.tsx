@@ -33,6 +33,10 @@ type ContextValue = {
   entry: (taskId: number) => Entry | undefined;
   dirtyCount: number;
   saving: boolean;
+  saveAll: () => Promise<number>;
+  requestDiscardAll: () => void;
+  message: string;
+  localCompletedTasks: number;
 };
 
 const BatchContext = createContext<ContextValue | null>(null);
@@ -54,7 +58,6 @@ export function ChecklistBatchProvider({
   const [message, setMessage] = useState("");
   const [discardOpen, setDiscardOpen] = useState(false);
   const [pendingHref, setPendingHref] = useState<string | null>(null);
-  const [firstError, setFirstError] = useState<number | null>(null);
 
   const register = useCallback((taskId: number, title: string, initial: ChecklistTaskDraft, updatedAt: string) => {
     setEntries((current) => {
@@ -151,7 +154,6 @@ export function ChecklistBatchProvider({
       }
       return next;
     });
-    setFirstError(failed[0] ?? null);
     setMessage(
       failed.length
         ? `${saved ? saved === 1 ? "1 Aufgabe wurde gespeichert. " : `${saved} Aufgaben wurden gespeichert. ` : ""}${failed.length} ${failed.length === 1 ? "Aufgabe benötigt" : "Aufgaben benötigen"} noch Ihre Aufmerksamkeit.`
@@ -180,7 +182,11 @@ export function ChecklistBatchProvider({
     entry: (taskId) => entries[taskId],
     dirtyCount: dirtyEntries.length,
     saving,
-  }), [dirtyEntries.length, discard, entries, register, saving, update]);
+    saveAll,
+    requestDiscardAll: () => setDiscardOpen(true),
+    message,
+    localCompletedTasks,
+  }), [dirtyEntries.length, discard, entries, localCompletedTasks, message, register, saveAll, saving, update]);
 
   return <BatchContext.Provider value={value}>
     <div
@@ -206,25 +212,6 @@ export function ChecklistBatchProvider({
     >
       {children}
     </div>
-    {Object.keys(entries).length > 0 && <aside aria-label="Sammelspeicherung" className="sticky bottom-3 z-40 mt-8 rounded-lg border border-[var(--color-primary)] bg-white/95 p-3 shadow-lg backdrop-blur">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <p className="text-sm font-semibold">{dirtyEntries.length ? `${dirtyEntries.length} ${dirtyEntries.length === 1 ? "Aufgabe mit" : "Aufgaben mit"} ungespeicherten Änderungen` : "✓ Alles gespeichert"}</p>
-          <p className="mt-1 text-xs text-[var(--color-text-muted)]">
-            Lokaler Stand: {localCompletedTasks} von {totalTasks} Aufgaben fachlich abgeschlossen
-            {dirtyEntries.length ? " · einschließlich ungespeicherter Änderungen" : ""}.
-          </p>
-          {message && <p className="mt-1 text-xs text-[var(--color-text-muted)]" role="status" aria-live="polite">{message}</p>}
-        </div>
-        <div className="flex flex-wrap gap-2">
-          {firstError && <button className="button-secondary" type="button" onClick={() => document.getElementById(`aufgabe-${firstError}`)?.focus()}>Zur fehlerhaften Aufgabe</button>}
-          <button className="button-secondary" type="button" disabled={!dirtyEntries.length || saving} onClick={() => setDiscardOpen(true)}>Alle verwerfen</button>
-          <button className="button-primary" type="button" disabled={!dirtyEntries.length || saving} onClick={() => void saveAll()}>
-            {saving ? "Änderungen werden gespeichert …" : dirtyEntries.length ? `Alle Änderungen speichern (${dirtyEntries.length})` : "Alles gespeichert"}
-          </button>
-        </div>
-      </div>
-    </aside>}
     {discardOpen && <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4" role="presentation">
       <div aria-modal="true" role="dialog" aria-labelledby="discard-title" className="w-full max-w-lg rounded-lg bg-white p-6 shadow-xl">
         <h2 id="discard-title" className="text-xl font-semibold">Alle Änderungen verwerfen?</h2>
@@ -235,7 +222,6 @@ export function ChecklistBatchProvider({
             setEntries((current) => Object.fromEntries(Object.entries(current).map(([id, value]) => [id, { ...value, current: value.baseline, error: undefined, conflict: false }])));
             setDiscardOpen(false);
             setMessage("Alle ungespeicherten Änderungen wurden verworfen.");
-            setFirstError(null);
           }}>Änderungen verwerfen</button>
         </div>
       </div>

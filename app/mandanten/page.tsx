@@ -56,7 +56,7 @@ export default async function ClientsPage({ searchParams }: { searchParams: Sear
       <Select name="sortierung" label="Sortierung" value={sorting} options={[["nummer-auf","Mandantennummer aufsteigend"],["nummer-ab","Mandantennummer absteigend"],["name-auf","Name A–Z"],["name-ab","Name Z–A"]]}/>
     </div><div className="mt-3 flex gap-3"><button className="button-primary">Anwenden</button><Link className="button-secondary" href="/mandanten">Zurücksetzen</Link></div></form>
     <div className="overflow-x-auto rounded-lg border border-[var(--color-border)] bg-white shadow-sm"><table className="w-full min-w-[1550px] text-left text-sm"><thead className="bg-[var(--color-primary-light)]"><tr>{["Mandant","Bearbeiter","Prüfer","Kanzleileitung","USt-Zeitraum","Aktuelle Monatscheckliste","Status","Fortschritt","Offene Pflicht","Offene Prüfpunkte","Letzte Änderung","Aktionen"].map(h=><th className="p-3" key={h}>{h}</th>)}</tr></thead><tbody>
-      {sortedClients.map(client=>{const current=client.periods[0];const progress=current?calculateProgress(current.tasks):null;const summary=current?workflowSummary(current.tasks):null;const href=current?`/monatschecklisten/${current.id}`:`/mandanten/${client.id}`;
+      {sortedClients.map(client=>{const current=client.periods[0];const progress=current?calculateProgress(current.tasks):null;const summary=current?workflowSummary(current.tasks):null;const href=`/mandanten/${client.id}`;
         const actions:ClientMenuAction[]=[];
         if(canManageClients(user))actions.push({label:"Stammdaten bearbeiten",href:`/mandanten/${client.id}/bearbeiten`});
         actions.push({label:"Mandantendetails öffnen",href:`/mandanten/${client.id}`});

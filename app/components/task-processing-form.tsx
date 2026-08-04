@@ -49,13 +49,13 @@ export function TaskProcessingForm({
   return <section className="rounded border border-[var(--color-border)] bg-[var(--color-background)] p-3">
     <h4 className="mb-2 font-semibold">Bearbeitung</h4>
     <label className="text-xs font-semibold">Bearbeitungsstatus
-      <select className="input mt-1" value={value.status} onChange={(event) => set({ status: event.target.value })}>
+      <select name="status" aria-invalid={Boolean(entry?.error&&value.status!=="Nicht zutreffend")} className="input mt-1" value={value.status} onChange={(event) => set({ status: event.target.value })}>
         {statuses.map((status) => <option key={status}>{status}</option>)}
       </select>
     </label>
     {person && <p className="my-2 text-sm">Bearbeitet von: <strong>{person}</strong></p>}
     <label className="mt-2 block text-xs font-semibold">Bearbeitungsnotiz
-      <textarea className="input mt-1 min-h-20" value={value.processingNote} onChange={(event) => set({ processingNote: event.target.value })}/>
+      <textarea name="processingNote" className="input mt-1 min-h-20" value={value.processingNote} onChange={(event) => set({ processingNote: event.target.value })}/>
     </label>
     {allowCarryForward && <label className="mt-2 flex items-start gap-2 text-sm">
       <input className="mt-1" type="checkbox" checked={value.carryProcessingNote} onChange={(event) => set({ carryProcessingNote: event.target.checked })}/>
@@ -63,7 +63,7 @@ export function TaskProcessingForm({
     </label>}
     {value.status === "Nicht zutreffend" && <label className="mt-2 block text-xs font-semibold">
       Begründung für „Nicht zutreffend“
-      <textarea className="input mt-1 min-h-20" value={value.notApplicableReason} onChange={(event) => set({ notApplicableReason: event.target.value })} required/>
+      <textarea name="notApplicableReason" aria-invalid={Boolean(entry?.error)} className="input mt-1 min-h-20" value={value.notApplicableReason} onChange={(event) => set({ notApplicableReason: event.target.value })} required/>
     </label>}
     <div className="mt-3 flex flex-wrap items-center gap-2">
       {dirty && <><span className="text-xs font-semibold text-[var(--color-text-muted)]">● Ungespeicherte Änderungen</span><button className="button-secondary" type="button" disabled={batch.saving} onClick={() => batch.discard(taskId)}>Änderungen dieser Aufgabe verwerfen</button></>}

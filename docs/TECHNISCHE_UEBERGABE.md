@@ -1,9 +1,11 @@
 # Technische Übergabe nach PC-Übertragung
 
-Stand: 01.08.2026
+Stand: 04.08.2026
 Projektpfad: `C:\Projekte\Kanzlei-Workflow`
 Branch bei Übernahme: `feature/fibu-lohn-grundlage`
 Ausgangscommit: `c9ad6faf69bca18ee4d47676f26b82418faf8eb5`
+Aktueller technischer Branch: `codex/schema-drift-bereinigung`
+Sicherungscommit vor Migration 16: `3bf35266fcb7d3494535ce103d5b4b617cfe7d4d`
 
 ## Zweck dieser Sicherung
 
@@ -156,12 +158,12 @@ Der gesicherte Stand enthält nach Code-, Schema-, Test- und Dokumentationsabgle
 - lückenbasierte Rechnungswesen-Statusübersicht,
 - überarbeitete Checklistenbedienung,
 - zentrale Sammelspeicherung mit Teilresultaten und Konfliktschutz über `updatedAt`,
-- geschützte Systemintegrationsumgebung mit 15 Migrationen,
+- geschützte Systemintegrationsumgebung mit 16 Migrationen,
 - neue Regressionstests und zugehörige Betriebs- und Fachunterlagen.
 
 ## Weiterarbeit
 
-Die Migrationsbaseline von `prisma/dev.db` wurde am 31.07.2026 nach bestätigter Kopienprüfung hergestellt. Migrationen 1 bis 14 sind mit `migrate resolve --applied` registriert; ausschließlich Migration 15 wurde regulär ausgeführt. Prisma meldet 15 erfolgreiche Migrationen und einen aktuellen Status. Entwicklungsstart, Neustart und produktionsnaher Start gegen `dev.db` sind geprüft.
+Die Migrationsbaseline von `prisma/dev.db` wurde am 31.07.2026 nach bestätigter Kopienprüfung hergestellt. Migrationen 1 bis 14 sind mit `migrate resolve --applied` registriert; Migration 15 wurde regulär ausgeführt. Die anschließend separat geprüfte Migration `20260804080000_reconcile_schema_history_drift` wurde am 04.08.2026 nach Sicherungscommit und vollständigem gemeinsamem Backup als einzige ausstehende Migration kontrolliert angewendet. Prisma meldet jetzt 16 erfolgreiche Migrationen und einen aktuellen Status. Entwicklungsstart, Neustart und produktionsnaher Start gegen `dev.db` sind geprüft.
 
 Für isolierte systemweite Prüfungen bleiben diese Befehle vorgesehen:
 
@@ -170,4 +172,4 @@ npm.cmd run testdata:system-integration
 npm.cmd run dev:integration
 ```
 
-Kontrolliertes `prisma migrate deploy` ist gegen `dev.db` nach vollständiger gemeinsamer Sicherung und Prüfung zulässig. Wegen des weiterhin dokumentierten Schema-Historien-Drifts bleiben `prisma migrate dev`, `prisma db push`, `prisma migrate reset`, Seeds und Testresets gegen `dev.db` gesperrt. Details und Rollbackverfahren stehen in `docs/MIGRATIONSBASELINE_ABSCHLUSSBERICHT.md`.
+Kontrolliertes `prisma migrate deploy` ist gegen `dev.db` nach vollständiger gemeinsamer Sicherung und Prüfung zulässig. Der bekannte Schema-Historien-Drift ist beseitigt; ein isolierter `prisma migrate dev`-Test meldete keinen Drift und keine unerwartete Migration. `prisma migrate dev` darf deshalb für künftige additive Entwicklung unter denselben Sicherungs- und Preflight-Bedingungen wieder kontrolliert verwendet werden. Bei Reset-Aufforderung oder unerwartetem Drift ist abzubrechen. `prisma db push`, `prisma migrate reset`, Seeds und Testresets gegen `dev.db` bleiben gesperrt. Details und Rollbackverfahren stehen in `docs/SCHEMA_DRIFT_ABSCHLUSSBERICHT.md`.

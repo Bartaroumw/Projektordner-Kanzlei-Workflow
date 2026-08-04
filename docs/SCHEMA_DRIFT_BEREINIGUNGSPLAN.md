@@ -78,3 +78,16 @@ Es erfolgt keine Rückwärtsänderung an Migrationen und keine improvisierte Dir
 ## Freigabegrenze
 
 Erst ein vollständig erfolgreicher Kopientest begründet eine Go-/No-Go-Empfehlung. Die Anwendung von Migration 16 auf `prisma/dev.db` erfordert anschließend eine neue ausdrückliche Bestätigung.
+
+## Durchführungsergebnis
+
+Die ausdrückliche Bestätigung wurde erteilt. Der Plan wurde am 04.08.2026 ohne Abweichung ausgeführt:
+
+- Sicherungscommit: `3bf35266fcb7d3494535ce103d5b4b617cfe7d4d`
+- Sicherungssatz: `backups/schema-drift-deploy-20260804-081510`
+- Ausgangshash: `508815CB010E904144DDC3AC3AC26ABB139A825FC6834D6ED42352371EA680B6`
+- ausschließlich angewendet: `20260804080000_reconcile_schema_history_drift`
+- Ergebnis: 16 von 16 Migrationen aktuell, kein Schema-Drift, Daten und Integrität erhalten
+- Rollback: nicht erforderlich
+
+Die vollständigen Nachweise stehen in `docs/SCHEMA_DRIFT_ABSCHLUSSBERICHT.md`.

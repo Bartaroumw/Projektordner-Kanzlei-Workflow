@@ -34,7 +34,7 @@ npm.cmd run dev
 
 Die Anwendung ist danach unter [http://localhost:3000](http://localhost:3000) erreichbar.
 
-Wichtig: Der normale Start verwendet die bestehende `.env` und die am 31.07.2026 erfolgreich baselined `prisma/dev.db`. Prisma erkennt alle 15 vorhandenen Migrationen als angewendet. Ein kontrolliertes `prisma migrate deploy` ist nach vollständiger gemeinsamer Sicherung und Prüfung wieder zulässig. Wegen des bekannten, noch nicht bereinigten Schema-Historien-Drifts bleiben `prisma migrate dev`, `prisma db push`, `prisma migrate reset`, Seeds und Testresets gegen `dev.db` ausdrücklich gesperrt. Für isolierte systemweite Prüfungen steht weiterhin die getrennte Integrationsumgebung bereit:
+Wichtig: Der normale Start verwendet die bestehende `.env` und die am 31.07.2026 erfolgreich baselined sowie am 04.08.2026 driftbereinigte `prisma/dev.db`. Prisma erkennt alle 16 vorhandenen Migrationen als angewendet; `schema.prisma`, eine frische 1–16-Datenbank und `dev.db` stimmen strukturell überein. Kontrolliertes `prisma migrate deploy` und `prisma migrate dev` sind nach vollständiger gemeinsamer Sicherung, sauberem Git-Stand und erfolgreicher Status-/Driftprüfung zulässig. `prisma db push`, `prisma migrate reset`, Seeds und Testresets gegen `dev.db` bleiben ausdrücklich gesperrt. Für isolierte systemweite Prüfungen steht weiterhin die getrennte Integrationsumgebung bereit:
 
 ```powershell
 npm.cmd run testdata:system-integration
@@ -165,7 +165,7 @@ Unterschiede:
 
 - `npm.cmd run dev`: normaler Entwicklungsstart ohne Datenänderung.
 - `prisma migrate deploy`: kontrollierte Anwendung zuvor geprüfter Migrationen nach vollständiger Sicherung; kein allgemeiner Entwicklungsbefehl.
-- `npm.cmd run db:migrate`: gegen `prisma/dev.db` bis zur separaten Driftbereinigung verboten, da dieses Skript `prisma migrate dev` verwendet.
+- `npm.cmd run db:migrate`: für künftige additive Entwicklung nur kontrolliert nach vollständigem gemeinsamen Backup, sauberem Git-Stand und leerer Drift-/Statusprüfung; eine Reset-Aufforderung darf niemals bestätigt werden.
 - `npm.cmd run db:reset` und `npm.cmd run db:reset:test`: gegen `prisma/dev.db` ausdrücklich verboten.
 - `npm.cmd run db:diagnose`: lesender Diagnosebericht ohne Passwörter, Hashes oder Sitzungstoken.
 
@@ -407,6 +407,10 @@ Die systemweite Abnahmevorbereitung und die Betriebsunterlagen befinden sich unt
 - `docs/MIGRATIONSBASELINE_TESTBERICHT.md`
 - `docs/MIGRATIONSBASELINE_ABLAUFPROTOKOLL.md`
 - `docs/MIGRATIONSBASELINE_ABSCHLUSSBERICHT.md`
+- `docs/SCHEMA_DRIFT_ANALYSE.md`
+- `docs/SCHEMA_DRIFT_BEREINIGUNGSPLAN.md`
+- `docs/SCHEMA_DRIFT_TESTBERICHT.md`
+- `docs/SCHEMA_DRIFT_ABSCHLUSSBERICHT.md`
 
 Die technische Abnahmevorbereitung ersetzt nicht die fachliche Endabnahme durch die Kanzlei.
 
@@ -493,7 +497,7 @@ Die systemweite Prüfung aller bisherigen Module verwendet ausschließlich küns
 
 ```powershell
 # Löscht und erstellt ausschließlich die oben genannte Integrationsumgebung.
-# Alle 15 Migrationen, Seeds und die lesende Diagnose werden ausgeführt.
+# Alle 16 Migrationen, Seeds und die lesende Diagnose werden ausgeführt.
 npm.cmd run testdata:system-integration
 
 # Diagnose ohne Datenänderung
@@ -509,7 +513,7 @@ npm.cmd run start:integration
 
 Der Reset besitzt feste absolute Pfadprüfungen und lehnt Entwicklungs-, Workflow-, Abnahme-, Pilot- und Produktivpfade ab. Der Integrationsbestand umfasst Anmeldung, Mandanten, Rechnungswesen, Jahresabschluss, Standardaufgaben, Ordo Campus samt Anhang, FiBu-Lohn samt Beleg, Rückfragen und Fahrzeuge.
 
-Die `prisma/dev.db` wurde nach der systemweiten Prüfung separat auf vollständigen Kopien analysiert und am 31.07.2026 mit der bestätigten Methode baselined. Die ersten 14 Migrationen wurden als bereits vorhanden registriert; ausschließlich `20260728140000_workflow_navigation_payroll_positions` wurde regulär angewendet. Prisma-Schema, Client, ESLint, TypeScript, 305 Tests, Build, Entwicklungsstart, Neustart und produktionsnaher Start gegen `dev.db` waren erfolgreich. `dev:integration` bleibt die sichere isolierte Umgebung für Reset-, Seed- und Systemintegrationsprüfungen.
+Die `prisma/dev.db` wurde nach der systemweiten Prüfung separat auf vollständigen Kopien analysiert und am 31.07.2026 mit der bestätigten Methode baselined. Die ersten 14 Migrationen wurden als bereits vorhanden registriert; Migration 15 wurde regulär angewendet. Am 04.08.2026 wurde der anschließend separat geprüfte Schema-Historien-Drift mit `20260804080000_reconcile_schema_history_drift` verlustfrei bereinigt. Prisma meldet 16 von 16 Migrationen; Schema, frischer Neuaufbau und `dev.db` stimmen überein. Prisma-Schema, Client, ESLint, TypeScript, 305 Tests, Build, Entwicklungsstart, Neustart und produktionsnaher Start gegen `dev.db` waren erfolgreich. `dev:integration` bleibt die sichere isolierte Umgebung für Reset-, Seed- und Systemintegrationsprüfungen.
 
 ## Workflow-, Navigations- und UX-Optimierung
 

@@ -110,10 +110,25 @@ Der erste Testlauf enthielt genau einen Fehler: Ein technischer Umgebungstest er
 
 Prisma weist weiterhin darauf hin, dass die Konfiguration unter `package.json#prisma` für Prisma 7 veraltet sein wird. Das betrifft die Driftbereinigung nicht und wurde in diesem Arbeitsschritt bewusst nicht restrukturiert.
 
-## Go-/No-Go-Empfehlung
+## Bestätigung und Ausführung auf `prisma/dev.db`
 
-**Technisches Go:** Die echte `prisma/dev.db` kann aus technischer Sicht mit der geprüften Migration 16 bereinigt werden. Schema, vollständige Historie, frischer Neuaufbau und migrierte Bestandskopie stimmen überein; Daten, Zeilenzahlen, eindeutige Regeln und Fremdschlüssel bleiben erhalten; Wiederherstellung und eine Folgemigration funktionieren.
+Die Kopienprüfung und das technische Go wurden ausdrücklich bestätigt. Nach Sicherungscommit und neuem vollständigem Sicherungssatz wurde am 04.08.2026 ausschließlich Migration 16 mit `prisma migrate deploy` auf die echte `prisma/dev.db` angewendet.
 
-**Operatives No-Go bis zur Bestätigung:** Migration 16 wurde noch nicht auf `prisma/dev.db` angewendet. Ihr aktueller Prisma-Status zeigt erwartungsgemäß genau diese eine Migration als ausstehend. Die Anwendung auf der echten Datenbank darf erst nach ausdrücklicher Bestätigung dieses Testberichts erfolgen.
+Die unmittelbare Nachprüfung bestätigte:
 
-Vor einem späteren Deploy sind erneut Anwendung und Datenbankzugriffe zu stoppen, ein neuer vollständiger gemeinsamer Sicherungssatz mit Hashes von Datenbank, Campus- und FiBu-Lohn-Speicher zu erstellen und die unveränderten Migrationen zu verifizieren. Danach darf ausschließlich ein kontrolliertes `prisma migrate deploy` gegen den exakt geprüften Pfad ausgeführt werden.
+- 16 von 16 Migrationen aktuell,
+- 34 Anwendungstabellen, 565 Spalten, 92 Fremdschlüssel und 25 eindeutige Regeln,
+- 353 Anwendungszeilen vor den ausdrücklich erlaubten Anwendungsprüfungen,
+- sechs unveränderte `AccountingPeriod`-Zeilen und 34 Spalten,
+- identische tabellenweise Datenhashes und unveränderten Geschäftsdatenhash,
+- genau zwei entfernte redundante Indizes,
+- `lastStatusChangedAt` als `NOT NULL DEFAULT CURRENT_TIMESTAMP`,
+- sieben Benutzerrelationen mit `ON UPDATE NO ACTION` und `Client.payrollUserId` weiterhin mit `ON UPDATE CASCADE`,
+- `quick_check` und `integrity_check` jeweils `ok`, keine Fremdschlüsselverletzung,
+- keinen Unterschied zwischen Prisma-Schema, frischer 1–16-Datenbank und echter `dev.db`.
+
+Die danach erlaubten Anwendungstests änderten ausschließlich künstliche Testdaten: `User.lastLoginAt` für Klara Leitung, eine klar gekennzeichnete Bearbeitungsnotiz an Aufgabe 10 sowie zwei zugehörige Workflow-Historieneinträge. Diese Änderungen erfolgten nach dem unveränderten Migrations-Datenhashcheckpoint und sind keine Migrationsabweichung.
+
+Ein isolierter `prisma migrate dev`-Lauf auf einer vollständigen Kopie meldete „Already in sync“. Eine ebenfalls isolierte künstliche Migration 17 wurde als einzige ausstehende Migration erkannt, angewendet und ergab anschließend erneut einen leeren Driftvergleich.
+
+**Abschlussergebnis:** technisch und operativ erfolgreich; kein Rollback erforderlich. Künftige additive Migrationen sind wieder möglich, müssen wegen der relevanten lokalen Daten aber weiterhin mit vollständiger gemeinsamer Sicherung, sauberem Git-Stand und Drift-/Statusprüfung vorbereitet werden.

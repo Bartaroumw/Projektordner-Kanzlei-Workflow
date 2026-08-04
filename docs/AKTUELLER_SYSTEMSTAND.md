@@ -1,13 +1,13 @@
 # Aktueller Systemstand
 
-Stand: 01.08.2026
+Stand: 04.08.2026
 
 ## Technischer Stand
 
 - Next.js 16.2.12 und React 19.2.4
 - Node.js 24.18.0 und npm 11.16.0
 - Prisma und Prisma Client 6.19.3
-- SQLite mit 15 unveränderten, chronologisch geordneten Migrationen
+- SQLite mit 16 unveränderten, chronologisch geordneten Migrationen
 - TypeScript 5.9.3, ESLint 9.39.5 und Vitest 4.1.10
 - lokaler App Router mit 44 `page.tsx`-Dateien, 9 Server-Action-Dateien und 6 Route Handlern
 - 34 Prisma-Modelle
@@ -58,13 +58,15 @@ npm.cmd run start:integration
 - produktionsnaher Integrationsstart: erfolgreich
 - Systemintegrationsdiagnose: keine Inkonsistenzen
 
-## Migrationsbaseline der Entwicklungsdatenbank
+## Migrationsbaseline und Driftbereinigung der Entwicklungsdatenbank
 
-Die Migrationsbaseline von `prisma/dev.db` wurde am 31.07.2026 nach bestätigter Kopienprüfung hergestellt. Ausgangshash war `A7EAE68B946262B7985C7690DEFA6BC39FD1251D4B2A71F7E872DAFA9B91A796`. Die ersten 14 bereits strukturell vorhandenen Migrationen wurden ausschließlich mit `migrate resolve --applied` registriert; ausschließlich Migration 15 wurde regulär mit `migrate deploy` angewendet.
+Die Migrationsbaseline von `prisma/dev.db` wurde am 31.07.2026 nach bestätigter Kopienprüfung hergestellt. Die ersten 14 bereits strukturell vorhandenen Migrationen wurden ausschließlich mit `migrate resolve --applied` registriert; Migration 15 wurde regulär mit `migrate deploy` angewendet.
 
-Der aktuelle Strukturstand umfasst 34 Anwendungstabellen, 565 Spalten, 92 Fremdschlüssel, 109 Indizes, 25 eindeutige Regeln und 15 erfolgreiche Prisma-Migrationseinträge. Die neue Tabelle `PayrollReconciliationPosition` ist erwartungsgemäß leer. Alle 33 vorher vorhandenen Anwendungstabellen behielten beim strukturellen Vorher-/Nachher-Vergleich ihre Zeilenzahlen und Datenhashes.
+Der bekannte Schema-Historien-Drift wurde am 04.08.2026 nach bestätigter Kopienprüfung mit der ausschließlich additiven Migration `20260804080000_reconcile_schema_history_drift` bereinigt. Vor dem Deploy wurde der Sicherungscommit `3bf35266fcb7d3494535ce103d5b4b617cfe7d4d` sowie der vollständige Sicherungssatz `backups/schema-drift-deploy-20260804-081510` erstellt. Der unmittelbar geprüfte Ausgangshash war `508815CB010E904144DDC3AC3AC26ABB139A825FC6834D6ED42352371EA680B6`.
 
-Prisma-Schema und Client, ESLint, TypeScript, 305 automatisierte Tests, Produktions-Build, authentifizierter Entwicklungsstart, Neustartpersistenz und produktionsnaher Start gegen `dev.db` wurden erfolgreich geprüft. Der große Performance-Smoke-Test blieb bewusst übersprungen. Browserkonsole sowie aufgezeichnete Entwicklungs- und Produktionsserverprotokolle waren fehlerfrei.
+Der aktuelle Strukturstand umfasst 34 Anwendungstabellen, 565 Spalten, 92 Fremdschlüssel, 107 Indizes, 25 eindeutige Regeln und 16 erfolgreiche Prisma-Migrationseinträge. Unmittelbar vor den erlaubten Anwendungsprüfungen waren 353 Anwendungszeilen und der kanonische Geschäftsdatenhash `951FA79F5B64D7A361273D0C3BA0AF1ACFBCE93103FCDD757D1A7B726B6DA1DE` unverändert. `schema.prisma`, eine frische 1–16-Datenbank und `dev.db` stimmen strukturell überein.
+
+Prisma-Schema und Client, geschützte Seed-Konsistenz, ESLint, TypeScript, 305 automatisierte Tests, Produktions-Build, authentifizierter Entwicklungsstart, Neustartpersistenz und produktionsnaher Start gegen `dev.db` wurden erfolgreich geprüft. Der große Performance-Smoke-Test blieb bewusst übersprungen. Die Serverprotokolle enthielten keine Anwendungsfehler. Nach dem planmäßigen Ende des ersten zeitbegrenzten Entwicklungsprozesses zeigte der Browser einmal erwartungsgemäß `Failed to fetch`; während des laufenden Servers waren die geprüften Hauptmodule ohne sichtbaren Laufzeitfehler erreichbar.
 
 ## Lokale Bestände
 
@@ -74,7 +76,7 @@ Prisma-Schema und Client, ESLint, TypeScript, 305 automatisierte Tests, Produkti
 
 ## Bekannte Warnungen
 
-- Die Migrationsbaseline von `prisma/dev.db` ist hergestellt. Der separate, dokumentierte Drift zwischen `schema.prisma` und Migrationshistorie bleibt bestehen; `prisma migrate dev` und `prisma db push` bleiben bis zu dessen gesonderter Bereinigung gesperrt.
+- Die Migrationsbaseline und die dokumentierte Schema-Historien-Driftbereinigung von `prisma/dev.db` sind hergestellt. `prisma migrate dev` ist für künftige additive Entwicklung nur nach vollständigem gemeinsamen Backup, sauberem Git-Stand und leerer Drift-/Statusprüfung zulässig; eine Reset-Aufforderung darf niemals bestätigt werden. `prisma db push` bleibt gesperrt.
 - Prisma warnt vor der in Version 7 entfallenden Prisma-Konfiguration in `package.json`; dafür wird künftig eine eigene Prisma-Konfigurationsdatei benötigt.
 - Die TypeScript-Ausführung über Node verwendet derzeit die experimentelle Transform-Types-Funktion.
 - Für TypeScript-Skripte ohne gesetzten Pakettyp erscheint eine `MODULE_TYPELESS_PACKAGE_JSON`-Warnung.
@@ -84,4 +86,4 @@ Prisma-Schema und Client, ESLint, TypeScript, 305 automatisierte Tests, Produkti
 
 ## Freigabe für die Weiterentwicklung
 
-Der Projektstand ist für die konsistente lokale Weiterentwicklung gegen die baselined `prisma/dev.db` sowie weiterhin gegen die geschützte Systemintegrationsumgebung geeignet. Kontrolliertes `prisma migrate deploy` ist nach vollständiger Sicherung und Prüfung zulässig. Neue fachliche Arbeiten und die Driftbereinigung beginnen nur in gesonderten Aufträgen und auf geeigneten Entwicklungsbranches.
+Der Projektstand ist für die konsistente lokale Weiterentwicklung gegen die baselined und driftbereinigte `prisma/dev.db` sowie weiterhin gegen die geschützte Systemintegrationsumgebung geeignet. Kontrolliertes `prisma migrate deploy` und kontrolliertes `prisma migrate dev` sind unter den dokumentierten Sicherungs- und Preflight-Bedingungen zulässig. `migrate reset`, `db push`, Seeds und Testresets gegen `dev.db` bleiben verboten. Neue fachliche Arbeiten beginnen nur in gesonderten Aufträgen und auf geeigneten Entwicklungsbranches.

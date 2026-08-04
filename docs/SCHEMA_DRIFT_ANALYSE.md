@@ -120,3 +120,9 @@ Eine neue additive Migration 16 ist erforderlich. Sie soll ausschließlich:
 4. den ebenfalls redundanten `AccountingPeriod_functionSeparationExceptionId_idx` bei der Indexrekonstruktion nicht wieder anlegen.
 
 Keine andere Tabelle und keine fachliche Logik werden verändert.
+
+## Abschlussstatus vom 04.08.2026
+
+Die Kopienprüfung wurde ausdrücklich bestätigt. Nach dem Sicherungscommit `3bf35266fcb7d3494535ce103d5b4b617cfe7d4d` und dem neuen vollständigen Sicherungssatz `backups/schema-drift-deploy-20260804-081510` wurde ausschließlich Migration 16 mit `prisma migrate deploy` auf `prisma/dev.db` angewendet.
+
+Der Geschäftsdatenhash blieb unmittelbar nach der Migration exakt `951FA79F5B64D7A361273D0C3BA0AF1ACFBCE93103FCDD757D1A7B726B6DA1DE`. `quick_check`, `integrity_check` und `foreign_key_check` waren erfolgreich. Prisma meldet 16 von 16 Migrationen als aktuell. Der Vergleich zwischen `schema.prisma`, einer frischen 1–16-Datenbank und der migrierten Entwicklungsdatenbank enthält keinen Unterschied. Die in diesem Dokument analysierten Driftpunkte sind damit vollständig beseitigt.

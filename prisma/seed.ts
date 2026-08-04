@@ -29,6 +29,17 @@ import {
   createClientVehicle,
   updateClientVehicle,
 } from "../lib/payroll-vehicle-service.ts";
+import {
+  FIBU_LOHN_START_TOPICS,
+  FIBU_LOHN_TOPIC_STATUS,
+  FIBU_LOHN_TOPIC_TYPE,
+  FIBU_LOHN_TOPIC_VALID_FROM,
+  fibuLohnTopicNotes,
+} from "../lib/fibu-lohn-topic-catalog.ts";
+import {
+  FIBU_LOHN_CHECKLIST_KNOWLEDGE,
+  FIBU_LOHN_CHECKLIST_TASK,
+} from "../lib/fibu-lohn-checklist-catalog.ts";
 
 const users:ReadonlyArray<{key:string;username:string;fullName:string;password:string;roles:ReadonlyArray<string>;active?:boolean}> = [
   { key:"maria", username:"maria.muster", fullName:"Maria Muster", password:"Test-Maria-2026!", roles:["MITARBEITER","PRUEFER"] },
@@ -89,81 +100,22 @@ for(const [index,row] of taskRows.entries()){
 }
 
 const payrollChecklistTask=await prisma.standardTask.create({data:{
-  taskId:"MON-FIBU-LOHN-001",active:true,checklistType:"Monat",categoryId:categories.get("FiBu-Lohn-Abstimmung")!,
-  title:"Monatliche FiBu-Lohn-Abstimmung",
-  workInstruction:"Alle aktiven Abstimmungsthemen bewusst prüfen und vorhandene lohnrelevante Informationen vollständig an den zuständigen Lohnsachbearbeiter übergeben.",
-  reviewInstruction:"Vollständigkeit der Themenentscheidungen, Pflichtangaben, Belege und Lohnzuständigkeit kontrollieren. Die Verarbeitung durch Lohn ist nicht Gegenstand der Rechnungswesenprüfung.",
-  mandatory:true,rhythm:"Monatlich",executionMonths:"1;2;3;4;5;6;7;8;9;10;11;12",taskArea:"Laufende Bearbeitung",
-  legalFormGroups:"Alle",profitDeterminationMethods:"Alle",cashCondition:"Alle",payrollCondition:"Ja",
-  fixedAssetsCondition:"Alle",receivablesPayablesCondition:"Alle",loansCondition:"Alle",vatCondition:"Alle",
-  permanentExtensionCondition:"Alle",knowledgeKey:"FIBU_LOHN_ABSTIMMUNG",sortOrder:15,
-  professionalVersion:"FIBU-LOHN-1.0",internalNote:"Ausschließlich künstliche Standardaufgabe für die FiBu-Lohn-Abstimmung.",
+  ...FIBU_LOHN_CHECKLIST_TASK,categoryId:categories.get("FiBu-Lohn-Abstimmung")!,
 }});
 const payrollCampusKnowledge=await prisma.standardTaskKnowledge.create({data:{
-  standardTaskId:payrollChecklistTask.id,status:"Aktiv",
-  shortDescription:"Monatliche strukturierte Übergabe lohnrelevanter Sachverhalte aus dem Rechnungswesen.",
-  objective:"Vollständige und nachvollziehbare Information der Lohnabteilung, ohne einen Lohnabrechnungsworkflow abzubilden.",
-  processingGuidance:"Alle sechs aktiven Themen bewusst prüfen. Vorhandene Sachverhalte strukturiert erfassen und erforderliche Belege geschützt bereitstellen.",
-  firmStandard:"Die Informationspflicht des Rechnungswesens ist erfüllt, sobald alle Themen entschieden und vorhandene Sachverhalte vollständig an Lohn übergeben wurden.",
-  reviewerGuidance:"Themensnapshots, Pflichtangaben, Belege und die Zuordnung des Lohnsachbearbeiters prüfen. Der spätere Lohnstatus blockiert die Monatscheckliste nicht.",
-  typicalErrors:"Thema nicht bewusst geprüft\nPflichtangabe oder Beleg fehlt\nfalscher Lohnabrechnungsmonat gewählt",
-  internalHints:"Künstlicher Campus-Inhalt. Kontenhinweise sind konfigurierbar und keine fest verdrahtete Programmlogik.",
+  standardTaskId:payrollChecklistTask.id,...FIBU_LOHN_CHECKLIST_KNOWLEDGE,
 }});
 await prisma.standardTaskKnowledgeHistory.create({data:{
   knowledgeId:payrollCampusKnowledge.id,standardTaskId:payrollChecklistTask.id,actorUserId:u("klaus").id,
   actorNameSnapshot:u("klaus").fullName,changedArea:"Wissen",description:"Künstliches Ordo-Campus-Wissen zur FiBu-Lohn-Abstimmung erstellt.",
 }});
 
-const payrollTopicRows=[
-  {
-    key:"ARBEITNEHMER_VORTEILE",title:"Arbeitnehmerbezogene Geschenke, Aufmerksamkeiten, Sachbezüge und Betriebsveranstaltungen",
-    description:"Geschenke, Gutscheine, Sachbezüge, Betriebsveranstaltungen und sonstige lohnrelevante Vorteile.",
-    question:"Gab es arbeitnehmerbezogene Vorteile oder Betriebsveranstaltungen, die an Lohn zu übergeben sind?",
-    fields:["Art des Sachverhalts","Betroffene Arbeitnehmer oder Personengruppe","Datum oder Zeitraum","Beschreibung","Abrechnungsmonat"],
-    documents:["Beleg oder Teilnehmerliste"],vehicle:false,followUp:false,
-  },
-  {
-    key:"REISEKOSTEN",title:"Steuerfreie Reisekostenerstattungen",
-    description:"Fahrtkosten, Verpflegungsmehraufwendungen, Übernachtungskosten und weitere Reisekostenerstattungen.",
-    question:"Wurden Reisekosten an Arbeitnehmer oder angestellte Gesellschafter-Geschäftsführer erstattet?",
-    fields:["Arbeitnehmer","Reisezeitraum","Art der Erstattung","Zahlungsweg","Abrechnungsmonat","Beschreibung"],
-    documents:["Reisekostenabrechnung","Zahlungs- oder Buchungsbeleg"],vehicle:false,followUp:false,
-  },
-  {
-    key:"FAHRZEUGE",title:"Firmenfahrzeuge, Pkw, E-Bike und Fahrrad",
-    description:"Neue, geänderte oder beendete Fahrzeugüberlassungen und Änderungen der Versteuerungsmethode.",
-    question:"Gab es Änderungen im dauerhaften Fahrzeugbestand mit möglicher Lohnrelevanz?",
-    fields:["Art der Änderung","Fahrzeugbezug","Nutzer","Gültig-ab-Datum","Beschreibung"],
-    documents:["Fahrzeugbeleg oder Vertrag"],vehicle:true,followUp:false,
-  },
-  {
-    key:"SCHEINSELBSTSTAENDIGKEIT",title:"Scheinselbstständigkeit und mögliche abhängige Beschäftigung",
-    description:"Auffällige Fremdleistungen werden ohne automatische rechtliche Bewertung an Lohn übergeben.",
-    question:"Gab es Auffälligkeiten bei Fremdleistungen, die auf eine mögliche abhängige Beschäftigung hindeuten?",
-    fields:["Betroffene Person oder Unternehmen","Leistungsart","Zeitraum","Auffällige Merkmale","Beschreibung"],
-    documents:["Rechnung oder relevanter Beleg"],vehicle:false,followUp:false,
-  },
-  {
-    key:"GESCHENKE_NICHTARBEITNEHMER",title:"Geschenke an Nichtarbeitnehmer",
-    description:"Geschenke an Geschäftspartner und mögliche Pauschalversteuerung.",
-    question:"Gab es Geschenke an Nichtarbeitnehmer, die lohnsteuerlich weiterbearbeitet werden müssen?",
-    fields:["Empfänger oder Empfängergruppe","Art des Geschenks","Datum","Beschreibung","Hinweis zur möglichen Pauschalversteuerung"],
-    documents:["Empfänger- oder Geschenkeliste","Buchungsbeleg"],vehicle:false,followUp:false,
-  },
-  {
-    key:"KSK",title:"Künstlersozialkasse",
-    description:"Laufende Sammlung relevanter künstlerischer oder publizistischer Leistungen.",
-    question:"Gab es KSK-relevante Eingangsrechnungen oder Leistungen?",
-    fields:["Auftragnehmer oder Rechnungsteller","Leistungsart","Rechnungsdatum","Rechnungsbetrag","Relevanter Zeitraum","Beschreibung","Kennzeichnung Jahresmeldung"],
-    documents:["Rechnung oder Beleg"],vehicle:false,followUp:true,
-  },
-] as const;
-for(const [index,topic] of payrollTopicRows.entries())await prisma.payrollReconciliationTopic.create({data:{
-  key:topic.key,title:topic.title,shortDescription:topic.description,reviewQuestion:topic.question,sortOrder:(index+1)*10,
-  status:"Aktiv",validFrom:new Date("2026-01-01T00:00:00Z"),topicType:"Monatliche QM-Abstimmung",
-  vehicleRelated:topic.vehicle,followUpAllowed:topic.followUp,campusStandardTaskId:payrollChecklistTask.id,
-  requiredStandardFields:JSON.stringify(topic.fields),requiredDocumentTypes:JSON.stringify(topic.documents),
-  notes:topic.followUp?"Eine dokumentierte Nachreichung ist fachlich zulässig.":"Erforderliche Belege müssen vor der vollständigen Übergabe vorliegen.",
+for(const [index,topic] of FIBU_LOHN_START_TOPICS.entries())await prisma.payrollReconciliationTopic.create({data:{
+  key:topic.key,title:topic.title,shortDescription:topic.shortDescription,reviewQuestion:topic.reviewQuestion,sortOrder:(index+1)*10,
+  status:FIBU_LOHN_TOPIC_STATUS,validFrom:new Date(FIBU_LOHN_TOPIC_VALID_FROM),topicType:FIBU_LOHN_TOPIC_TYPE,
+  vehicleRelated:topic.vehicleRelated,followUpAllowed:topic.followUpAllowed,campusStandardTaskId:payrollChecklistTask.id,
+  requiredStandardFields:JSON.stringify(topic.requiredStandardFields),requiredDocumentTypes:JSON.stringify(topic.requiredDocumentTypes),
+  notes:fibuLohnTopicNotes(topic.followUpAllowed),
   createdByUserId:u("klaus").id,
   history:{create:{actorUserId:u("klaus").id,actorNameSnapshot:u("klaus").fullName,action:"Thema erstellt",summary:`Künstliches Startthema „${topic.title}“ wurde angelegt.`}},
 }});

@@ -6,18 +6,14 @@ import {
   canProcessPayrollReconciliation,
   type AuthUser,
 } from "./permissions.ts";
+import { FIBU_LOHN_COLLECTION_TOPIC_KEYS } from "./fibu-lohn-topic-catalog.ts";
 
 export const PAYROLL_RECONCILIATION_KNOWLEDGE_KEY = "FIBU_LOHN_ABSTIMMUNG";
 export const PAYROLL_TOPIC_STATUSES = ["Noch nicht geprüft", "Kein Sachverhalt", "Übergabe in Vorbereitung", "Vollständig an Lohn übergeben"] as const;
 export const PAYROLL_ACCOUNTING_STATUSES = ["Offen", "In Bearbeitung", "Übergabebereit", "Vollständig übergeben"] as const;
 export const PAYROLL_STATUSES = ["Neu", "Gesehen", "Rückfrage offen", "Erledigt", "Storniert"] as const;
 export const PAYROLL_USER_DECISIONS = ["Noch nicht geprüft", "Kein relevanter Sachverhalt", "Sachverhalt vorhanden"] as const;
-export const PAYROLL_COLLECTION_TOPICS = new Set([
-  "ARBEITNEHMER_VORTEILE",
-  "REISEKOSTEN",
-  "GESCHENKE_NICHTARBEITNEHMER",
-  "KSK",
-]);
+export const PAYROLL_COLLECTION_TOPICS = new Set<string>(FIBU_LOHN_COLLECTION_TOPIC_KEYS);
 
 export type PayrollReconciliationSummaryInput = {
   status:string;

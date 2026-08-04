@@ -1,5 +1,6 @@
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import { prisma } from "@/lib/prisma";
+import { FIBU_LOHN_START_TOPICS } from "@/lib/fibu-lohn-topic-catalog";
 import {
   calculateProgress,
   createMonthlyPeriod,
@@ -13,6 +14,11 @@ let categoryId: number;
 let clientId: number;
 
 beforeEach(async () => {
+  await prisma.payrollReconciliationHistory.deleteMany();
+  await prisma.payrollReconciliationItem.deleteMany();
+  await prisma.payrollReconciliation.deleteMany();
+  await prisma.payrollReconciliationTopicHistory.deleteMany();
+  await prisma.payrollReconciliationTopic.deleteMany();
   await prisma.workflowHistory.deleteMany();
   await prisma.checklistTask.deleteMany({ where: { sourceTaskId: { not: null } } });
   await prisma.checklistTask.deleteMany();
@@ -120,6 +126,62 @@ describe("Perioden und Snapshots", () => {
     expect((await addMissingStandardTasks(period.id, "Test Person")).added).toBe(1);
     expect((await addMissingStandardTasks(period.id, "Test Person")).added).toBe(0);
     expect(await prisma.checklistTask.count({ where: { periodId: period.id, standardTaskId: january.id } })).toBe(1);
+  });
+  it("erzeugt bei ausdrücklicher Übernahme der FiBu-Lohn-Aufgabe atomar die Abstimmung mit Themen-Snapshots", async () => {
+    const payrollUser = await prisma.user.create({
+      data: {
+        username: `lohn-${Math.random().toString(36).slice(2)}`,
+        fullName: "Künstliche Lohnsachbearbeitung",
+        passwordHash: "künstlicher-nicht-verwendeter-testhash",
+        roles: { create: { role: "LOHNSACHBEARBEITER" } },
+      },
+    });
+    await prisma.client.update({
+      where: { id: clientId },
+      data: { payrollPreparedByFirm: true, payrollUserId: payrollUser.id },
+    });
+    await prisma.annualProfile.updateMany({ where: { clientId }, data: { hasPayroll: true } });
+    const period = await createMonthlyPeriod(clientId, 2026, 1);
+    const payrollTemplate = await createTask({
+      taskId: "TEST-FIBU-LOHN-UEBERNAHME",
+      title: "Künstliche monatliche FiBu-Lohn-Abstimmung",
+      knowledgeKey: "FIBU_LOHN_ABSTIMMUNG",
+      payrollCondition: "Ja",
+      mandatory: true,
+    });
+    for (const [index, topic] of FIBU_LOHN_START_TOPICS.entries()) {
+      await prisma.payrollReconciliationTopic.create({
+        data: {
+          key: topic.key,
+          title: topic.title,
+          shortDescription: topic.shortDescription,
+          reviewQuestion: topic.reviewQuestion,
+          sortOrder: (index + 1) * 10,
+          status: "Aktiv",
+          validFrom: new Date("2026-01-01T00:00:00.000Z"),
+          topicType: "Monatliche QM-Abstimmung",
+          vehicleRelated: topic.vehicleRelated,
+          followUpAllowed: topic.followUpAllowed,
+          requiredStandardFields: JSON.stringify(topic.requiredStandardFields),
+          requiredDocumentTypes: JSON.stringify(topic.requiredDocumentTypes),
+          createdByUserId: payrollUser.id,
+        },
+      });
+    }
+
+    expect((await addMissingStandardTasks(period.id, "Künstliche Lohnsachbearbeitung")).added).toBe(1);
+    expect((await addMissingStandardTasks(period.id, "Künstliche Lohnsachbearbeitung")).added).toBe(0);
+    const reconciliation = await prisma.payrollReconciliation.findUniqueOrThrow({
+      where: { accountingPeriodId: period.id },
+      include: { items: true },
+    });
+    expect(reconciliation.checklistTaskId).toBe(
+      (await prisma.checklistTask.findFirstOrThrow({ where: { periodId: period.id, standardTaskId: payrollTemplate.id } })).id,
+    );
+    expect(reconciliation.payrollUserId).toBe(payrollUser.id);
+    expect(reconciliation.payrollYear).toBe(2026);
+    expect(reconciliation.payrollMonth).toBe(2);
+    expect(reconciliation.items).toHaveLength(6);
   });
 });
 

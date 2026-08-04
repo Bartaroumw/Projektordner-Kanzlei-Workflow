@@ -518,10 +518,10 @@ export async function updateChecklistTask(
   });
 }
 
-export async function addMissingStandardTasks(periodId: number, actorName: string) {
+export async function addMissingStandardTasks(periodId: number, actorName: string, onlyStandardTaskIds?: number[]) {
   const period = await prisma.accountingPeriod.findUnique({
     where: { id: periodId },
-    include: { tasks: true, client: true },
+    include: { tasks: true, client: { include: { payrollUser: { include: { roles: true } } } } },
   });
   if (!period) throw new MonthlyChecklistError("INVALID_INPUT", "Die Monatscheckliste wurde nicht gefunden.");
   if (period.processingStatus === "Abgeschlossen") throw new MonthlyChecklistError("PERIOD_CLOSED", "Eine abgeschlossene Monatscheckliste kann nicht ergänzt werden.");
@@ -542,8 +542,14 @@ export async function addMissingStandardTasks(periodId: number, actorName: strin
     updatedAt: period.updatedAt,
   };
   const existingIds = new Set(period.tasks.flatMap((task) => task.standardTaskId ? [task.standardTaskId] : []));
+  const allowedIds = onlyStandardTaskIds ? new Set(onlyStandardTaskIds) : null;
   const matching = (await prisma.standardTask.findMany({ include: { category: true } }))
-    .filter((task) => !existingIds.has(task.id) && standardTaskMatches(task, profile, period.client.vatFilingPeriod, period.month));
+    .filter((task) =>
+      (!allowedIds || allowedIds.has(task.id)) &&
+      !existingIds.has(task.id) &&
+      standardTaskMatches(task, profile, period.client.vatFilingPeriod, period.month) &&
+      (task.knowledgeKey !== PAYROLL_RECONCILIATION_KNOWLEDGE_KEY || period.client.payrollPreparedByFirm),
+    );
   if (!matching.length) return { added: 0 };
   const carryCandidates = await prisma.checklistTask.findMany({
     where: {
@@ -588,6 +594,35 @@ export async function addMissingStandardTasks(periodId: number, actorName: strin
       carriedNoteSourcePeriodLabel: carried?.period.periodLabel ?? null,
     };
     }) });
+    const payrollTemplate = matching.find((task) => task.knowledgeKey === PAYROLL_RECONCILIATION_KNOWLEDGE_KEY);
+    if (payrollTemplate) {
+      const payrollUser = period.client.payrollUser;
+      if (!payrollUser?.active || !payrollUser.roles.some(({ role }) => role === "LOHNSACHBEARBEITER")) {
+        throw new PayrollReconciliationError(
+          "ASSIGNEE_MISSING",
+          "Für die FiBu-Lohn-Abstimmung ist ein aktiver Lohnsachbearbeiter erforderlich.",
+        );
+      }
+      const checklistTask = await transaction.checklistTask.findFirstOrThrow({
+        where: { periodId, standardTaskId: payrollTemplate.id },
+      });
+      const target = nextPayrollMonth(period.calendarYear, period.month);
+      await createPayrollReconciliationInTransaction(transaction, {
+        clientId: period.clientId,
+        accountingYear: period.calendarYear,
+        accountingMonth: period.month,
+        payrollYear: target.year,
+        payrollMonth: target.month,
+        accountingPeriodId: period.id,
+        checklistTaskId: checklistTask.id,
+        processorUserId: period.processorUserId,
+        processorNameSnapshot: period.processorSnapshot,
+        reviewerUserId: period.reviewerUserId,
+        reviewerNameSnapshot: period.reviewerSnapshot,
+        payrollUserId: payrollUser.id,
+        payrollUserNameSnapshot: payrollUser.fullName,
+      });
+    }
     await transaction.workflowHistory.create({ data: {
       periodId,
       eventType: "Fehlende Standardaufgaben übernommen",

@@ -7,7 +7,7 @@ Die Hauptnavigation ist dauerhaft auf wenige Arbeits- und Verwaltungsbereiche be
 - **Dashboard**: personenbezogene, periodenübergreifende operative Steuerung
 - **Mandanten**: gezielter Mandanteneinstieg
 - **Rechnungswesen**: laufendes Rechnungswesen, Jahresabschluss und Statusübersicht
-- **FiBu ↔ Lohn**: Abstimmungen, offene Lohnrückfragen und Fahrzeuge
+- **Rechnungswesen ↔ Lohn**: Rechnungswesen–Lohn-Abstimmungen, offene Lohnrückfragen und Fahrzeuge
 - **Ordo Campus**: Wissensübersicht und aufgabenbezogenes Kanzleiwissen
 - **Verwaltung**: zentrale fachliche Grundlagen, Benutzer und Rechte, Daten und Import sowie Systeminformationen
 
@@ -15,11 +15,13 @@ Die Einträge werden aus den aktiven Rollen und Zusatzberechtigungen des angemel
 
 Der Markenblock besteht ausschließlich aus dem OC-Zeichen, dem Produktnamen **Ordo Caroli** und der direkt darunter ausgerichteten Kanzleimarke **CONCILIUM**. Es gibt keinen Produktuntertitel. Auf Desktopbreiten kann die Navigation über einen Randbutton auf eine schmale Iconleiste reduziert werden. Ein-/Ausklappbutton und Logo bleiben in beiden Zuständen auf derselben horizontalen Achse und überlagern sich nicht. Tooltip, zugänglicher Name und sichtbarer Fokus beschreiben die jeweilige Aktion eindeutig.
 
-Alle Module verwenden dieselbe lokale SVG-Symbolsprache mit identischer Größe, Strichstärke und Ausrichtung; Buchstaben und Emoji werden nicht gemischt. Modulicons, Benutzerzugang und Abmeldung bleiben im eingeklappten Zustand erreichbar. Der Zustand liegt nur in `localStorage`; es gibt keine Datenbankpräferenz. Auf mobilen Breiten bleibt die horizontale, scrollbar nutzbare Navigation erhalten und die Desktop-Einklappsteuerung ist ausgeblendet.
+Alle Module verwenden dieselbe lokale SVG-Symbolsprache mit identischer Größe, Strichstärke und Ausrichtung; Buchstaben und Emoji werden nicht gemischt. Das Rechnungswesen verwendet ein Rechnerzeichen, Ordo Campus ein Buchzeichen und Rechnungswesen ↔ Lohn ein eindeutiges Links-rechts-Pfeilzeichen. Modulicons, Benutzerzugang, Profileinstellungen und Abmeldung bleiben im eingeklappten Zustand erreichbar. Der Zustand liegt nur in `localStorage`; es gibt keine Datenbankpräferenz. Auf mobilen Breiten bleibt die horizontale, scrollbar nutzbare Navigation erhalten und die Desktop-Einklappsteuerung ist ausgeblendet.
+
+Die Seitenleiste besteht auf Desktop aus drei Bereichen: fester Markenbereich, unabhängig scrollbarerer Navigationsbereich und fester persönlicher Benutzerbereich am unteren Rand. Dort werden ausschließlich Name und die Hauptrollen in der Reihenfolge Kanzleileitung, Prüfer, Bearbeiter, Lohnsachbearbeiter und Administrator angezeigt. Zusatzberechtigungen erscheinen nur im persönlichen Profil.
 
 ## Mandant als Arbeitskontext
 
-Der normale Klick auf eine Mandantenzeile öffnet immer `/mandanten/[id]`. Der Mandantenarbeitsbereich bietet rollenabhängige Einstiege in Übersicht, laufendes Rechnungswesen, Jahresabschluss, FiBu ↔ Lohn, Fahrzeuge, mandantenspezifische Aufgaben und Historie. Allgemeines Ordo-Campus-Wissen bleibt an Standardaufgaben und FiBu-Lohn-Themen gebunden und wird nicht als künstlicher Mandantenreiter dupliziert.
+Der normale Klick auf eine Mandantenzeile öffnet immer `/mandanten/[id]`. Der Mandantenarbeitsbereich bietet rollenabhängige Einstiege in Übersicht, laufendes Rechnungswesen, Jahresabschluss, Rechnungswesen ↔ Lohn, Fahrzeuge, mandantenspezifische Aufgaben und Historie. Allgemeines Ordo-Campus-Wissen bleibt an Standardaufgaben und Rechnungswesen–Lohn-Themen gebunden und wird nicht als künstlicher Mandantenreiter dupliziert.
 
 Gezielte Links wie **Aktuelle Monatscheckliste öffnen**, Dashboardaufgaben, Rückfragen und Prüfungen bleiben direkte Fachlinks. Diese Unterscheidung bewahrt gespeicherte Links und reduziert gleichzeitig unbeabsichtigte Sprünge aus dem Mandantenkontext.
 
@@ -27,9 +29,9 @@ Gezielte Links wie **Aktuelle Monatscheckliste öffnen**, Dashboardaufgaben, Rü
 
 Innerhalb des Moduls stehen die Reiter **Laufendes Rechnungswesen**, **Jahresabschluss** und **Statusübersicht** zur Verfügung. Ein reiner Lohnsachbearbeiter sieht diese Daten nicht.
 
-## FiBu ↔ Lohn
+## Rechnungswesen ↔ Lohn
 
-Das Modul enthält **Abstimmungen**, **Offene Lohnrückfragen** und **Fahrzeuge**. Die zentrale Themenpflege ist keine Monatsbearbeitung und liegt deshalb unter **Verwaltung → Fachliche Grundlagen → FiBu-Lohn-Themen**.
+Das Modul enthält **Rechnungswesen–Lohn-Abstimmungen**, **Offene Lohnrückfragen** und **Fahrzeuge**. Die zentrale Themenpflege ist keine Monatsbearbeitung und liegt deshalb unter **Verwaltung → Fachliche Grundlagen → Rechnungswesen–Lohn-Themen**. Die technischen Routen unter `/fibu-lohn` bleiben zur Kompatibilität unverändert.
 
 ## Ordo Campus
 
@@ -47,7 +49,7 @@ Bestehende Fachrouten bleiben erhalten, damit gespeicherte Links und direkte Ein
 
 ## Persönliche Funktionen
 
-Passwortänderung und künftige persönliche Präferenzen sind nicht Teil der Kanzleiverwaltung. Sie bleiben im persönlichen Kontokontext.
+Passwortänderung und persönliche Kontodaten sind nicht Teil der Kanzleiverwaltung. `/profil` zeigt Identität, Hauptrollen, eingeklappte Zusatzberechtigungen, Kontodaten und Sicherheitseinstellungen. Profilbilder werden ausschließlich administrativ gepflegt.
 
 ## Responsive Verhalten
 

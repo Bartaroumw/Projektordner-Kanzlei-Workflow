@@ -17,7 +17,7 @@ describe("FiBu-Lohn-Benutzeroberflächen",()=>{
     const page=await source("app/monatschecklisten/[id]/page.tsx");
     expect(page).toContain("Gesamtstatus Rechnungswesen");
     expect(page).toContain("Abstimmung öffnen");
-    expect(page).toContain("Offene Lohnrückfragen");
+    expect(page).toContain("Offene Rechnungswesen–Lohn-Rückfragen");
   });
 
   it("stellt alle sechs fachlichen Themenformulare bereit",async()=>{
@@ -44,7 +44,7 @@ describe("FiBu-Lohn-Benutzeroberflächen",()=>{
 
   it("bietet eine periodenübergreifende Lohn-Arbeitsliste mit kompakten Filtern",async()=>{
     const page=await source("app/fibu-lohn/page.tsx");
-    expect(page).toContain("Meine FiBu-Lohn-Abstimmungen");
+    expect(page).toContain("Meine Rechnungswesen–Lohn-Abstimmungen");
     expect(page).toContain("Lohnabrechnungsmonat");
     expect(page).toContain("Lohnstatus");
     expect(page).toContain("Offene Abstimmungen aller Abrechnungsmonate");
@@ -55,7 +55,7 @@ describe("FiBu-Lohn-Benutzeroberflächen",()=>{
   it("verknüpft Rückfragen direkt mit der Themenkarte",async()=>{
     const dashboard=await source("app/page.tsx");
     const payroll=await source("app/fibu-lohn/page.tsx");
-    expect(dashboard).toContain("FiBu-Lohn-Rückfragen");
+    expect(dashboard).toContain("Rechnungswesen–Lohn-Rückfragen");
     expect(dashboard).toContain("#thema-${question.reconciliationItemId}");
     expect(payroll).toContain("#thema-${question.reconciliationItemId}");
   });
@@ -74,7 +74,7 @@ describe("FiBu-Lohn-Benutzeroberflächen",()=>{
     const shell=await source("app/components/app-shell.tsx");
     const dashboard=await source("app/page.tsx");
     expect(shell).toContain("payrollOnly");
-    expect(shell).toContain("FiBu ↔ Lohn");
+    expect(shell).toContain("Rechnungswesen ↔ Lohn");
     expect(dashboard).toContain("redirect(\"/fibu-lohn\")");
   });
 

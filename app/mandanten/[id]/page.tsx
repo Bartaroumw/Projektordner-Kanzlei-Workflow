@@ -69,7 +69,7 @@ export default async function ClientDetailPage({
     {label:"Mandant",href:"#uebersicht",visible:true},
     {label:"Laufendes Rechnungswesen",href:"#rechnungswesen",visible:professional},
     {label:"Jahresabschluss",href:"#jahresabschluss",visible:professional},
-    {label:"FiBu ↔ Lohn",href:"#fibu-lohn",visible:professional&&client.payrollPreparedByFirm},
+    {label:"Rechnungswesen ↔ Lohn",href:"#fibu-lohn",visible:professional&&client.payrollPreparedByFirm},
     {label:"Fahrzeuge",href:"#fahrzeuge",visible:professional&&client.payrollPreparedByFirm},
     {label:"Mandantenspezifische Aufgaben",href:`/mandanten/${client.id}/zusatzaufgaben`,visible:canManageCustomTasks(user)},
     {label:"Historie",href:"#historie",visible:professional},
@@ -128,7 +128,7 @@ export default async function ClientDetailPage({
           ["Prüfer",latestAnnual?.reviewerNameSnapshot??textOrDash(client.reviewer)],
           ["Freigabe",latestAnnual?.status==="Freigegeben"?"Freigegeben":"Noch nicht freigegeben"],
         ]}/>
-        {client.payrollPreparedByFirm&&<WorkspaceCard title="FiBu ↔ Lohn" action="FiBu ↔ Lohn öffnen" href="#fibu-lohn" rows={[
+        {client.payrollPreparedByFirm&&<WorkspaceCard title="Rechnungswesen ↔ Lohn" action="Rechnungswesen ↔ Lohn öffnen" href="#fibu-lohn" rows={[
           ["Lohnsachbearbeiter",client.payrollUser?.fullName??"Nicht zugeordnet"],
           ["Letzte Abstimmung",latestPayroll?`${String(latestPayroll.accountingMonth).padStart(2,"0")}/${latestPayroll.accountingYear}`:"Noch keine"],
           ["Offene Rückfragen",String(openPayrollQuestions)],
@@ -143,7 +143,7 @@ export default async function ClientDetailPage({
       </section>
 
       {client.payrollPreparedByFirm&&<section id="fahrzeuge" className="mt-7 scroll-mt-20">
-        <div className="mb-3 flex flex-wrap items-center justify-between gap-3"><div><h2 className="text-lg font-semibold">Fahrzeuge</h2><p className="mt-1 text-sm text-slate-600">Dauerhafter Fahrzeugbestand für die FiBu-Lohn-Abstimmung.</p></div><div className="flex gap-2"><Link className="button-secondary" href={`/fibu-lohn/fahrzeuge?mandant=${client.id}`}>Alle Fahrzeuge</Link><Link className="button-primary" href={`/fibu-lohn/fahrzeuge/neu?clientId=${client.id}`}>Neues Fahrzeug</Link></div></div>
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-3"><div><h2 className="text-lg font-semibold">Fahrzeuge</h2><p className="mt-1 text-sm text-slate-600">Dauerhafter Fahrzeugbestand für die Rechnungswesen–Lohn-Abstimmung.</p></div><div className="flex gap-2"><Link className="button-secondary" href={`/fibu-lohn/fahrzeuge?mandant=${client.id}`}>Alle Fahrzeuge</Link><Link className="button-primary" href={`/fibu-lohn/fahrzeuge/neu?clientId=${client.id}`}>Neues Fahrzeug</Link></div></div>
         <div className="overflow-x-auto rounded-lg border border-[var(--color-border)] bg-white"><table className="w-full min-w-[850px] text-left text-sm"><thead className="bg-[var(--color-primary-light)]"><tr>{["Kennzeichen","Fahrzeug","Nutzer","Eigentum / Leasing","Versteuerung","Status"].map(h=><th className="p-3" key={h}>{h}</th>)}</tr></thead><tbody>{client.vehicles.map(vehicle=><ClickableTableRow href={`/fibu-lohn/fahrzeuge/${vehicle.id}`} className="border-t" key={vehicle.id}><td className="p-3">{vehicle.licensePlate??"–"}</td><td className="p-3"><Link className="font-semibold text-[var(--color-primary-dark)]" href={`/fibu-lohn/fahrzeuge/${vehicle.id}`}>{vehicle.description}</Link></td><td className="p-3">{vehicle.userName}</td><td className="p-3">{vehicle.ownershipType}</td><td className="p-3">{vehicle.onePercentRule?"1-%-Regelung":vehicle.logbook?"Fahrtenbuch":"–"}</td><td className="p-3">{vehicle.status}</td></ClickableTableRow>)}{!client.vehicles.length&&<tr><td colSpan={6} className="p-8 text-center text-[var(--color-text-muted)]">Für diesen Mandanten sind noch keine Fahrzeuge hinterlegt.</td></tr>}</tbody></table></div>
       </section>}
 
@@ -161,7 +161,7 @@ export default async function ClientDetailPage({
         </tbody></table></div>
       </section>
 
-      {client.payrollPreparedByFirm&&<section id="fibu-lohn" className="mt-7 scroll-mt-20"><div className="mb-3 flex flex-wrap items-center justify-between gap-3"><div><h2 className="text-lg font-semibold">FiBu ↔ Lohn</h2><p className="mt-1 text-sm text-slate-600">Abstimmungen bleiben getrennt vom Rechnungswesenstatus.</p></div><Link className="button-primary" href={`/fibu-lohn?mandant=${client.id}`}>FiBu-Lohn-Abstimmungen öffnen</Link></div><div className="rounded-lg border bg-white p-4 text-sm"><b>Zuständig:</b> {client.payrollUser?.fullName??"Nicht zugeordnet"} · <b>Abstimmungen:</b> {client.payrollReconciliations.length} · <b>Offene Rückfragen:</b> {openPayrollQuestions}</div></section>}
+      {client.payrollPreparedByFirm&&<section id="fibu-lohn" className="mt-7 scroll-mt-20"><div className="mb-3 flex flex-wrap items-center justify-between gap-3"><div><h2 className="text-lg font-semibold">Rechnungswesen ↔ Lohn</h2><p className="mt-1 text-sm text-slate-600">Abstimmungen bleiben getrennt vom Rechnungswesenstatus.</p></div><Link className="button-primary" href={`/fibu-lohn?mandant=${client.id}`}>Rechnungswesen–Lohn-Abstimmungen öffnen</Link></div><div className="rounded-lg border bg-white p-4 text-sm"><b>Zuständig:</b> {client.payrollUser?.fullName??"Nicht zugeordnet"} · <b>Abstimmungen:</b> {client.payrollReconciliations.length} · <b>Offene Rückfragen:</b> {openPayrollQuestions}</div></section>}
 
       <section id="qualitaet" className="mt-7 scroll-mt-20">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-3">

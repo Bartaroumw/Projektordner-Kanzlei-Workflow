@@ -8,11 +8,15 @@ if (process.env.DATABASE_URL !== REQUIRED_DATABASE_URL) {
 }
 const campusRoot = resolve(process.env.ORDO_CAMPUS_STORAGE_DIR ?? "");
 const payrollRoot = resolve(process.env.FIBU_LOHN_STORAGE_DIR ?? "");
+const profileImageRoot = resolve(process.env.PROFILE_IMAGE_STORAGE_DIR ?? "");
 if (!campusRoot.replaceAll("\\", "/").endsWith("/tmp/system-integration-storage/ordo-campus")) {
   throw new Error("SCHUTZABBRUCH: Falscher Campus-Speicher für die Systemdiagnose.");
 }
 if (!payrollRoot.replaceAll("\\", "/").endsWith("/tmp/system-integration-storage/fibu-lohn")) {
   throw new Error("SCHUTZABBRUCH: Falscher FiBu-Lohn-Speicher für die Systemdiagnose.");
+}
+if (!profileImageRoot.replaceAll("\\", "/").endsWith("/tmp/system-integration-storage/profile-images")) {
+  throw new Error("SCHUTZABBRUCH: Falscher Profilbildspeicher für die Systemdiagnose.");
 }
 
 async function storedFiles(root: string) {
@@ -39,6 +43,7 @@ const [
   payrollReconciliations,
   vehicles,
   migrations,
+  profileImages,
 ] = await Promise.all([
   prisma.user.findMany({ include: { roles: true } }),
   prisma.client.findMany(),
@@ -61,6 +66,7 @@ const [
   prisma.$queryRawUnsafe<Array<{ migration_name: string; finished_at: Date | null; rolled_back_at: Date | null }>>(
     'SELECT "migration_name", "finished_at", "rolled_back_at" FROM "_prisma_migrations" ORDER BY "started_at"',
   ),
+  prisma.userProfileImage.findMany({ select: { storedFileName: true } }),
 ]);
 
 const userById = new Map(users.map((user) => [user.id, user]));
@@ -151,12 +157,16 @@ const wrongVehicleReferences = vehicles.flatMap((vehicle) =>
 );
 const campusStored = await storedFiles(campusRoot);
 const payrollStored = await storedFiles(payrollRoot);
+const profileImageStored = await storedFiles(profileImageRoot);
 const campusReferences = new Set(campusAttachments.map((item) => item.storageKey));
 const payrollReferences = new Set(payrollDocuments.map((item) => item.storageKey));
+const profileImageReferences = new Set(profileImages.map((item) => item.storedFileName));
 const missingCampusFiles = campusAttachments.filter((item) => !campusStored.includes(item.storageKey));
 const orphanCampusFiles = campusStored.filter((name) => !campusReferences.has(name));
 const missingPayrollFiles = payrollDocuments.filter((item) => !payrollStored.includes(item.storageKey));
 const orphanPayrollFiles = payrollStored.filter((name) => !payrollReferences.has(name));
+const missingProfileImages = profileImages.filter((item) => !profileImageStored.includes(item.storedFileName));
+const orphanProfileImages = profileImageStored.filter((name) => !profileImageReferences.has(name));
 const incompleteMigrations = migrations.filter((migration) => !migration.finished_at || migration.rolled_back_at);
 
 const findings = {
@@ -178,6 +188,8 @@ const findings = {
   orphanCampusFiles,
   missingPayrollFiles: missingPayrollFiles.map((item) => item.storageKey),
   orphanPayrollFiles,
+  missingProfileImages: missingProfileImages.map((item) => item.storedFileName),
+  orphanProfileImages,
   incompleteMigrations: incompleteMigrations.map((migration) => migration.migration_name),
 };
 const summary = {
@@ -194,6 +206,7 @@ const summary = {
     payrollReconciliations: payrollReconciliations.length,
     payrollPositions: payrollPositions.length,
     payrollDocuments: payrollDocuments.length,
+    profileImages: profileImages.length,
     vehicles: vehicles.length,
   },
   findings,

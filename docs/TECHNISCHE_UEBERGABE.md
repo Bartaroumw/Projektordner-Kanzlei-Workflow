@@ -129,6 +129,7 @@ Diese Bestände sind vorhanden, aber ausdrücklich nicht Teil des Git-Commits:
 - alle `*.db`-Dateien unter `prisma/`, insbesondere `prisma/dev.db`,
 - `storage/ordo-campus`,
 - der bei Bedarf automatisch entstehende Ordner `storage/fibu-lohn`,
+- der bei Bedarf automatisch entstehende, geschützte Ordner `storage/profile-images`,
 - `tmp` einschließlich künstlicher Integrations- und Abnahmespeicher,
 - `backups` einschließlich der Sicherung vor der Systemintegration.
 
@@ -151,19 +152,20 @@ Keine Datei. Alle sichtbaren Änderungen konnten einer fachlichen, technischen, 
 
 Der gesicherte Stand enthält nach Code-, Schema-, Test- und Dokumentationsabgleich:
 
-- vollständige FiBu-Lohn-Abstimmungen mit getrenntem Rechnungswesen- und Lohnstatus,
+- vollständige Rechnungswesen–Lohn-Abstimmungen mit getrenntem Rechnungswesen- und Lohnstatus,
+- persönlicher Profilbereich, dreigeteilte Navigation und administrativ gepflegte geschützte Profilbilder,
 - mehrere Einzelpositionen und fachlich begrenzte Sammelpositionen,
 - Positionsentwürfe, Duplizierung, Archivierung und geschützte Belegzuordnung,
 - gebündelte Hauptnavigation und rollenabhängige Verwaltungsstruktur,
 - lückenbasierte Rechnungswesen-Statusübersicht,
 - überarbeitete Checklistenbedienung,
 - zentrale Sammelspeicherung mit Teilresultaten und Konfliktschutz über `updatedAt`,
-- geschützte Systemintegrationsumgebung mit 16 Migrationen,
+- geschützte Systemintegrationsumgebung mit 17 Migrationen und getrenntem Profilbildspeicher,
 - neue Regressionstests und zugehörige Betriebs- und Fachunterlagen.
 
 ## Weiterarbeit
 
-Die Migrationsbaseline von `prisma/dev.db` wurde am 31.07.2026 nach bestätigter Kopienprüfung hergestellt. Migrationen 1 bis 14 sind mit `migrate resolve --applied` registriert; Migration 15 wurde regulär ausgeführt. Die anschließend separat geprüfte Migration `20260804080000_reconcile_schema_history_drift` wurde am 04.08.2026 nach Sicherungscommit und vollständigem gemeinsamem Backup als einzige ausstehende Migration kontrolliert angewendet. Prisma meldet jetzt 16 erfolgreiche Migrationen und einen aktuellen Status. Entwicklungsstart, Neustart und produktionsnaher Start gegen `dev.db` sind geprüft.
+Die Migrationsbaseline von `prisma/dev.db` wurde am 31.07.2026 nach bestätigter Kopienprüfung hergestellt. Migrationen 1 bis 14 sind mit `migrate resolve --applied` registriert; Migration 15 wurde regulär ausgeführt. Die anschließend separat geprüfte Migration `20260804080000_reconcile_schema_history_drift` wurde am 04.08.2026 kontrolliert angewendet. Migration 17 `20260805120000_user_profile_images` ergänzt ausschließlich Profilbildreferenz und Auditverlauf. Sie wurde frisch in der Systemintegration sowie auf einer bytegenauen Kopie von `dev.db` geprüft; vor der Anwendung auf `dev.db` gehören Datenbank und alle drei regulären Speicherordner in ein gemeinsames Backup.
 
 Für isolierte systemweite Prüfungen bleiben diese Befehle vorgesehen:
 

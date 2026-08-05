@@ -17,11 +17,11 @@ export default async function DiagnosePage(){
     activePeriodsWithoutTasks:"Aktive Checklisten ohne Aufgaben",inactiveAssignments:"Zuordnungen zu inaktiven Benutzern",
     payrollClients:"Mandanten mit Kanzleilohn",payrollClientsWithoutAssignee:"Kanzleilohn-Mandanten ohne Lohnsachbearbeiter",
     payrollClientsWithInvalidAssignee:"Kanzleilohn-Mandanten mit ungültiger Lohnzuständigkeit",
-    payrollReconciliations:"FiBu-Lohn-Abstimmungen",payrollReconciliationsWithoutRoleSnapshots:"Abstimmungen ohne Rollen-Snapshots",
+    payrollReconciliations:"Rechnungswesen–Lohn-Abstimmungen",payrollReconciliationsWithoutRoleSnapshots:"Abstimmungen ohne Rollen-Snapshots",
     payrollReconciliationsWithInvalidAssignee:"Abstimmungen mit ungültigem Lohnsachbearbeiter",
     payrollReconciliationsWithoutItems:"Abstimmungen ohne Themen-Snapshots",
     payrollReconciliationsWithClientMismatch:"Abstimmungen ohne aktivierten Kanzleilohn",
-    activePayrollTopics:"Aktive FiBu-Lohn-Themen",
+    activePayrollTopics:"Aktive Rechnungswesen–Lohn-Themen",
   };
   return <><AdministrationBreadcrumbs section="system" current="Diagnose künstlicher Daten"/><AdministrationTabs user={user} active="system"/><h1 className="text-3xl font-semibold">Diagnose künstlicher Daten</h1><p className="mt-2 text-sm">Nur im lokalen Entwicklungsmodus. Passwörter, Hashes und Sitzungen werden nicht angezeigt.</p>
   <dl className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">{Object.entries(report).map(([key,value])=><div className="rounded border bg-white p-4" key={key}><dt className="text-sm text-[var(--color-text-muted)]">{labels[key as keyof typeof report]}</dt><dd className="mt-1 text-2xl font-semibold">{value}</dd></div>)}</dl></>

@@ -57,7 +57,7 @@ export function ClientForm({ action, client, cancelHref, users }: ClientFormProp
         </Field>
       </div>
       <section className="rounded-lg border border-[var(--color-border)] bg-[var(--color-background)] p-5">
-        <h2 className="text-lg font-semibold text-[var(--color-primary-dark)]">Lohn und FiBu-Lohn-Abstimmung</h2>
+        <h2 className="text-lg font-semibold text-[var(--color-primary-dark)]">Lohn und Rechnungswesen–Lohn-Abstimmung</h2>
         <p className="mt-1 text-sm text-[var(--color-text-muted)]">Nur bei bewusst aktiviertem Kanzleilohn wird mit einer neuen Monatscheckliste eine Abstimmung angelegt.</p>
         <label className="mt-4 flex items-center gap-3 text-sm font-medium">
           <input type="checkbox" name="payrollPreparedByFirm" defaultChecked={client?.payrollPreparedByFirm ?? false} className="h-4 w-4" />

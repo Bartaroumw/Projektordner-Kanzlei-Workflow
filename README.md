@@ -169,17 +169,17 @@ Unterschiede:
 - `npm.cmd run db:reset` und `npm.cmd run db:reset:test`: gegen `prisma/dev.db` ausdrücklich verboten.
 - `npm.cmd run db:diagnose`: lesender Diagnosebericht ohne Passwörter, Hashes oder Sitzungstoken.
 
-## Lokale Anmeldung und Benutzerrollen
+## Lokale Anmeldung, Benutzerrollen und Profile
 
 Ordo Caroli verwendet ausschließlich lokale Benutzerkonten in SQLite. Passwörter werden mit Node.js `scrypt` und einem je Passwort zufällig erzeugten Salt gespeichert. Das Klartextpasswort wird weder gespeichert noch protokolliert. Nach der Anmeldung wird ein zufälliges, opakes Sitzungstoken gesetzt; in der Datenbank liegt ausschließlich dessen SHA-256-Hash. Das Cookie ist `HttpOnly`, `SameSite=Lax`, auf acht Stunden begrenzt und im Produktionsmodus `Secure`.
 
 Mehrfachrollen sind möglich:
 
-- `Mitarbeiter`: Mandanten anlegen und bearbeiten, eigene zugeordnete Mandate bearbeiten, Rückfragen beantworten und zur Prüfung übergeben.
+- `Bearbeiter` (technische Rolle `MITARBEITER`): Mandanten anlegen und bearbeiten, eigene zugeordnete Mandate bearbeiten, Rückfragen beantworten und zur Prüfung übergeben.
 - `Prüfer`: Mandanten sowie mandantenspezifische Aufgabenvorlagen verwalten und zugeordnete Checklisten prüfen.
 - `Kanzleileitung`: kanzleiweite Fachsicht, Standardaufgaben, begründete Ausnahmen, Rollenänderungen und Wiederöffnungen.
 - `Administrator`: lokale Benutzerkonten und Passwörter verwalten, jedoch keine fachliche Prüfung allein aufgrund der Administratorrolle.
-- `Lohnsachbearbeiter`: ausschließlich zugeordnete FiBu-Lohn-Abstimmungen, Belege, Rückfragen und den erforderlichen Fahrzeugbestand bearbeiten beziehungsweise einsehen; keine Rechnungswesen-, Jahresabschluss-, Leitungs- oder Administrationsrechte.
+- `Lohnsachbearbeiter`: ausschließlich zugeordnete Rechnungswesen–Lohn-Abstimmungen, Belege, Rückfragen und den erforderlichen Fahrzeugbestand bearbeiten beziehungsweise einsehen; keine Rechnungswesen-, Jahresabschluss-, Leitungs- oder Administrationsrechte.
 - `Standardaufgaben verwalten`: zusätzliche ausdrückliche Fachberechtigung für Standardaufgaben und Excel-Import.
 - `Mandanten verwalten`: ausdrückliche Zusatzberechtigung für Benutzer ohne fachliche Standardrolle.
 - `Mandantenspezifische Aufgaben verwalten`: ausdrückliche Zusatzberechtigung neben Prüfer und Kanzleileitung.
@@ -224,6 +224,8 @@ Diese Zugangsdaten sind ausschließlich für lokale Tests bestimmt. Vor einem ec
 Jeder Benutzer kann sein Passwort mit aktuellem Passwort, neuem Passwort und Bestätigung ändern. Andere Sitzungen werden dabei ungültig. Passwörter müssen mindestens zwölf Zeichen enthalten; unnötig starre Zeichenklassen werden nicht erzwungen.
 
 Die Migration `20260726213000_local_users_auth` ergänzt Benutzer, Mehrfachrollen, Sitzungen, Benutzerreferenzen an Mandanten und Checklisten sowie Benutzer-Snapshots im Verlauf. Sie entfernt keine historischen Daten.
+
+Der persönliche Kontobereich `/profil` zeigt Identität, Hauptrollen, getrennte Zusatzberechtigungen, Kontodaten und Sicherheitseinstellungen. Die Seitenleiste verwendet denselben geschützten Avatar beziehungsweise den Initialen-Fallback. Profilbilder können ausschließlich von Administratoren in der Benutzerverwaltung gepflegt werden. Zulässig sind JPG/JPEG, PNG und WebP bis 5 MB; die Dateien werden vollständig dekodiert, neutral benannt und unter `storage/profile-images` gespeichert. Die authentifizierte Auslieferung erfolgt über `/api/profile-images/[userId]` nur für aktive Benutzer. Einzelheiten stehen in `docs/BENUTZERPROFILE_UND_PROFILBILDER.md`.
 
 Der lokale Entwicklungsbetrieb verwendet HTTP. Für einen späteren Netzwerkbetrieb sind HTTPS, geregelte Datensicherung, Zugriffsschutz des Windows-PCs und ein abgesichertes internes Betriebskonzept erforderlich.
 
@@ -273,9 +275,10 @@ Ein vollständiges Backup von Ordo Caroli umfasst mindestens:
 - die SQLite-Datenbank aus `prisma/`,
 - den vollständigen Ordner `storage/ordo-campus`,
 - den vollständigen Ordner `storage/fibu-lohn`,
+- den vollständigen Ordner `storage/profile-images`,
 - die lokal verwendete, nicht versionierte Umgebungskonfiguration.
 
-**Das Sichern ausschließlich der SQLite-Datenbank reicht nach Einführung lokaler Anhänge nicht mehr aus.** Datenbank, Campus-Anhangsordner und FiBu-Lohn-Belegordner sollten im selben konsistenten Sicherungslauf kopiert werden. Bei einer Wiederherstellung oder einem Rechnerumzug werden Datenbank und Speicherordner an ihre dokumentierten Pfade zurückgespielt; danach sind Migrationen, Diagnose und ein kontrollierter Download zu prüfen. Die Speicherordner sind absichtlich von Git ausgeschlossen.
+**Das Sichern ausschließlich der SQLite-Datenbank reicht nach Einführung lokaler Anhänge nicht mehr aus.** Datenbank, Campus-Anhangsordner, Rechnungswesen–Lohn-Belegordner und Profilbildordner müssen im selben konsistenten Sicherungslauf kopiert werden. Bei einer Wiederherstellung oder einem Rechnerumzug werden Datenbank und Speicherordner an ihre dokumentierten Pfade zurückgespielt; danach sind Migrationen, Diagnose und kontrollierte Dateiaufrufe zu prüfen. Die Speicherordner sind absichtlich von Git ausgeschlossen.
 
 Ordo Campus ist für allgemeine Kanzleistandards und fachliche Anleitungen bestimmt. Echte Mandantendaten, personenbezogene Testdaten und mandantenbezogene Originalunterlagen gehören nicht in zentrale Standardaufgaben-Anhänge. DATEV-Dokumente werden grundsätzlich verlinkt und nicht kopiert. Eine Virenscanner-Integration, Dokumentversionierung, Office-Vorschau, OCR, DMS-Integration und Dateivolltextsuche sind noch nicht Bestandteil von Version 1.0.
 
@@ -329,7 +332,7 @@ Die Mandantenübersicht ist natürlich nach Nummer auf- oder absteigend sowie na
 
 Die additive Migration `20260727230000_workflow_ux_corrections` ergänzt ausschließlich Workflow-Metadaten; historische Aufgaben, Snapshots, Campus-Inhalte und Verläufe bleiben erhalten. Eine ältere, mit `db push` erzeugte Entwicklungsdatenbank kann eine abweichende Migrationshistorie besitzen. In diesem Fall darf sie nicht ungeprüft zurückgesetzt werden.
 
-## FiBu-Lohn-Abstimmung
+## Rechnungswesen–Lohn-Abstimmungen
 
 Teil 1 des Moduls bildet den monatlichen QM- und Informationsübergabeprozess vom Rechnungswesen an die Lohnabteilung fachlich und technisch ab. Für einen Mandanten wird die Standardaufgabe `Monatliche FiBu-Lohn-Abstimmung` nur erzeugt, wenn `Lohnabrechnung durch Kanzlei` aktiviert und ein aktiver Benutzer mit der Rolle `Lohnsachbearbeiter` zugeordnet ist.
 
@@ -439,7 +442,7 @@ Mandantenspezifische wiederkehrende Aufgaben unterstützen dieselben Ausführung
 Bei **Nicht zutreffend** wird die Begründung nur nach Auswahl dieses Status eingeblendet und serverseitig verlangt. Eine gespeicherte Begründung bleibt bei späteren Statuswechseln erhalten und erscheint bei erneuter Auswahl wieder. **Aufgabe übertragen** ist als geschlossene Zusatzaktion ausgeführt; erst nach dem Öffnen erscheinen Begründung und Folgemonat.
 
 Bekannte Einschränkung: Die Ausführungsmonate beziehen sich in dieser Version auf das Kalenderjahr. Eine relative Verschiebung anhand eines abweichenden Wirtschaftsjahres ist noch nicht implementiert.
-## FiBu-Lohn-Abstimmung – Benutzeroberfläche
+## Rechnungswesen–Lohn-Abstimmungen – Benutzeroberfläche
 
 Die FiBu-Lohn-Abstimmung ist als eigener, lokaler Arbeitsbereich integriert. Für Kanzleilohn-Mandanten wird bei der Erstellung einer Monatscheckliste genau eine Abstimmung für den vorgesehenen Lohnabrechnungsmonat angelegt. Die zugehörige Checklistenaufgabe zeigt Themenfortschritt, Sachverhalte, offene Rückfragen, Lohnzuständigkeit und den direkten Einstieg.
 
@@ -517,7 +520,7 @@ Die `prisma/dev.db` wurde nach der systemweiten Prüfung separat auf vollständi
 
 ## Workflow-, Navigations- und UX-Optimierung
 
-Die Hauptnavigation ist in **Rechnungswesen** und **FiBu ↔ Lohn** gebündelt. Rechnungswesen enthält das laufende Rechnungswesen, den Jahresabschluss und die neue lückenbasierte Statusübersicht. Die Lohnansicht startet für Lohnsachbearbeiter mit allen offenen Vorgängen über mehrere Monate; Rechnungswesen- und Lohnabrechnungsmonat werden getrennt angezeigt.
+Die Hauptnavigation ist in **Rechnungswesen** und **Rechnungswesen ↔ Lohn** gebündelt. Rechnungswesen enthält das laufende Rechnungswesen, den Jahresabschluss und die neue lückenbasierte Statusübersicht. Die Lohnansicht startet für Lohnsachbearbeiter mit allen offenen Vorgängen über mehrere Monate; Rechnungswesen- und Lohnabrechnungsmonat werden getrennt angezeigt. Die technischen Routen unter `/fibu-lohn` bleiben kompatibel.
 
 FiBu-Lohn-Themen unterstützen mehrere Einzel- und – bei fachlich geeigneten Themen – Sammelpositionen. Die additive Migration `20260728140000_workflow_navigation_payroll_positions` ergänzt ausschließlich neue Positions- und Referenzstrukturen. Bestehende Abstimmungen, Belege, Checklisten und Verläufe bleiben erhalten.
 

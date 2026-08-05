@@ -40,6 +40,7 @@
 /backups/
 /storage/ordo-campus/
 /storage/fibu-lohn/
+/storage/profile-images/
 *.tmp
 *.log
 

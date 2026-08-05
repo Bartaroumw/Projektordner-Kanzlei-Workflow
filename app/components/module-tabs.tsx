@@ -28,11 +28,11 @@ export function PayrollModuleTabs({ active, user }: { active: "abstimmungen" | "
     !user.roles.some((role) => ["MITARBEITER", "PRUEFER", "KANZLEILEITUNG", "MANDANTEN_VERWALTEN"].includes(role));
   const entries = [
     ["abstimmungen", payrollOnly ? "Meine Abstimmungen" : "Abstimmungen", "/fibu-lohn"],
-    ["rueckfragen", "Offene Lohnrückfragen", "/fibu-lohn?rueckfragen=1#rueckfragen"],
+    ["rueckfragen", "Offene Rechnungswesen–Lohn-Rückfragen", "/fibu-lohn?rueckfragen=1#rueckfragen"],
     ["fahrzeuge", "Fahrzeuge", "/fibu-lohn/fahrzeuge"],
   ] as const;
   return (
-    <nav aria-label="Bereiche FiBu und Lohn" className="mb-6 flex flex-wrap gap-2 border-b border-[var(--color-border)] pb-3">
+    <nav aria-label="Bereiche Rechnungswesen und Lohn" className="mb-6 flex flex-wrap gap-2 border-b border-[var(--color-border)] pb-3">
       {entries.map(([key, label, href]) => (
         <Link
           key={key}

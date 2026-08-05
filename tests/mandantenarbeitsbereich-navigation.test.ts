@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
+import { splitRoleDisplay } from "../lib/user-role-display.ts";
 
 const shell=readFileSync("app/components/app-shell.tsx","utf8");
 const clients=readFileSync("app/mandanten/page.tsx","utf8");
@@ -81,5 +82,30 @@ describe("Einklappbare Hauptnavigation",()=>{
     expect(shell).toContain('viewBox:"0 0 24 24"');
     expect(shell).not.toContain('icon:"⌂"');
     expect(shell).toContain('navigationCollapsed ? "md:justify-center" : ""');
+  });
+  it("zentriert CONCILIUM nur in der Textspalte und fixiert die Pfeilachse am Logo",()=>{
+    expect(shell).toContain('min-w-0 text-center');
+    expect(shell).toContain('top-[2.625rem]');
+    expect(shell).toContain('h-11 w-11');
+  });
+  it("verwendet getrennte, einheitliche Symbole für Rechnungswesen, Campus und Austausch",()=>{
+    expect(shell).toContain('if(name==="accounting")');
+    expect(shell).toContain('if(name==="payroll")');
+    expect(shell).toContain('if(name==="campus")');
+    expect(shell.match(/if\(name==="accounting"\)[\s\S]*?return <svg \{\.\.\.common\}>([\s\S]*?)<\/svg>/)?.[1]).not.toBe(shell.match(/if\(name==="campus"\)[\s\S]*?return <svg \{\.\.\.common\}>([\s\S]*?)<\/svg>/)?.[1]);
+  });
+  it("hält Navigation und persönlichen Benutzerbereich unabhängig erreichbar",()=>{
+    expect(shell).toContain('min-h-0 flex-1 overflow-y-auto');
+    expect(shell).toContain('mt-auto shrink-0 border-t');
+    expect(shell).toContain('href="/profil"');
+    expect(shell).toContain('title={navigationCollapsed?"Profileinstellungen öffnen":undefined}');
+  });
+  it("trennt geordnete Hauptrollen dedupliziert von Zusatzberechtigungen",()=>{
+    expect(splitRoleDisplay(["ORDO_CAMPUS_VERWALTEN","MITARBEITER","PRUEFER","LOHNSACHBEARBEITER","MITARBEITER"])).toEqual({
+      main:["Prüfer","Bearbeiter","Lohnsachbearbeiter"],
+      additional:["Ordo Campus verwalten"],
+    });
+    expect(shell).toContain('roleDisplay.main.join(" · ")');
+    expect(shell).not.toContain('roleDisplay.additional.join');
   });
 });

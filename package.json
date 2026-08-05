@@ -28,6 +28,8 @@
     "testdata:fibu-lohn:backup-test": "node scripts/verify-fibu-lohn-backup.mjs",
     "testdata:fibu-lohn:performance": "node scripts/performance-fibu-lohn.mjs",
     "testdata:system-integration": "node scripts/reset-system-integration.mjs",
+    "test:migration:user-profile-copy": "node scripts/test-user-profile-migration-copy.mjs",
+    "backup:local": "node scripts/backup-local-data.mjs",
     "testdata:system-integration:diagnose": "node scripts/run-system-integration-diagnose.mjs",
     "dev:integration": "node scripts/run-system-integration.mjs dev",
     "build:integration": "node scripts/run-system-integration.mjs build",
@@ -39,6 +41,7 @@
     "react": "19.2.4",
     "react-dom": "19.2.4",
     "read-excel-file": "^9.3.4",
+    "sharp": "^0.34.5",
     "zod": "^4.4.3"
   },
   "devDependencies": {

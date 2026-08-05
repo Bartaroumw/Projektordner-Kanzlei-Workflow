@@ -1,14 +1,14 @@
 # Umgebungen und Datenbestände
 
-Stand: 28.07.2026
+Stand: 05.08.2026
 
-| Betriebsart | Datenbank | Campus-Speicher | FiBu-Lohn-Speicher | Reset |
-| --- | --- | --- | --- | --- |
-| Entwicklung | `prisma/dev.db` aus `.env` | `storage/ordo-campus` | `storage/fibu-lohn` | Nein |
-| Workflow-Test | `prisma/workflow-test.db` | `tmp/workflow-test-campus` | nicht maßgeblich | nur `testdata:workflow` |
-| FiBu-Lohn-Abnahme | `prisma/fibu-lohn-acceptance.db` | getrennt im Abnahmebestand | `tmp/fibu-lohn-acceptance-storage/fibu-lohn` | nur `testdata:fibu-lohn` |
-| Systemintegration | `prisma/system-integration.db` | `tmp/system-integration-storage/ordo-campus` | `tmp/system-integration-storage/fibu-lohn` | nur `testdata:system-integration` |
-| Pilot | noch nicht eingerichtet | noch nicht eingerichtet | noch nicht eingerichtet | Nein |
+| Betriebsart | Datenbank | Campus-Speicher | Rechnungswesen–Lohn-Speicher | Profilbildspeicher | Reset |
+| --- | --- | --- | --- | --- | --- |
+| Entwicklung | `prisma/dev.db` aus `.env` | `storage/ordo-campus` | `storage/fibu-lohn` | `storage/profile-images` | Nein |
+| Workflow-Test | `prisma/workflow-test.db` | `tmp/workflow-test-campus` | nicht maßgeblich | `tmp/profile-images-test` | nur `testdata:workflow` |
+| FiBu-Lohn-Abnahme | `prisma/fibu-lohn-acceptance.db` | getrennt im Abnahmebestand | `tmp/fibu-lohn-acceptance-storage/fibu-lohn` | nicht maßgeblich | nur `testdata:fibu-lohn` |
+| Systemintegration | `prisma/system-integration.db` | `tmp/system-integration-storage/ordo-campus` | `tmp/system-integration-storage/fibu-lohn` | `tmp/system-integration-storage/profile-images` | nur `testdata:system-integration` |
+| Pilot | noch nicht eingerichtet | noch nicht eingerichtet | noch nicht eingerichtet | noch nicht eingerichtet | Nein |
 
 Alle genannten Datenbanken und lokalen Speicherinhalte sind von Git ausgeschlossen.
 
@@ -49,8 +49,9 @@ Ein vollständiger Bestand besteht aus:
 
 1. SQLite-Datenbank,
 2. Ordo-Campus-Dateispeicher,
-3. FiBu-Lohn-Dateispeicher,
-4. passender lokaler Umgebungsdatei.
+3. Rechnungswesen–Lohn-Dateispeicher,
+4. Profilbildspeicher,
+5. passender lokaler Umgebungsdatei.
 
 Nur die SQLite-Datei zu kopieren ist nach Einführung der geschützten Anhänge unvollständig. Die Sicherung vor der Integrationsprüfung liegt lokal und ausgeschlossen unter `backups/2026-07-28_before_system_integration`.
 

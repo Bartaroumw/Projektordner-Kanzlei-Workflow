@@ -81,7 +81,7 @@ describe("Verwaltungsseiten und direkte Zugriffe", () => {
 
   it("erhält Rechnungswesen, FiBu und Ordo Campus als Hauptmodule", () => {
     expect(shell).toContain('label:"Rechnungswesen"');
-    expect(shell).toContain('label:"FiBu ↔ Lohn"');
+    expect(shell).toContain('label:"Rechnungswesen ↔ Lohn"');
     expect(shell).toContain('label:"Ordo Campus"');
   });
 

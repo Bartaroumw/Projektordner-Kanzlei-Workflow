@@ -46,13 +46,13 @@ Diese Next.js-Version kann neue oder geänderte Konventionen enthalten. Vor Änd
 - Lohnsachbearbeiter und Rechnungswesenrollen eines Mandanten werden personell getrennt zugeordnet. Eine Lohnrolle verleiht keine Rechte an Rechnungswesen- oder Jahresabschlusschecklisten.
 - FiBu-Lohn-Themen werden konfigurierbar gepflegt und beim Erstellen einer Monatsabstimmung als unveränderliche Themen-Snapshots übernommen.
 - FiBu-Lohn-Belege liegen ausschließlich unter `storage/fibu-lohn`, niemals unter `public`; erlaubt sind PDF, DOCX, XLSX, PNG und JPG/JPEG bis 15 MB.
-- Ein vollständiges Backup umfasst SQLite-Datenbank, Campus-Anhangsspeicher und FiBu-Lohn-Belegspeicher gemeinsam.
+- Ein vollständiges Backup umfasst SQLite-Datenbank, Campus-Anhangsspeicher, FiBu-Lohn-Belegspeicher und Profilbildspeicher gemeinsam.
 - Die FiBu-Lohn-Oberfläche zeigt Rechnungswesenstatus und Lohnstatus stets getrennt und bietet keine Sammelaktion zum ungeprüften Abschluss aller Themen.
 - Reine Lohnsachbearbeiter sehen keine Rechnungswesen- oder Jahresabschlussmodule; alle schreibenden FiBu-Lohn-Aktionen prüfen die Zuordnung serverseitig erneut.
 - Lohnrückfragen sind Informationsvorgänge. Sie öffnen eine abgeschlossene Monatscheckliste nicht wieder und führen direkt zur betroffenen Themenkarte.
 - Fahrzeugstammdaten werden dauerhaft am Mandanten gepflegt; Änderungen aus einer Abstimmung verknüpfen den Fahrzeugverlauf, ohne Daten doppelt zu erfassen.
 - Die FiBu-Lohn-Abnahme verwendet ausschließlich `prisma/fibu-lohn-acceptance.db` und `tmp/fibu-lohn-acceptance-storage`; Reset- und Prüfbefehle müssen bei abweichenden Pfaden abbrechen.
-- FiBu-Lohn-Tests und Abnahmen dürfen weder `prisma/dev.db` noch die regulären Ordner `storage/ordo-campus` und `storage/fibu-lohn` verändern.
+- FiBu-Lohn-Tests und Abnahmen dürfen weder `prisma/dev.db` noch die regulären Ordner `storage/ordo-campus`, `storage/fibu-lohn` und `storage/profile-images` verändern.
 - Ein Lohnabschluss ist bei offenen Rückfragen, unverarbeiteten Sachverhalten oder angekündigten, noch nicht abgeschlossenen Nachreichungen serverseitig gesperrt.
 - Die Systemintegration verwendet ausschließlich `prisma/system-integration.db` und `tmp/system-integration-storage` mit getrennten Unterordnern für Campus und FiBu-Lohn.
 - Der Systemintegrationsreset muss bei jedem abweichenden Datenbank- oder Speicherpfad abbrechen und darf niemals `prisma/dev.db` oder reguläre Speicherordner verändern.
@@ -77,3 +77,6 @@ Diese Next.js-Version kann neue oder geänderte Konventionen enthalten. Vor Änd
 - Der zentrale Einstieg heißt in Navigation, Seitenkopf und Browser-Titel ausschließlich „Dashboard“. Das Dashboard zeigt offene Monats-, Jahresabschluss- und FiBu-Lohn-Vorgänge periodenübergreifend nach der aktuell aktiven Verantwortung.
 - Offene Vorgänge mit einem Arbeitsmonat von mehr als sechs Monaten vor dem aktuellen Kalendermonat werden als „Ältere offene Vorgänge“ separat und ohne Doppelanzeige geführt. Die Altersberechnung muss Jahreswechsel korrekt berücksichtigen.
 - Operative Listen starten mit „Offen“, bieten getrennte Ansichten „Abgeschlossen“ und optional „Alle“ und verwenden Monats- oder Jahresfilter nur für Historie und Recherche. Suche und häufige Filter bleiben direkt sichtbar; weitere Filter werden kompakt aufgeklappt.
+- In der sichtbaren Oberfläche heißt das Hauptmodul „Rechnungswesen ↔ Lohn“ und die Arbeitsliste „Rechnungswesen–Lohn-Abstimmungen“. Technische Routen, Modelle und bestehende Migrationsnamen mit `fibu-lohn` bleiben unverändert.
+- Profilbilder liegen ausschließlich unter `storage/profile-images`, niemals unter `public`; erlaubt sind nur JPG/JPEG, PNG und WebP bis 5 MB. Endung, MIME-Typ, Dateisignatur und tatsächliche Dekodierbarkeit werden serverseitig geprüft.
+- Profilbilder werden nur von Administratoren gepflegt und ausschließlich über die authentifizierte Route `/api/profile-images/[userId]` für aktive Benutzer ausgeliefert. Interne Pfade und technische Dateinamen werden nicht offengelegt.

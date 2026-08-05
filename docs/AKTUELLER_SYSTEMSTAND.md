@@ -1,16 +1,16 @@
 # Aktueller Systemstand
 
-Stand: 04.08.2026
+Stand: 05.08.2026
 
 ## Technischer Stand
 
 - Next.js 16.2.12 und React 19.2.4
 - Node.js 24.18.0 und npm 11.16.0
 - Prisma und Prisma Client 6.19.3
-- SQLite mit 16 unveränderten, chronologisch geordneten Migrationen
+- SQLite mit 17 unveränderten, chronologisch geordneten Migrationen
 - TypeScript 5.9.3, ESLint 9.39.5 und Vitest 4.1.10
-- lokaler App Router mit 44 `page.tsx`-Dateien, 9 Server-Action-Dateien und 6 Route Handlern
-- 34 Prisma-Modelle
+- lokaler App Router mit 45 `page.tsx`-Dateien, 9 Server-Action-Dateien und 7 Route Handlern
+- 36 Prisma-Modelle
 
 ## Fachlicher Stand
 
@@ -28,12 +28,12 @@ Neu im gegenüber `c9ad6faf69bca18ee4d47676f26b82418faf8eb5` gesicherten Arbeits
 
 ## Umgebungen
 
-| Umgebung | Datenbank | Campus-Speicher | FiBu-Lohn-Speicher |
-| --- | --- | --- | --- |
-| Entwicklung | `prisma/dev.db` | `storage/ordo-campus` | `storage/fibu-lohn` |
-| Workflow-Test | `prisma/workflow-test.db` | `tmp/workflow-test-campus` | nicht maßgeblich |
-| FiBu-Lohn-Abnahme | `prisma/fibu-lohn-acceptance.db` | getrennt | `tmp/fibu-lohn-acceptance-storage/fibu-lohn` |
-| Systemintegration | `prisma/system-integration.db` | `tmp/system-integration-storage/ordo-campus` | `tmp/system-integration-storage/fibu-lohn` |
+| Umgebung | Datenbank | Campus-Speicher | Rechnungswesen–Lohn-Speicher | Profilbildspeicher |
+| --- | --- | --- | --- | --- |
+| Entwicklung | `prisma/dev.db` | `storage/ordo-campus` | `storage/fibu-lohn` | `storage/profile-images` |
+| Workflow-Test | `prisma/workflow-test.db` | `tmp/workflow-test-campus` | nicht maßgeblich | `tmp/profile-images-test` |
+| FiBu-Lohn-Abnahme | `prisma/fibu-lohn-acceptance.db` | getrennt | `tmp/fibu-lohn-acceptance-storage/fibu-lohn` | nicht maßgeblich |
+| Systemintegration | `prisma/system-integration.db` | `tmp/system-integration-storage/ordo-campus` | `tmp/system-integration-storage/fibu-lohn` | `tmp/system-integration-storage/profile-images` |
 
 Die Systemintegration wird ausschließlich mit den dafür vorgesehenen npm-Skripten erzeugt und gestartet:
 
@@ -81,6 +81,14 @@ Der zentrale Einstieg heißt einheitlich **Dashboard**. Offene Rechnungswesen-, 
 Für diese Umsetzung waren weder Prisma-Schemaänderungen noch eine Migration erforderlich. `prisma/dev.db`, Speicherordner und bestehende Fachdaten wurden nicht verändert.
 
 Prisma Validate, Prisma Client und Migrationsstatus, ESLint, TypeScript, 331 reguläre automatisierte Tests, Produktions-Build sowie Entwicklungs- und produktionsnaher Start waren erfolgreich. Der für die Mengenprüfung ausdrücklich aktivierte Performance-Smoke-Test ergab insgesamt 332 erfolgreiche Tests und bestätigte 1.200 offene Checklisten, darunter 300 ältere Vorgänge, bei 30.000 Aufgaben. Der separate FiBu-Lohn-Performancebestand bestätigte die Erreichbarkeit aller 3.600 Abstimmungen über 36 Seiten. Die künstlichen Rollenprofile und die Zielbreiten 1440, 1280, 1024 und 600 Pixel wurden ohne sichtbaren Anwendungsfehler oder Seitenüberlauf geprüft.
+
+## Navigation, Benutzerprofile und Profilbilder – Stand 05.08.2026
+
+Die Desktop-Navigation ist in Markenbereich, unabhängig scrollbar bleibende Hauptnavigation und festen persönlichen Kontobereich gegliedert. Das sichtbare Lohnmodul heißt einheitlich **Rechnungswesen ↔ Lohn**; technische Routen und Datenmodellnamen unter `fibu-lohn` bleiben kompatibel. Der persönliche Bereich `/profil` zeigt Identität, geordnete Hauptrollen, getrennte Zusatzberechtigungen, Sicherheitseinstellungen und Kontodaten. Die Rollenbezeichnung `MITARBEITER` erscheint in der Oberfläche als **Bearbeiter**.
+
+Migration 17 `20260805120000_user_profile_images` ergänzt ausschließlich die optionale Profilbildreferenz und ihren Auditverlauf. Profilbilder liegen geschützt unter `storage/profile-images`, werden serverseitig vollständig geprüft und nur über eine authentifizierte Route ausgeliefert. Die Migration wurde frisch in der Systemintegration und verlustfrei auf einer bytegenauen Kopie von `dev.db` geprüft. Alle 34 zuvor vorhandenen Anwendungstabellen blieben einschließlich Zeilenzahlen und Dateninhalten unverändert; SQLite-Integrität und Fremdschlüsselprüfung waren erfolgreich.
+
+Prisma Validate, Prisma Client, ESLint, TypeScript, 346 automatisierte Tests, Integrations-Build sowie Entwicklungs- und produktionsnaher Integrationsstart waren erfolgreich. Hinzufügen, Ersetzen und Entfernen eines künstlichen Profilbilds wurden im Browser geprüft; nach Austausch und Entfernung blieben keine verwaisten Dateien zurück. Die künstlichen Rollenprofile Bearbeiter/Prüfer, Lohnsachbearbeiter und Administrator sowie die Zielbreiten 1440, 1280, 1024 und 600 Pixel wurden ohne horizontalen Seitenüberlauf oder Browserfehler geprüft.
 
 ## Bekannte Warnungen
 

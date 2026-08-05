@@ -10,7 +10,7 @@ export default async function UserDetail({params}:{params:Promise<{id:string}>})
   const { id } = await params;
   const user = await prisma.user.findUnique({
     where: { id: Number(id) },
-    include: { roles: true, _count: { select: { processorClients: true, reviewerClients: true, managementClients: true, processorPeriods: true, reviewerPeriods: true } } },
+    include: { roles: true, profileImage: { select: { id: true } }, _count: { select: { processorClients: true, reviewerClients: true, managementClients: true, processorPeriods: true, reviewerPeriods: true } } },
   });
   if (!user) notFound();
   const assignments = user._count.processorClients + user._count.reviewerClients + user._count.managementClients;

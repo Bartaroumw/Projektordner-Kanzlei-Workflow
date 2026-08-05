@@ -7,6 +7,7 @@ export type AuthUser = {
   username: string;
   active: boolean;
   mustChangePassword: boolean;
+  hasProfileImage?: boolean;
   roles: Role[];
 };
 

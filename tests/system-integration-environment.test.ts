@@ -20,16 +20,18 @@ describe("geschützte Systemintegrationsumgebung", () => {
         assertSystemIntegrationPaths,
         integrationDatabasePath,
         integrationCampusStorage,
-        integrationPayrollStorage
+        integrationPayrollStorage,
+        integrationProfileImageStorage
       } from "./scripts/system-integration-environment.mjs";
       const paths = assertSystemIntegrationPaths();
       console.log(JSON.stringify({
         database: paths.databasePath === integrationDatabasePath,
         campus: paths.campusStorage === integrationCampusStorage,
-        payroll: paths.payrollStorage === integrationPayrollStorage
+        payroll: paths.payrollStorage === integrationPayrollStorage,
+        profileImages: paths.profileImageStorage === integrationProfileImageStorage
       }));
     `);
-    expect(JSON.parse(output)).toEqual({ database: true, campus: true, payroll: true });
+    expect(JSON.parse(output)).toEqual({ database: true, campus: true, payroll: true, profileImages: true });
   });
 
   it("weist dev.db und reguläre Speicherpfade zuverlässig zurück", () => {
@@ -40,13 +42,14 @@ describe("geschützte Systemintegrationsumgebung", () => {
         { databasePath: "./prisma/dev.db" },
         { storageRoot: "./storage" },
         { campusStorage: "./storage/ordo-campus" },
-        { payrollStorage: "./storage/fibu-lohn" }
+        { payrollStorage: "./storage/fibu-lohn" },
+        { profileImageStorage: "./storage/profile-images" }
       ]) {
         try { assertSystemIntegrationPaths(paths); } catch { rejected += 1; }
       }
       console.log(rejected);
     `);
-    expect(output).toBe("4");
+    expect(output).toBe("5");
   });
 
   it("enthält die vollständige unveränderte Migrationskette", () => {
@@ -54,8 +57,8 @@ describe("geschützte Systemintegrationsumgebung", () => {
       .filter((entry) => entry.isDirectory())
       .map((entry) => entry.name)
       .sort();
-    expect(migrations).toHaveLength(16);
-    expect(migrations.at(-1)).toBe("20260804080000_reconcile_schema_history_drift");
+    expect(migrations).toHaveLength(17);
+    expect(migrations.at(-1)).toBe("20260805120000_user_profile_images");
   });
 
   it("stellt eindeutige Reset-, Diagnose-, Entwicklungs- und Produktionsbefehle bereit", () => {

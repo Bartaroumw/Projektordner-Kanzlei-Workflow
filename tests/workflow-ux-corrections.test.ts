@@ -54,7 +54,7 @@ describe("Listen und Rollenanzeige",()=>{
   });
   it("ordnet fachliche Rollen und trennt technische sowie zusätzliche Rechte",()=>{
     const display=formatRoleDisplay(["MITARBEITER","ADMINISTRATOR","PRUEFER","PRUEFER","ORDO_CAMPUS_VERWALTEN","KANZLEILEITUNG"]);
-    expect(display.professional).toEqual(["Kanzleileitung","Prüfer","Mitarbeiter"]);
+    expect(display.professional).toEqual(["Kanzleileitung","Prüfer","Bearbeiter"]);
     expect(display.technical).toEqual(["Administrator"]);
     expect(display.additional).toEqual(["Ordo Campus verwalten"]);
   });

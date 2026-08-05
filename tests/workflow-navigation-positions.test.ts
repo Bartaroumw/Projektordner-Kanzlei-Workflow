@@ -64,6 +64,6 @@ describe("Bedienkorrekturen",()=>{
   it("gruppiert die Hauptnavigation nach Rechnungswesen und FiBu-Lohn",()=>{
     const source=readFileSync("app/components/app-shell.tsx","utf8");
     expect(source).toContain('label:"Rechnungswesen"');
-    expect(source).toContain('label:"FiBu ↔ Lohn"');
+    expect(source).toContain('label:"Rechnungswesen ↔ Lohn"');
   });
 });

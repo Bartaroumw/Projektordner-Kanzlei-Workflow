@@ -7,13 +7,13 @@ export const SESSION_COOKIE = "ordo_session";
 export const SESSION_SECONDS = 8 * 60 * 60;
 const tokenHash = (token: string) => createHash("sha256").update(token).digest("hex");
 
-function mapUser(user: { id:number; fullName:string; username:string; active:boolean; mustChangePassword:boolean; roles:{role:string}[] }): AuthUser {
+function mapUser(user: { id:number; fullName:string; username:string; active:boolean; mustChangePassword:boolean; roles:{role:string}[]; profileImage?:{id:number}|null }): AuthUser {
   return { id:user.id, fullName:user.fullName, username:user.username, active:user.active,
-    mustChangePassword:user.mustChangePassword, roles:user.roles.map((entry)=>entry.role as Role) };
+    mustChangePassword:user.mustChangePassword, hasProfileImage:Boolean(user.profileImage), roles:user.roles.map((entry)=>entry.role as Role) };
 }
 
 export async function authenticate(username: string, password: string) {
-  const user = await prisma.user.findUnique({ where: { username: username.trim().toLocaleLowerCase("de-DE") }, include: { roles:true } });
+  const user = await prisma.user.findUnique({ where: { username: username.trim().toLocaleLowerCase("de-DE") }, include: { roles:true, profileImage:{select:{id:true}} } });
   if (!user || !user.active || !(await verifyPassword(password, user.passwordHash))) return null;
   await prisma.user.update({ where:{id:user.id}, data:{lastLoginAt:new Date()} });
   return mapUser(user);
@@ -29,7 +29,7 @@ export async function createSession(userId: number) {
 
 export async function getSessionUser(token: string | undefined | null) {
   if (!token) return null;
-  const session = await prisma.session.findUnique({ where:{tokenHash:tokenHash(token)}, include:{user:{include:{roles:true}}} });
+  const session = await prisma.session.findUnique({ where:{tokenHash:tokenHash(token)}, include:{user:{include:{roles:true,profileImage:{select:{id:true}}}}} });
   if (!session || session.expiresAt <= new Date() || !session.user.active || session.sessionVersion !== session.user.sessionVersion) {
     if (session) await prisma.session.delete({where:{id:session.id}}).catch(()=>undefined);
     return null;

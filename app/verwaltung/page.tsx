@@ -51,7 +51,7 @@ export default async function AdministrationPage({ searchParams }: { searchParam
         <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {(canStandards || canCampus) && <ModuleCard title="Standardaufgaben" description={canStandards ? "Aufgabenbestand, Ausführungsrhythmen, fachliche Bedingungen und Ordo-Campus-Verknüpfungen verwalten." : "Standardaufgaben mit Ordo-Campus-Wissen öffnen und Wissensinhalte pflegen."} href="/standardaufgaben" count={counts.standardTasks}/>}
           {canStandards && <ModuleCard title="Aufgabenbereiche und Kategorien" description="Die vorhandene zentrale Kategorienverwaltung für Standard- und mandantenspezifische Aufgaben." href="/standardaufgaben/kategorien" count={counts.categories}/>}
-          {canPayrollTopics && <ModuleCard title="FiBu-Lohn-Themen" description="Prüffragen, Reihenfolge, Status, Fahrzeugbezug und Campus-Verknüpfungen für künftige Abstimmungen pflegen." href="/fibu-lohn/themen" count={counts.payrollTopics}/>}
+          {canPayrollTopics && <ModuleCard title="Rechnungswesen–Lohn-Themen" description="Prüffragen, Reihenfolge, Status, Fahrzeugbezug und Campus-Verknüpfungen für künftige Abstimmungen pflegen." href="/fibu-lohn/themen" count={counts.payrollTopics}/>}
           {canCustomTasks && <ModuleCard title="Mandantenspezifische Aufgaben" description="Mandantenübergreifend suchen und kontrollieren. Die Neuanlage bleibt ausschließlich beim jeweiligen Mandanten." href="/verwaltung/mandantenspezifische-aufgaben" count={counts.customTasks}/>}
           {canCampus && <ModuleCard title="Ordo Campus" description="Wissensübersicht und zentrale Pflege der mit Standardaufgaben verbundenen Kanzleistandards." href="/ordo-campus" count={counts.campusKnowledge}/>}
         </div>

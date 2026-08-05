@@ -13,7 +13,7 @@ const one=(value:string|string[]|undefined)=>Array.isArray(value)?value[0]??"":v
 
 export default async function PayrollTopicsPage({searchParams}:{searchParams:SearchParams}){
   const user=await requireUser();
-  if(!canManagePayrollTopics(user))redirect("/zugriff-verweigert?bereich=FiBu-Lohn-Themen");
+  if(!canManagePayrollTopics(user))redirect("/zugriff-verweigert?bereich=Rechnungswesen–Lohn-Themen");
   const query=await searchParams;
   const search=one(query.suche).trim();
   const status=one(query.status);
@@ -32,10 +32,10 @@ export default async function PayrollTopicsPage({searchParams}:{searchParams:Sea
   });
   const topics=databaseTopics.filter((topic)=>collection==="ja"?PAYROLL_COLLECTION_TOPICS.has(topic.key):collection==="nein"?!PAYROLL_COLLECTION_TOPICS.has(topic.key):true);
   return <div>
-    <AdministrationBreadcrumbs section="fachliche-grundlagen" current="FiBu-Lohn-Themen"/>
+    <AdministrationBreadcrumbs section="fachliche-grundlagen" current="Rechnungswesen–Lohn-Themen"/>
     <AdministrationTabs user={user} active="fachliche-grundlagen"/>
     <ToastMessage message={one(query.erfolg)?"Der Themenkatalog wurde gespeichert.":undefined}/>
-    <header className="mb-6 flex flex-wrap items-end justify-between gap-4"><div><p className="text-sm font-semibold uppercase tracking-wider text-[var(--color-primary)]">Fachliche Grundlagen</p><h1 className="mt-2 text-3xl font-bold">FiBu-Lohn-Themen</h1><p className="mt-2 text-[var(--color-text-muted)]">Änderungen gelten nur für künftig erzeugte Themen-Snapshots.</p></div><Link className="button-primary" href="/fibu-lohn/themen/neu">Thema anlegen</Link></header>
+    <header className="mb-6 flex flex-wrap items-end justify-between gap-4"><div><p className="text-sm font-semibold uppercase tracking-wider text-[var(--color-primary)]">Fachliche Grundlagen</p><h1 className="mt-2 text-3xl font-bold">Rechnungswesen–Lohn-Themen</h1><p className="mt-2 text-[var(--color-text-muted)]">Änderungen gelten nur für künftig erzeugte Themen-Snapshots.</p></div><Link className="button-primary" href="/fibu-lohn/themen/neu">Thema anlegen</Link></header>
     <form className="grid gap-3 rounded-lg border border-[var(--color-border)] bg-white p-4 md:grid-cols-2 xl:grid-cols-4">
       <Field label="Suche"><input className="input" name="suche" defaultValue={search} placeholder="Thema, Kurzbeschreibung oder Prüffrage"/></Field>
       <Select label="Status" name="status" value={status} options={["Aktiv","Archiviert"]}/>
@@ -50,7 +50,7 @@ export default async function PayrollTopicsPage({searchParams}:{searchParams:Sea
           <td className="p-3 font-semibold">{topic.sortOrder}</td><td className="p-3"><strong>{topic.title}</strong><p className="mt-1 text-xs text-[var(--color-text-muted)]">{topic.reviewQuestion}</p></td><td className="p-3">{topic.shortDescription??"–"}</td>
           <td className="p-3 font-semibold">{topic.status}</td><td className="p-3">{topic.campusStandardTask?.campusKnowledge?.status??"Nicht hinterlegt"}</td><td className="p-3">{topic.vehicleRelated?"Ja":"Nein"}</td><td className="p-3">{PAYROLL_COLLECTION_TOPICS.has(topic.key)?"Zulässig":"Nicht zulässig"}</td>
           <td className="p-3">{parseConfiguredList(topic.requiredStandardFields).join(" · ")||"Keine"}</td><td className="p-3">{formatDate(topic.updatedAt)}</td><td className="p-3"><Link className="font-semibold text-[var(--color-primary-dark)] hover:underline" href={`/fibu-lohn/themen/${topic.id}/bearbeiten`}>Thema bearbeiten</Link></td>
-        </tr>)}{!topics.length&&<tr><td className="p-10 text-center text-[var(--color-text-muted)]" colSpan={10}>Keine FiBu-Lohn-Themen zu den gewählten Filtern gefunden.</td></tr>}</tbody>
+        </tr>)}{!topics.length&&<tr><td className="p-10 text-center text-[var(--color-text-muted)]" colSpan={10}>Keine Rechnungswesen–Lohn-Themen zu den gewählten Filtern gefunden.</td></tr>}</tbody>
       </table>
     </div>
   </div>;

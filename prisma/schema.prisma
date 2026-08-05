@@ -421,8 +421,41 @@ model User {
   payrollTopicHistory                  PayrollReconciliationTopicHistory[]
   createdPayrollPositions              PayrollReconciliationPosition[]      @relation("PayrollPositionCreator")
   updatedPayrollPositions              PayrollReconciliationPosition[]      @relation("PayrollPositionUpdater")
+  profileImage                         UserProfileImage?                     @relation("UserProfileImageOwner")
+  uploadedProfileImages                UserProfileImage[]                    @relation("UserProfileImageUploader")
+  profileImageChanges                  UserProfileImageHistory[]             @relation("UserProfileImageActor")
+  profileImageHistory                  UserProfileImageHistory[]             @relation("UserProfileImageTarget")
 
   @@index([active, fullName])
+}
+
+model UserProfileImage {
+  id                 Int      @id @default(autoincrement())
+  userId             Int      @unique
+  storedFileName     String   @unique
+  mimeType           String
+  fileSizeBytes      Int
+  originalFileName   String
+  uploadedAt         DateTime @default(now())
+  uploadedByUserId   Int
+  updatedAt          DateTime @updatedAt
+  user               User     @relation("UserProfileImageOwner", fields: [userId], references: [id], onDelete: Cascade)
+  uploadedBy         User     @relation("UserProfileImageUploader", fields: [uploadedByUserId], references: [id], onDelete: Restrict)
+
+  @@index([uploadedByUserId, uploadedAt])
+}
+
+model UserProfileImageHistory {
+  id           Int      @id @default(autoincrement())
+  targetUserId Int
+  actorUserId  Int
+  action       String
+  occurredAt   DateTime @default(now())
+  targetUser   User     @relation("UserProfileImageTarget", fields: [targetUserId], references: [id], onDelete: Restrict)
+  actorUser    User     @relation("UserProfileImageActor", fields: [actorUserId], references: [id], onDelete: Restrict)
+
+  @@index([targetUserId, occurredAt])
+  @@index([actorUserId, occurredAt])
 }
 
 model UserRole {

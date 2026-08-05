@@ -5,6 +5,7 @@ import {
   integrationCampusStorage,
   integrationDatabasePath,
   integrationPayrollStorage,
+  integrationProfileImageStorage,
   integrationStorageRoot,
   systemIntegrationEnvironment,
 } from "./system-integration-environment.mjs";
@@ -26,6 +27,7 @@ for (const target of [
 if (existsSync(integrationStorageRoot)) rmSync(integrationStorageRoot, { recursive: true });
 mkdirSync(integrationCampusStorage, { recursive: true });
 mkdirSync(integrationPayrollStorage, { recursive: true });
+mkdirSync(integrationProfileImageStorage, { recursive: true });
 // Prisma 6.19.3 unter Node 24/Windows scheitert sporadisch beim eigenen
 // erstmaligen Anlegen der SQLite-Datei. Eine leere, bereits pfadgeprüfte Datei
 // wird von SQLite regulär initialisiert und vermeidet diesen Schema-Engine-Fehler.
@@ -71,3 +73,4 @@ execFileSync(process.execPath, [prismaCli, "migrate", "status"], { env: environm
 console.log(`Systemintegrationsdatenbank bereit: ${integrationDatabasePath}`);
 console.log(`Campus-Speicher: ${integrationCampusStorage}`);
 console.log(`FiBu-Lohn-Speicher: ${integrationPayrollStorage}`);
+console.log(`Profilbildspeicher: ${integrationProfileImageStorage}`);

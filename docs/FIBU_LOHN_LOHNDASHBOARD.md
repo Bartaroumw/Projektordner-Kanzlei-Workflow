@@ -1,5 +1,7 @@
 # FiBu-Lohn-Dashboard
 
+Die operative FiBu-Lohn-Liste startet periodenübergreifend mit **Offen**. Historische Einträge liegen getrennt unter **Abgeschlossen** beziehungsweise **Alle**; Jahr und Lohnabrechnungsmonat erscheinen erst dort als Filter. Offene Rückfragen bestimmen die höchste Sortierpriorität, danach folgen ältester Lohnmonat, ältester Eingang und Mandantennummer. Rechnungswesen- und Lohnabrechnungsmonat bleiben getrennt sichtbar. Vorgänge, deren Lohnmonat mehr als sechs Monate zurückliegt, stehen ohne Doppelanzeige unter **Ältere offene Vorgänge**.
+
 ## Persönliche Arbeitsansicht
 
 Eine reine Lohnrolle wird nach der Anmeldung direkt nach `/fibu-lohn` geführt. Angezeigt werden ausschließlich Abstimmungen, deren Lohnsachbearbeiter-Snapshot auf den angemeldeten Benutzer verweist.

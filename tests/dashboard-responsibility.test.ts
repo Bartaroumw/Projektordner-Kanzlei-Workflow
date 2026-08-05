@@ -2,7 +2,9 @@ import { describe, expect, it } from "vitest";
 import {
   annualDashboardResponsibility,
   defaultDashboardMonth,
+  isOlderThanSixMonths,
   monthlyDashboardResponsibility,
+  splitByOperationalAge,
 } from "@/lib/dashboard-responsibility";
 
 const separated = { processorUserId: 1, reviewerUserId: 2, managementUserId: 3 };
@@ -47,5 +49,19 @@ describe("Standardmonat", () => {
 
   it("wechselt im Januar auf Dezember des Vorjahres", () => {
     expect(defaultDashboardMonth(new Date("2027-01-15T12:00:00Z"))).toEqual({ year: 2026, month: 12 });
+  });
+});
+
+describe("Altersgrenze offener Vorgänge", () => {
+  it("ordnet im August Januar als alt und Februar noch als aktuell ein", () => {
+    expect(isOlderThanSixMonths(2026, 1, 2026, 8)).toBe(true);
+    expect(isOlderThanSixMonths(2026, 2, 2026, 8)).toBe(false);
+  });
+
+  it("funktioniert über den Jahreswechsel und trennt ohne Dubletten", () => {
+    const items=[{id:1,year:2025,month:6},{id:2,year:2025,month:7},{id:3,year:2026,month:1}];
+    const result=splitByOperationalAge(items,item=>item,{year:2026,month:1});
+    expect(result.older.map(item=>item.id)).toEqual([1]);
+    expect(result.current.map(item=>item.id)).toEqual([2,3]);
   });
 });

@@ -1,7 +1,7 @@
 import type { AccountingPeriod, ChecklistTask, Client } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { calculateProgress, workflowSummary } from "@/lib/monthly-checklist-service";
-import { monthlyDashboardResponsibility } from "@/lib/dashboard-responsibility";
+import { isOlderThanSixMonths, monthlyDashboardResponsibility } from "@/lib/dashboard-responsibility";
 
 export type DashboardFilters = {
   year: number;
@@ -29,7 +29,7 @@ export type DashboardPeriod = AccountingPeriod & {
 
 export function isOldOpenPeriod(period: Pick<AccountingPeriod, "calendarYear" | "month" | "processingStatus">, year: number, month: number) {
   return period.processingStatus !== "Abgeschlossen" &&
-    (period.calendarYear < year || (period.calendarYear === year && period.month < month));
+    isOlderThanSixMonths(period.calendarYear, period.month, year, month);
 }
 
 export function priorityOf(period: DashboardPeriod, year: number, month: number) {
@@ -86,7 +86,9 @@ export function dashboardMetrics(periods: DashboardPeriod[], year: number, month
   };
 }
 
-export function expectedPeriodMissing(client: Client, periods: DashboardPeriod[], year: number, month: number) {
+type PeriodHistoryEntry = Pick<AccountingPeriod, "id" | "clientId" | "calendarYear" | "month" | "processingStatus">;
+
+export function expectedPeriodMissing(client: Client, periods: PeriodHistoryEntry[], year: number, month: number) {
   if (!client.active) return false;
   const clientPeriods = periods.filter((period) => period.clientId === client.id).sort((a,b)=>a.calendarYear-b.calendarYear||a.month-b.month);
   if (clientPeriods.some((period)=>period.processingStatus!=="Abgeschlossen")) return false;
@@ -97,18 +99,26 @@ export function expectedPeriodMissing(client: Client, periods: DashboardPeriod[]
 }
 
 export async function getDashboardData(filters: DashboardFilters) {
-  const [rawPeriods, clients] = await Promise.all([
+  const [rawPeriods, clients, periodHistory] = await Promise.all([
     prisma.accountingPeriod.findMany({
-      where: { calendarYear: filters.year, checklistType: "Monat" },
+      where: { checklistType: "Monat", processingStatus: { not: "Abgeschlossen" } },
       include: {
         client: true,
         tasks: { select: { id:true,status: true, mandatorySnapshot: true, reviewStatus: true, processingNote: true, reviewIssueStatus:true, reviewIssueRaisedByUserId:true, reviewIssueDirectedToUserId:true,sourceTaskId:true } },
       },
+      take: 5000,
     }),
     prisma.client.findMany({
       where: { active: true },
       include: { annualProfiles: { where: { calendarYear: filters.year }, select: { id: true } } },
       orderBy: { clientNumber: "asc" },
+      take: 1000,
+    }),
+    prisma.accountingPeriod.findMany({
+      where: { checklistType: "Monat" },
+      select: { id: true, clientId: true, calendarYear: true, month: true, processingStatus: true },
+      orderBy: [{ calendarYear: "desc" }, { month: "desc" }],
+      take: 5000,
     }),
   ]);
   const periods: DashboardPeriod[] = rawPeriods.map((period) => ({
@@ -126,21 +136,37 @@ export async function getDashboardData(filters: DashboardFilters) {
       (!filters.reviewer || client.reviewer === filters.reviewer) &&
       (!filters.management || client.managementName === filters.management);
   });
-  const selected = sortByPriority(visiblePeriods.filter((period) => periodMatchesFilters(period, filters)), filters.year, filters.month);
+  const operationalFilters = { ...filters, year: 0, month: 0 };
+  const matchesOperationalFilters = (period: DashboardPeriod) => {
+    const search = operationalFilters.search?.trim().toLocaleLowerCase("de-DE");
+    return (
+      (!operationalFilters.clientId || period.clientId === operationalFilters.clientId) &&
+      (!search || period.client.clientNumber.toLocaleLowerCase("de-DE").includes(search) || period.client.name.toLocaleLowerCase("de-DE").includes(search)) &&
+      (!operationalFilters.processor || period.processorSnapshot === operationalFilters.processor) &&
+      (!operationalFilters.reviewer || period.reviewerSnapshot === operationalFilters.reviewer) &&
+      (!operationalFilters.management || period.managementNameSnapshot === operationalFilters.management) &&
+      (!operationalFilters.status || period.processingStatus === operationalFilters.status) &&
+      (!operationalFilters.onlyOldOpen || isOldOpenPeriod(period, filters.year, filters.month)) &&
+      (!operationalFilters.onlyOpenMandatory || period.progress.mandatoryOpen > 0) &&
+      (!operationalFilters.onlyOpenReviewPoints || period.summary.openReviewPoints > 0)
+    );
+  };
+  const selected = sortByPriority(visiblePeriods.filter(matchesOperationalFilters), filters.year, filters.month);
   const yearFiltered = sortByPriority(visiblePeriods.filter((period) => periodMatchesFilters(period, filters, false)), filters.year, filters.month);
-  const oldOpen = yearFiltered.filter((period) => isOldOpenPeriod(period, filters.year, filters.month));
+  const oldOpen = selected.filter((period) => isOldOpenPeriod(period, filters.year, filters.month));
   const workViewName = filters.workViewName?.trim();
   const responsibility = (period: DashboardPeriod) => filters.userId
     ? monthlyDashboardResponsibility(period.processingStatus, filters.userId, period)
     : null;
   const hasQuestionDirectedAway=(period:DashboardPeriod)=>Boolean(filters.userId&&period.tasks.some(task=>task.reviewIssueStatus==="Offen"&&task.reviewIssueRaisedByUserId===filters.userId&&task.reviewIssueDirectedToUserId!==filters.userId));
+  const hasQuestionDirectedTo=(period:DashboardPeriod)=>Boolean(filters.userId&&period.tasks.some(task=>task.reviewIssueStatus==="Offen"&&task.reviewIssueDirectedToUserId===filters.userId));
   const myProcessing = filters.userId
-    ? selected.filter((period) => responsibility(period) === "BEARBEITUNG_AKTIV"&&!hasQuestionDirectedAway(period))
+    ? selected.filter((period) => responsibility(period) === "BEARBEITUNG_AKTIV"&&!hasQuestionDirectedAway(period)&&!hasQuestionDirectedTo(period))
     : workViewName
       ? selected.filter((period) => period.processorSnapshot === workViewName && ["Offen", "In Bearbeitung", "Nachbearbeitung"].includes(period.processingStatus))
       : [];
   const myReviews = filters.userId
-    ? selected.filter((period) => responsibility(period) === "PRUEFUNG_AKTIV")
+    ? selected.filter((period) => responsibility(period) === "PRUEFUNG_AKTIV"&&!hasQuestionDirectedTo(period))
     : workViewName
       ? selected.filter((period) => period.reviewerSnapshot === workViewName && ["Zur Prüfung", "In Prüfung"].includes(period.processingStatus))
       : [];
@@ -151,7 +177,19 @@ export async function getDashboardData(filters: DashboardFilters) {
     periods: visiblePeriods,
     clients: visibleClients,
     selected,
-    metrics: dashboardMetrics(visiblePeriods.filter((period) => periodMatchesFilters(period, { ...filters, onlyOldOpen: false }, false)), filters.year, filters.month),
+    metrics: {
+      ...dashboardMetrics(selected, filters.year, filters.month),
+      total: selected.length,
+      open: selected.filter((period) => period.processingStatus === "Offen").length,
+      processing: selected.filter((period) => period.processingStatus === "In Bearbeitung").length,
+      readyForReview: selected.filter((period) => period.processingStatus === "Zur Prüfung").length,
+      inReview: selected.filter((period) => period.processingStatus === "In Prüfung").length,
+      rework: selected.filter((period) => period.processingStatus === "Nachbearbeitung").length,
+      completed: 0,
+      openMandatory: selected.reduce((sum, period) => sum + period.progress.mandatoryOpen, 0),
+      openReviewPoints: selected.reduce((sum, period) => sum + period.summary.openReviewPoints, 0),
+      oldOpen: oldOpen.length,
+    },
     work: selected.filter((period) => ["Offen", "In Bearbeitung", "Nachbearbeitung"].includes(period.processingStatus)),
     review: selected.filter((period) => ["Zur Prüfung", "In Prüfung"].includes(period.processingStatus)),
     reviewPoints: yearFiltered.filter((period) => period.summary.openReviewPoints > 0),
@@ -161,10 +199,10 @@ export async function getDashboardData(filters: DashboardFilters) {
     myReviews,
     myQuestions: filters.userId ? selected.filter(period=>period.tasks.some(task=>task.reviewIssueStatus==="Offen"&&task.reviewIssueDirectedToUserId===filters.userId)) : [],
     waitingQuestions: filters.userId ? selected.filter(period=>period.tasks.some(task=>task.reviewIssueStatus==="Offen"&&task.reviewIssueRaisedByUserId===filters.userId&&task.reviewIssueDirectedToUserId!==filters.userId)) : [],
-    waitingForReview: filters.userId ? selected.filter((period) => responsibility(period) === "WARTET_AUF_PRUEFUNG") : [],
-    waitingForRework: filters.userId ? selected.filter((period) => responsibility(period) === "WARTET_AUF_NACHBEARBEITUNG") : [],
+    waitingForReview: filters.userId ? selected.filter((period) => responsibility(period) === "WARTET_AUF_PRUEFUNG"&&!hasQuestionDirectedTo(period)&&!hasQuestionDirectedAway(period)) : [],
+    waitingForRework: filters.userId ? selected.filter((period) => responsibility(period) === "WARTET_AUF_NACHBEARBEITUNG"&&!hasQuestionDirectedTo(period)&&!hasQuestionDirectedAway(period)) : [],
     overduePersonal,
-    missing: filteredClients.filter((client) => expectedPeriodMissing(client, visiblePeriods, filters.year, filters.month)),
+    missing: filteredClients.filter((client) => expectedPeriodMissing(client, periodHistory, filters.year, filters.month)),
     quality: [
       ...filteredClients.filter((client) => client.annualProfiles.length === 0).map((client) => ({ key: `profile-${client.id}`, text: `${client.clientNumber}: Jahresprofil ${filters.year} fehlt.`, href: `/mandanten/${client.id}` })),
       ...filteredClients.filter((client) => !client.processor).map((client) => ({ key: `processor-${client.id}`, text: `${client.clientNumber}: Bearbeiter fehlt.`, href: `/mandanten/${client.id}` })),

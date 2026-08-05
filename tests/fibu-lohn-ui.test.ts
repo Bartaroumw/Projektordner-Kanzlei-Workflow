@@ -42,18 +42,20 @@ describe("FiBu-Lohn-Benutzeroberflächen",()=>{
     expect(download).toContain("readPayrollDocument");
   });
 
-  it("bietet Lohn-Dashboard, Monats- und Statusfilter sowie leere Zustände",async()=>{
+  it("bietet eine periodenübergreifende Lohn-Arbeitsliste mit kompakten Filtern",async()=>{
     const page=await source("app/fibu-lohn/page.tsx");
     expect(page).toContain("Meine FiBu-Lohn-Abstimmungen");
     expect(page).toContain("Lohnabrechnungsmonat");
     expect(page).toContain("Lohnstatus");
-    expect(page).toContain("Für den ausgewählten Abrechnungsmonat liegen keine FiBu-Lohn-Abstimmungen vor.");
+    expect(page).toContain("Offene Abstimmungen aller Abrechnungsmonate");
+    expect(page).toContain("Ältere offene Vorgänge");
+    expect(page).toContain('[["offen","Offen"],["abgeschlossen","Abgeschlossen"],["alle","Alle"]]');
   });
 
   it("verknüpft Rückfragen direkt mit der Themenkarte",async()=>{
     const dashboard=await source("app/page.tsx");
     const payroll=await source("app/fibu-lohn/page.tsx");
-    expect(dashboard).toContain("Offene Lohnrückfragen");
+    expect(dashboard).toContain("FiBu-Lohn-Rückfragen");
     expect(dashboard).toContain("#thema-${question.reconciliationItemId}");
     expect(payroll).toContain("#thema-${question.reconciliationItemId}");
   });

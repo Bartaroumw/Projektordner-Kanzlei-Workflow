@@ -74,6 +74,14 @@ Prisma-Schema und Client, geschützte Seed-Konsistenz, ESLint, TypeScript, 305 a
 
 `storage/fibu-lohn` muss bei einem leeren Bestand nicht vorab vorhanden sein. Der Ordner wird beim ersten regulären Upload kontrolliert erzeugt.
 
+## Dashboard und operative Listen – Stand 05.08.2026
+
+Der zentrale Einstieg heißt einheitlich **Dashboard**. Offene Rechnungswesen-, Jahresabschluss- und FiBu-Lohn-Vorgänge werden periodenübergreifend nach aktiver Verantwortung ermittelt. Vorgänge mit mehr als sechs Monaten Abstand zum aktuellen Kalendermonat stehen separat unter **Ältere offene Vorgänge** und werden nicht doppelt geführt. Die operativen Listen besitzen getrennte Ansichten für **Offen**, **Abgeschlossen** und **Alle**, kompakte Filter und begrenzte Abfragen. Die Hauptnavigation verwendet einheitliche lokale SVG-Symbole; Logo, CONCILIUM-Marke und Einklapppfeil sind auf einer Achse ausgerichtet.
+
+Für diese Umsetzung waren weder Prisma-Schemaänderungen noch eine Migration erforderlich. `prisma/dev.db`, Speicherordner und bestehende Fachdaten wurden nicht verändert.
+
+Prisma Validate, Prisma Client und Migrationsstatus, ESLint, TypeScript, 325 automatisierte Tests, Produktions-Build sowie Entwicklungs- und produktionsnaher Start waren erfolgreich. Der optionale große Performance-Smoke-Test blieb bewusst übersprungen. Die vier künstlichen Rollenprofile und die Zielbreiten 1440, 1280, 1024 und 600 Pixel wurden ohne sichtbaren Anwendungsfehler oder Seitenüberlauf geprüft.
+
 ## Bekannte Warnungen
 
 - Die Migrationsbaseline und die dokumentierte Schema-Historien-Driftbereinigung von `prisma/dev.db` sind hergestellt. `prisma migrate dev` ist für künftige additive Entwicklung nur nach vollständigem gemeinsamen Backup, sauberem Git-Stand und leerer Drift-/Statusprüfung zulässig; eine Reset-Aufforderung darf niemals bestätigt werden. `prisma db push` bleibt gesperrt.

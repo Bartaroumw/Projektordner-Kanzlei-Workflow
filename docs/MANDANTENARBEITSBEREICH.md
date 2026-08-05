@@ -1,5 +1,7 @@
 # Mandantenarbeitsbereich
 
+Die Mandantenliste verwendet eine dauerhaft sichtbare Suche und einen direkten Statusfilter. Zuständigkeiten und Sortierung liegen platzsparend unter **Weitere Filter und Sortierung**. Aktive Filter erscheinen einzeln entfernbar als Chips. Der frühere erklärende Untertitel zur aktuellen Monatscheckliste entfällt; der Zeilenklick bleibt der eindeutige Einstieg in den Mandantenarbeitsbereich. Der Detailkopf zeigt `Mandantennummer · Mandantenname`.
+
 ## Zweck
 
 `/mandanten/[id]` ist der zentrale Arbeitskontext eines Mandanten. Der normale Zeilenklick in der Mandantenliste führt hierher. Direkte Fachlinks zu Checklisten, Prüfungen, Rückfragen, Jahresabschlüssen und FiBu-Lohn-Abstimmungen bleiben unverändert.

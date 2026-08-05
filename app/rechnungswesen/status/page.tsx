@@ -1,10 +1,12 @@
 import Link from "next/link";
 import { AccountingModuleTabs } from "@/app/components/module-tabs";
+import { ActiveFilterChips } from "@/app/components/active-filter-chips";
 import { ClickableTableRow } from "@/app/components/clickable-table-row";
 import { requireRole } from "@/lib/auth";
 import { buildClientAccountingStatus, monthShort } from "@/lib/accounting-status-service";
 import { prisma } from "@/lib/prisma";
 import { hasRole } from "@/lib/permissions";
+import { berlinCalendarMonth } from "@/lib/dashboard-responsibility";
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 const one = (value: string | string[] | undefined) => Array.isArray(value) ? value[0] ?? "" : value ?? "";
@@ -25,7 +27,10 @@ export default async function AccountingStatusPage({ searchParams }: { searchPar
   const onlyIssues = one(query.pruefpunkte) === "1";
   const onlyQuarterlyVat = one(query.ustQuartal) === "1";
   const sort = one(query.sortierung) || "luecke";
-  const clients = await prisma.client.findMany({
+  const currentMonth=berlinCalendarMonth();
+  const cutoffDate=new Date(Date.UTC(currentMonth.year,currentMonth.month-1-6,15));
+  const cutoff={year:cutoffDate.getUTCFullYear(),month:cutoffDate.getUTCMonth()+1};
+  const [clients,olderOpenGroups] = await Promise.all([prisma.client.findMany({
     where: {
       active: true,
       ...(!hasRole(user, "KANZLEILEITUNG")
@@ -43,12 +48,13 @@ export default async function AccountingStatusPage({ searchParams }: { searchPar
       },
     },
     orderBy: { clientNumber: "asc" },
-  });
+  }),prisma.accountingPeriod.groupBy({by:["clientId"],where:{checklistType:"Monat",processingStatus:{not:"Abgeschlossen"},OR:[{calendarYear:{lt:cutoff.year}},{calendarYear:cutoff.year,month:{lt:cutoff.month}}]},_count:{_all:true}})]);
+  const olderOpenByClient=new Map(olderOpenGroups.map(group=>[group.clientId,group._count._all]));
   const referenceMonth = year < now.year ? 12 : year > now.year ? 1 : now.month;
   const mapped = clients.map((client) => ({
     client,
     profile: client.annualProfiles[0] ?? null,
-    status: buildClientAccountingStatus(client.periods, referenceMonth),
+    status: {...buildClientAccountingStatus(client.periods, referenceMonth),oldOpenCount:olderOpenByClient.get(client.id)??0},
   })).filter(({ client, profile, status }) =>
     (!search || `${client.clientNumber} ${client.name}`.toLocaleLowerCase("de-DE").includes(search)) &&
     (!processor || client.processor === processor) &&
@@ -73,21 +79,24 @@ export default async function AccountingStatusPage({ searchParams }: { searchPar
       <h1 className="mt-2 text-3xl font-bold">Statusübersicht</h1>
       <p className="mt-2 max-w-4xl text-sm text-[var(--color-text-muted)]">Lückenlose Bearbeitung und Prüfung je Mandant. Eine spätere abgeschlossene Checkliste verdeckt eine frühere Lücke nicht.</p>
     </header>
-    <form className="grid gap-3 rounded-lg border border-[var(--color-border)] bg-white p-4 md:grid-cols-2 xl:grid-cols-5">
-      <Field label="Kalenderjahr"><input className="input" name="jahr" type="number" defaultValue={year}/></Field>
-      <Field label="Mandant"><input className="input" name="suche" defaultValue={one(query.suche)} placeholder="Nummer oder Name"/></Field>
+    <form className="rounded-lg border border-[var(--color-border)] bg-white p-4">
+      <div className="flex flex-wrap items-end gap-3"><Field label="Kalenderjahr"><input className="input" name="jahr" type="number" defaultValue={year}/></Field>
+      <Field label="Mandant"><input className="input min-w-64" name="suche" defaultValue={one(query.suche)} placeholder="Nummer oder Name"/></Field>
+      <label className="flex items-center gap-2 pb-2 text-sm font-semibold"><input type="checkbox" name="rueckstand" value="1" defaultChecked={onlyBehind}/> Nur mit Rückstand</label>
+      <button className="button-primary">Anwenden</button><Link className="button-secondary" href="/rechnungswesen/status">Zurücksetzen</Link></div>
+      <details className="mt-3 border-t border-[var(--color-border)] pt-3" open={Boolean(processor||reviewer||management||legalForm||profit||onlyGaps||onlyIssues||onlyQuarterlyVat||sort!=="luecke")}><summary className="cursor-pointer text-sm font-semibold text-[var(--color-primary-dark)]">Weitere Filter und Sortierung</summary><div className="mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-5">
       <Select label="Bearbeiter" name="bearbeiter" value={processor} options={options(clients.map((client) => client.processor))}/>
       <Select label="Prüfer" name="pruefer" value={reviewer} options={options(clients.map((client) => client.reviewer))}/>
       <Select label="Kanzleileitung" name="kanzleileitung" value={management} options={options(clients.map((client) => client.managementName))}/>
       <Select label="Rechtsform" name="rechtsform" value={legalForm} options={options(clients.flatMap((client) => client.annualProfiles.map((profile) => profile.legalFormGroup)))}/>
       <Select label="Gewinnermittlung" name="gewinn" value={profit} options={options(clients.flatMap((client) => client.annualProfiles.map((profile) => profile.profitDeterminationMethod)))}/>
       <Field label="Sortierung"><select className="input" name="sortierung" defaultValue={sort}><option value="luecke">Erste Lücke</option><option value="rueckstand">Rückstände</option><option value="mandant">Mandantennummer</option></select></Field>
-      <label className="flex items-center gap-2 text-sm font-semibold"><input type="checkbox" name="rueckstand" value="1" defaultChecked={onlyBehind}/> Nur mit Rückstand</label>
       <label className="flex items-center gap-2 text-sm font-semibold"><input type="checkbox" name="luecken" value="1" defaultChecked={onlyGaps}/> Nur mit Lücken</label>
       <label className="flex items-center gap-2 text-sm font-semibold"><input type="checkbox" name="pruefpunkte" value="1" defaultChecked={onlyIssues}/> Nur mit Prüfpunkten</label>
       <label className="flex items-center gap-2 text-sm font-semibold"><input type="checkbox" name="ustQuartal" value="1" defaultChecked={onlyQuarterlyVat}/> USt-Voranmeldung vierteljährlich</label>
-      <div className="flex items-end gap-2"><button className="button-primary">Anwenden</button><Link className="button-secondary" href="/rechnungswesen/status">Zurücksetzen</Link></div>
+      </div></details>
     </form>
+    <ActiveFilterChips basePath="/rechnungswesen/status" params={query} filters={[{key:"suche",label:`Suche: ${one(query.suche)}`},{key:"jahr",label:`Jahr: ${year}`,active:Boolean(one(query.jahr))},{key:"bearbeiter",label:`Bearbeiter: ${processor}`},{key:"pruefer",label:`Prüfer: ${reviewer}`},{key:"kanzleileitung",label:`Kanzleileitung: ${management}`},{key:"rechtsform",label:`Rechtsform: ${legalForm}`},{key:"gewinn",label:`Gewinnermittlung: ${profit}`},{key:"rueckstand",label:"Nur mit Rückstand",active:onlyBehind},{key:"luecken",label:"Nur mit Lücken",active:onlyGaps},{key:"pruefpunkte",label:"Nur mit Prüfpunkten",active:onlyIssues},{key:"ustQuartal",label:"USt vierteljährlich",active:onlyQuarterlyVat},{key:"sortierung",label:`Sortierung: ${sort}`,active:sort!=="luecke"}]}/>
     <div className="mt-6 overflow-x-auto rounded-lg border border-[var(--color-border)] bg-white">
       <table className="w-full min-w-[1500px] text-left text-sm">
         <thead className="bg-[var(--color-primary-light)]"><tr>{["Mandant","Bearbeitung lückenlos bis","Prüfung lückenlos bis","Gesamt abgeschlossen bis","Erste Lücke","Aktuelle Checkliste","Status","Fortschritt","Alte offene","Prüfpunkte","Lohnrückfragen","Monatsmatrix"].map((heading) => <th className="p-3" key={heading}>{heading}</th>)}</tr></thead>

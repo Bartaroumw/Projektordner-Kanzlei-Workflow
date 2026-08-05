@@ -7,6 +7,7 @@ import { requireRole } from "@/lib/auth";
 import { canManageClients, hasRole } from "@/lib/permissions";
 import { canManageCustomTasks } from "@/lib/permissions";
 import { ClientActionsMenu, type ClientMenuAction } from "@/app/mandanten/client-actions-menu";
+import { ActiveFilterChips } from "@/app/components/active-filter-chips";
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 const one = (value: string | string[] | undefined) => Array.isArray(value) ? value[0] ?? "" : value ?? "";
@@ -46,15 +47,18 @@ export default async function ClientsPage({ searchParams }: { searchParams: Sear
   const optionRows = await prisma.client.findMany({ select: { processor: true, reviewer: true, managementName: true } });
   const options = (key: "processor" | "reviewer" | "managementName") => [...new Set(optionRows.map((row) => row[key]).filter(Boolean) as string[])].sort();
   return <div>
-    <header className="mb-6 flex flex-wrap items-end justify-between gap-4"><div><p className="mb-2 text-sm font-semibold uppercase tracking-wider text-[var(--color-primary)]">Zentraler Einstieg</p><h1 className="text-3xl font-bold">Mandanten</h1><p className="mt-2 text-[var(--color-text-muted)]">Aktuelle Monatscheckliste direkt öffnen oder den nächsten Monat anlegen.</p></div>{canManageClients(user)&&<Link className="button-primary" href="/mandanten/neu">Mandant anlegen</Link>}</header>
-    <form className="mb-5 rounded-lg border border-[var(--color-border)] bg-white p-4 shadow-sm"><div className="grid gap-3 md:grid-cols-2 xl:grid-cols-6">
-      <Field label="Suche"><input className="input" name="suche" defaultValue={search} placeholder="Nummer oder Name"/></Field>
+    <header className="mb-6 flex flex-wrap items-end justify-between gap-4"><div><p className="mb-2 text-sm font-semibold uppercase tracking-wider text-[var(--color-primary)]">Zentraler Einstieg</p><h1 className="text-3xl font-bold">Mandanten</h1></div>{canManageClients(user)&&<Link className="button-primary" href="/mandanten/neu">Mandant anlegen</Link>}</header>
+    <form className="mb-5 rounded-lg border border-[var(--color-border)] bg-white p-4 shadow-sm"><div className="flex flex-wrap items-end gap-3">
+      <Field label="Suche"><input className="input min-w-64" name="suche" defaultValue={search} placeholder="Nummer oder Name"/></Field>
       <Select name="status" label="Status" value={status} options={[["aktiv","Aktiv"],["inaktiv","Inaktiv"]]}/>
+      <button className="button-primary">Anwenden</button><Link className="button-secondary" href="/mandanten">Zurücksetzen</Link>
+    </div><details className="mt-3 border-t border-[var(--color-border)] pt-3" open={Boolean(processor||reviewer||management||sorting!=="nummer-auf")}><summary className="cursor-pointer text-sm font-semibold text-[var(--color-primary-dark)]">Weitere Filter und Sortierung</summary><div className="mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
       <Select name="bearbeiter" label="Bearbeiter" value={processor} options={options("processor").map(v=>[v,v])}/>
       <Select name="pruefer" label="Prüfer" value={reviewer} options={options("reviewer").map(v=>[v,v])}/>
       <Select name="kanzleileitung" label="Kanzleileitung" value={management} options={options("managementName").map(v=>[v,v])}/>
       <Select name="sortierung" label="Sortierung" value={sorting} options={[["nummer-auf","Mandantennummer aufsteigend"],["nummer-ab","Mandantennummer absteigend"],["name-auf","Name A–Z"],["name-ab","Name Z–A"]]}/>
-    </div><div className="mt-3 flex gap-3"><button className="button-primary">Anwenden</button><Link className="button-secondary" href="/mandanten">Zurücksetzen</Link></div></form>
+    </div></details></form>
+    <ActiveFilterChips basePath="/mandanten" params={params} filters={[{key:"suche",label:`Suche: ${search}`},{key:"status",label:`Status: ${status}`},{key:"bearbeiter",label:`Bearbeiter: ${processor}`},{key:"pruefer",label:`Prüfer: ${reviewer}`},{key:"kanzleileitung",label:`Kanzleileitung: ${management}`},{key:"sortierung",label:`Sortierung: ${sorting}`,active:sorting!=="nummer-auf"}]}/>
     <div className="overflow-x-auto rounded-lg border border-[var(--color-border)] bg-white shadow-sm"><table className="w-full min-w-[1550px] text-left text-sm"><thead className="bg-[var(--color-primary-light)]"><tr>{["Mandant","Bearbeiter","Prüfer","Kanzleileitung","USt-Zeitraum","Aktuelle Monatscheckliste","Status","Fortschritt","Offene Pflicht","Offene Prüfpunkte","Letzte Änderung","Aktionen"].map(h=><th className="p-3" key={h}>{h}</th>)}</tr></thead><tbody>
       {sortedClients.map(client=>{const current=client.periods[0];const progress=current?calculateProgress(current.tasks):null;const summary=current?workflowSummary(current.tasks):null;const href=`/mandanten/${client.id}`;
         const actions:ClientMenuAction[]=[];

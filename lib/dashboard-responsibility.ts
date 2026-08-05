@@ -86,3 +86,35 @@ export function defaultDashboardMonth(now = new Date()) {
   const current = berlinCalendarMonth(now);
   return previousCalendarMonth(current.year, current.month);
 }
+
+export function monthOrdinal(year: number, month: number) {
+  return year * 12 + month - 1;
+}
+
+/**
+ * Ein Vorgang gilt erst dann als alt, wenn zwischen seinem Monat und dem
+ * aktuellen Kalendermonat mehr als sechs volle Monatswechsel liegen.
+ * Im August 2026 ist damit Januar 2026 alt, Februar 2026 noch nicht.
+ */
+export function isOlderThanSixMonths(
+  year: number,
+  month: number,
+  referenceYear: number,
+  referenceMonth: number,
+) {
+  return monthOrdinal(referenceYear, referenceMonth) - monthOrdinal(year, month) > 6;
+}
+
+export function splitByOperationalAge<T>(
+  items: T[],
+  periodOf: (item: T) => { year: number; month: number },
+  reference: { year: number; month: number },
+) {
+  const current: T[] = [];
+  const older: T[] = [];
+  for (const item of items) {
+    const period = periodOf(item);
+    (isOlderThanSixMonths(period.year, period.month, reference.year, reference.month) ? older : current).push(item);
+  }
+  return { current, older };
+}

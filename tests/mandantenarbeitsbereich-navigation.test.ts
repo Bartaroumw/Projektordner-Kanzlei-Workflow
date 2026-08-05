@@ -75,7 +75,11 @@ describe("Einklappbare Hauptnavigation",()=>{
     expect(shell).not.toContain("für Concilium");
     expect(shell).toContain('aria-label={navigationCollapsed ? "Hauptnavigation ausklappen" : "Hauptnavigation einklappen"}');
     expect(shell).toContain('title={navigationCollapsed ? "Navigation ausklappen" : "Navigation einklappen"}');
-    expect(shell).toContain('navigationCollapsed ? "top-[4.6rem]" : "top-1/2 -translate-y-1/2"');
+    expect(shell).toContain('right-0 top-[2.625rem] hidden h-8 w-8 -translate-y-1/2');
+    expect(shell).toContain('NavigationIcon name={entry.icon}');
+    expect(shell).toContain('strokeWidth:2');
+    expect(shell).toContain('viewBox:"0 0 24 24"');
+    expect(shell).not.toContain('icon:"⌂"');
     expect(shell).toContain('navigationCollapsed ? "md:justify-center" : ""');
   });
 });

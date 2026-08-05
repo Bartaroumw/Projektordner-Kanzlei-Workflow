@@ -4,7 +4,7 @@
 
 Die Hauptnavigation ist dauerhaft auf wenige Arbeits- und Verwaltungsbereiche begrenzt:
 
-- **Übersicht**: personenbezogenes operatives Dashboard
+- **Dashboard**: personenbezogene, periodenübergreifende operative Steuerung
 - **Mandanten**: gezielter Mandanteneinstieg
 - **Rechnungswesen**: laufendes Rechnungswesen, Jahresabschluss und Statusübersicht
 - **FiBu ↔ Lohn**: Abstimmungen, offene Lohnrückfragen und Fahrzeuge
@@ -13,9 +13,9 @@ Die Hauptnavigation ist dauerhaft auf wenige Arbeits- und Verwaltungsbereiche be
 
 Die Einträge werden aus den aktiven Rollen und Zusatzberechtigungen des angemeldeten Benutzers abgeleitet. Mehrfachrollen erzeugen keine doppelten Menüpunkte.
 
-Der Markenblock besteht ausschließlich aus dem OC-Zeichen, dem Produktnamen **Ordo Caroli** und der zurückhaltend gesetzten Kanzleimarke **CONCILIUM**. Es gibt keinen Produktuntertitel. Auf Desktopbreiten kann die Navigation über einen räumlich vom Markenblock getrennten Randbutton auf eine schmale Iconleiste reduziert werden. Im eingeklappten Markenblock bleibt ausschließlich das mittig angeordnete OC-Zeichen sichtbar; der Ausklappbutton sitzt mit Abstand darunter am rechten Rand und überlagert das Logo nicht. Tooltip, zugänglicher Name und sichtbarer Fokus beschreiben die jeweilige Aktion eindeutig.
+Der Markenblock besteht ausschließlich aus dem OC-Zeichen, dem Produktnamen **Ordo Caroli** und der direkt darunter ausgerichteten Kanzleimarke **CONCILIUM**. Es gibt keinen Produktuntertitel. Auf Desktopbreiten kann die Navigation über einen Randbutton auf eine schmale Iconleiste reduziert werden. Ein-/Ausklappbutton und Logo bleiben in beiden Zuständen auf derselben horizontalen Achse und überlagern sich nicht. Tooltip, zugänglicher Name und sichtbarer Fokus beschreiben die jeweilige Aktion eindeutig.
 
-Modulicons, Benutzerzugang und Abmeldung bleiben im eingeklappten Zustand erreichbar. Der Zustand liegt nur in `localStorage`; es gibt keine Datenbankpräferenz. Auf mobilen Breiten bleibt die horizontale, scrollbar nutzbare Navigation erhalten und die Desktop-Einklappsteuerung ist ausgeblendet.
+Alle Module verwenden dieselbe lokale SVG-Symbolsprache mit identischer Größe, Strichstärke und Ausrichtung; Buchstaben und Emoji werden nicht gemischt. Modulicons, Benutzerzugang und Abmeldung bleiben im eingeklappten Zustand erreichbar. Der Zustand liegt nur in `localStorage`; es gibt keine Datenbankpräferenz. Auf mobilen Breiten bleibt die horizontale, scrollbar nutzbare Navigation erhalten und die Desktop-Einklappsteuerung ist ausgeblendet.
 
 ## Mandant als Arbeitskontext
 

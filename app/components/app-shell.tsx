@@ -37,11 +37,11 @@ export function AppShell({ children, user }: { children: React.ReactNode; user:A
   const hasCampusAccess=hasProfessionalAccess;
   const hasAdministrationAccess=Boolean(user&&canOpenAdministration(user));
   const navigation=[
-    ...(!payrollOnly?[{label:"Übersicht",href:"/",icon:"⌂"}]:[]),
-    ...(hasProfessionalAccess?[{label:"Mandanten",href:"/mandanten",icon:"M"},{label:"Rechnungswesen",href:"/monatschecklisten",icon:"R"}]:[]),
-    ...(hasPayrollAccess?[{label:"FiBu ↔ Lohn",href:"/fibu-lohn",icon:"↔"}]:[]),
-    ...(hasCampusAccess?[{label:"Ordo Campus",href:"/ordo-campus",icon:"C"}]:[]),
-    ...(hasAdministrationAccess?[{label:"Verwaltung",href:"/verwaltung",icon:"⚙"}]:[])
+    ...(!payrollOnly?[{label:"Dashboard",href:"/",icon:"dashboard" as const}]:[]),
+    ...(hasProfessionalAccess?[{label:"Mandanten",href:"/mandanten",icon:"clients" as const},{label:"Rechnungswesen",href:"/monatschecklisten",icon:"accounting" as const}]:[]),
+    ...(hasPayrollAccess?[{label:"FiBu ↔ Lohn",href:"/fibu-lohn",icon:"payroll" as const}]:[]),
+    ...(hasCampusAccess?[{label:"Ordo Campus",href:"/ordo-campus",icon:"campus" as const}]:[]),
+    ...(hasAdministrationAccess?[{label:"Verwaltung",href:"/verwaltung",icon:"administration" as const}]:[])
   ];
   const roleDisplay=user?formatRoleDisplay(user.roles):null;
   return (
@@ -64,7 +64,7 @@ export function AppShell({ children, user }: { children: React.ReactNode; user:A
             <button
               type="button"
               onClick={toggleNavigation}
-              className={`absolute right-0 hidden h-8 w-8 translate-x-1/2 items-center justify-center rounded-full border border-white/35 bg-[var(--color-primary-dark)] text-base shadow-sm hover:bg-[var(--color-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-primary-dark)] md:inline-flex ${navigationCollapsed ? "top-[4.6rem]" : "top-1/2 -translate-y-1/2"}`}
+              className="absolute right-0 top-[2.625rem] hidden h-8 w-8 -translate-y-1/2 translate-x-1/2 items-center justify-center rounded-full border border-white/35 bg-[var(--color-primary-dark)] text-base shadow-sm hover:bg-[var(--color-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-primary-dark)] md:inline-flex"
               title={navigationCollapsed ? "Navigation ausklappen" : "Navigation einklappen"}
               aria-label={navigationCollapsed ? "Hauptnavigation ausklappen" : "Hauptnavigation einklappen"}
             >
@@ -101,7 +101,7 @@ export function AppShell({ children, user }: { children: React.ReactNode; user:A
                           : "text-white/75 hover:bg-white/10 hover:text-white"
                       }`}
                     >
-                      <span aria-hidden className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded text-sm font-bold">{entry.icon}</span>
+                      <span aria-hidden className="inline-flex h-6 w-6 shrink-0 items-center justify-center"><NavigationIcon name={entry.icon}/></span>
                       <span className={navigationCollapsed ? "md:hidden" : ""}>{entry.label}</span>
                     </Link>
                   </li>
@@ -117,6 +117,18 @@ export function AppShell({ children, user }: { children: React.ReactNode; user:A
       </div>
     </div>
   );
+}
+
+type NavigationIconName = "dashboard" | "clients" | "accounting" | "payroll" | "campus" | "administration";
+
+function NavigationIcon({name}:{name:NavigationIconName}) {
+  const common={className:"h-5 w-5",viewBox:"0 0 24 24",fill:"none",stroke:"currentColor",strokeWidth:2,strokeLinecap:"round" as const,strokeLinejoin:"round" as const};
+  if(name==="dashboard") return <svg {...common}><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>;
+  if(name==="clients") return <svg {...common}><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>;
+  if(name==="accounting") return <svg {...common}><path d="M9 5h6M9 9h6M9 13h4"/><path d="M6 3h12a2 2 0 0 1 2 2v16l-3-2-3 2-3-2-3 2-3-2-3 2V5a2 2 0 0 1 2-2h2"/></svg>;
+  if(name==="payroll") return <svg {...common}><path d="m7 7-4 4 4 4M3 11h18M17 3l4 4-4 4M21 7H3"/></svg>;
+  if(name==="campus") return <svg {...common}><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2Z"/><path d="M8 6h8M8 10h6"/></svg>;
+  return <svg {...common}><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06-2.83 2.83-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21h-4v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06-2.83-2.83.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-1.51-1H3v-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06 2.83-2.83.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3h4v.09A1.65 1.65 0 0 0 15 4.6a1.65 1.65 0 0 0 1.82-.33l.06-.06 2.83 2.83-.06.06A1.65 1.65 0 0 0 19.4 9c.12.6.65 1 1.26 1H21v4h-.34c-.61 0-1.14.4-1.26 1Z"/></svg>;
 }
 
 export function formatRoleDisplay(roles:string[]) {

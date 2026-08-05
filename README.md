@@ -530,6 +530,16 @@ Weiterführende Dokumentation:
 
 Bekannte Einschränkung: Die Statusübersicht arbeitet mit Kalenderjahren. Sammelpositionen verwenden in dieser ersten Fassung eine gemeinsame strukturierte Beschreibung und eine geschützte Listenunterlage; eine Tabellenbearbeitung einzelner Unterzeilen innerhalb einer Sammlung ist noch nicht implementiert.
 
+## Dashboard und periodenübergreifende Arbeitslisten
+
+Der zentrale Einstieg heißt einheitlich **Dashboard**. Er ordnet offene Rechnungswesen-, Jahresabschluss- und FiBu-Lohn-Vorgänge unabhängig vom ausgewählten Monat der aktuell aktiven Bearbeitung, Prüfung, Freigabe oder Rückfrage zu. Ein Vorgang kann dabei nur in einer aktiven Verantwortungsgruppe erscheinen.
+
+Vorgänge mit einem Arbeitsmonat von mehr als sechs Monaten vor dem aktuellen Kalendermonat stehen standardmäßig im eigenen, aufgeklappten Bereich **Ältere offene Vorgänge**. Die Grenze gilt auch über Jahreswechsel. Operative Listen starten mit **Offen**; **Abgeschlossen** und **Alle** dienen der Historie. Monats- und Jahresfilter werden deshalb nur dort angeboten. Große Listen sind begrenzt beziehungsweise seitenweise abrufbar, und selten benötigte Filter liegen unter **Weitere Filter**.
+
+Die Hauptnavigation verwendet einheitliche SVG-Symbole. Produktname, CONCILIUM-Marke und Ein-/Ausklappsteuerung liegen auf einer gemeinsamen horizontalen Achse. Für diese rein technische und darstellerische Änderung war keine Datenbankmigration erforderlich.
+
+Details: `docs/DASHBOARD_UND_OPERATIVE_LISTEN.md`.
+
 ## Verwaltungsstruktur
 
 Die linke Hauptnavigation führt zentrale Kanzleifunktionen gebündelt unter **Verwaltung**. Der Hauptpunkt wird nur angezeigt, wenn der angemeldete Benutzer mindestens eine der enthaltenen Funktionen serverseitig verwenden darf. Benutzer mit mehreren Rollen sehen den Eintrag nur einmal.

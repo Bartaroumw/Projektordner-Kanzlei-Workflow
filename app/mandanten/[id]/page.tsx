@@ -66,7 +66,7 @@ export default async function ClientDetailPage({
   const oldOpenPayroll=client.payrollReconciliations.filter(reconciliation=>reconciliation.id!==latestPayroll?.id&&reconciliation.accountingStatus!=="Vollständig übergeben").length;
   const professional=hasRole(user,"MITARBEITER","PRUEFER","KANZLEILEITUNG");
   const tabs=[
-    {label:"Übersicht",href:"#uebersicht",visible:true},
+    {label:"Mandant",href:"#uebersicht",visible:true},
     {label:"Laufendes Rechnungswesen",href:"#rechnungswesen",visible:professional},
     {label:"Jahresabschluss",href:"#jahresabschluss",visible:professional},
     {label:"FiBu ↔ Lohn",href:"#fibu-lohn",visible:professional&&client.payrollPreparedByFirm},
@@ -77,12 +77,12 @@ export default async function ClientDetailPage({
 
   return (
     <div>
-      <div className="mb-5"><Link className="text-sm font-semibold text-blue-700 hover:underline" href="/mandanten">← Zur Mandantenübersicht</Link></div>
+      <div className="mb-5"><Link className="text-sm font-semibold text-blue-700 hover:underline" href="/mandanten">← Mandanten</Link></div>
       <ToastMessage message={success} />
       <header className="mb-5 flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="mb-2 text-sm font-semibold uppercase tracking-wider text-blue-700">Mandant {client.clientNumber}</p>
-          <h1 className="text-3xl font-bold tracking-tight">{client.name}</h1>
+          <p className="mb-2 text-sm font-semibold uppercase tracking-wider text-blue-700">Mandantenarbeitsbereich</p>
+          <h1 className="text-3xl font-bold tracking-tight">{client.clientNumber} · {client.name}</h1>
         </div>
         <div className="flex flex-wrap gap-2">{canManageCustomTasks(user)&&<Link className="button-secondary" href={`/mandanten/${client.id}/zusatzaufgaben`}>Mandantenspezifische Aufgaben</Link>}{canManageClients(user)&&<Link className="button-primary" href={`/mandanten/${client.id}/bearbeiten`}>Mandant bearbeiten</Link>}</div>
       </header>

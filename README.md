@@ -534,7 +534,7 @@ Bekannte Einschränkung: Die Statusübersicht arbeitet mit Kalenderjahren. Samme
 
 Der zentrale Einstieg heißt einheitlich **Dashboard**. Er ordnet offene Rechnungswesen-, Jahresabschluss- und FiBu-Lohn-Vorgänge unabhängig vom ausgewählten Monat der aktuell aktiven Bearbeitung, Prüfung, Freigabe oder Rückfrage zu. Ein Vorgang kann dabei nur in einer aktiven Verantwortungsgruppe erscheinen.
 
-Vorgänge mit einem Arbeitsmonat von mehr als sechs Monaten vor dem aktuellen Kalendermonat stehen standardmäßig im eigenen, aufgeklappten Bereich **Ältere offene Vorgänge**. Die Grenze gilt auch über Jahreswechsel. Operative Listen starten mit **Offen**; **Abgeschlossen** und **Alle** dienen der Historie. Monats- und Jahresfilter werden deshalb nur dort angeboten. Große Listen sind begrenzt beziehungsweise seitenweise abrufbar, und selten benötigte Filter liegen unter **Weitere Filter**.
+Vorgänge mit einem Arbeitsmonat von mehr als sechs Monaten vor dem aktuellen Kalendermonat stehen standardmäßig im eigenen, aufgeklappten Bereich **Ältere offene Vorgänge**. Die Grenze gilt auch über Jahreswechsel. Operative Listen starten mit **Offen**; **Abgeschlossen** und **Alle** dienen der Historie. Monats- und Jahresfilter werden deshalb nur dort angeboten. Große Listen sind ohne stille Abschneidung vollständig in Seiten zu je 100 Einträgen abrufbar; Gesamtzahl und dargestellter Bereich bleiben sichtbar. Selten benötigte Filter liegen unter **Weitere Filter**.
 
 Die Hauptnavigation verwendet einheitliche SVG-Symbole. Produktname, CONCILIUM-Marke und Ein-/Ausklappsteuerung liegen auf einer gemeinsamen horizontalen Achse. Für diese rein technische und darstellerische Änderung war keine Datenbankmigration erforderlich.
 

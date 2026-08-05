@@ -79,15 +79,20 @@ await batch(payrollClients.slice(0,300).map((client,index)=>({
   createdByUserId:processor.id,updatedByUserId:processor.id,
 })),part=>prisma.clientVehicle.createMany({data:part}));
 
-async function measure<T>(name:string,operation:()=>Promise<T>){const started=performance.now();const result=await operation();return{name,milliseconds:Math.round((performance.now()-started)*10)/10,rows:Array.isArray(result)?result.length:1}}
+const pageSize=100;
+const dashboardWhere={payrollUserId:payroll.id};
+async function measure<T>(name:string,operation:()=>Promise<T>){const started=performance.now();const result=await operation();return{name,milliseconds:Math.round((performance.now()-started)*10)/10,rows:Array.isArray(result)?result.length:typeof result==="number"?result:1}}
 const results=[
-  await measure("Lohn-Dashboard",()=>prisma.payrollReconciliation.findMany({where:{payrollUserId:payroll.id,payrollYear:year,payrollMonth:7},include:{client:true,items:{include:{documents:{select:{status:true}},questions:{select:{status:true}}}}},take:100})),
+  await measure("Lohn-Dashboard-Gesamtzahl",()=>prisma.payrollReconciliation.count({where:dashboardWhere})),
+  await measure("Lohn-Dashboard-Statusauswertung",()=>prisma.payrollReconciliation.findMany({where:dashboardWhere,select:{id:true,payrollYear:true,payrollMonth:true,payrollStatus:true,transferredAt:true,createdAt:true,client:{select:{clientNumber:true}},items:{select:{status:true,matterPresent:true,payrollProcessingStatus:true,documentToFollow:true,questions:{select:{status:true}}}}}})),
+  await measure("Lohn-Dashboard-Seite 1",()=>prisma.payrollReconciliation.findMany({where:dashboardWhere,include:{client:true,items:{include:{documents:{select:{status:true}},questions:{select:{status:true}}}}},orderBy:{id:"asc"},take:pageSize})),
+  await measure("Lohn-Dashboard-letzte Seite",()=>prisma.payrollReconciliation.findMany({where:dashboardWhere,include:{client:true,items:{include:{documents:{select:{status:true}},questions:{select:{status:true}}}}},orderBy:{id:"asc"},skip:reconciliations.length-pageSize,take:pageSize})),
   await measure("Mandantensuche",()=>prisma.payrollReconciliation.findMany({where:{payrollUserId:payroll.id,client:{OR:[{clientNumber:{contains:"P001"}},{name:{contains:"001"}}]}},include:{client:true},take:100})),
   await measure("Abstimmungsdetail",()=>prisma.payrollReconciliation.findUnique({where:{id:reconciliations[0].id},include:{items:{include:{documents:true,questions:true,vehicleChanges:true}},history:true,client:true} })),
   await measure("Fahrzeugliste",()=>prisma.clientVehicle.findMany({where:{client:{payrollUserId:payroll.id}},include:{client:true,changes:{take:1}},take:200})),
   await measure("Rückfragenübersicht",()=>prisma.payrollReconciliationQuestion.findMany({where:{OR:[{senderUserId:payroll.id},{recipientUserId:payroll.id}],status:{not:"Erledigt durch Lohn"}},include:{reconciliation:{include:{client:true}},reconciliationItem:true},take:100})),
 ];
-const report={generatedAt:new Date().toISOString(),volumes:{clients:clients.length,payrollClients:payrollClients.length,reconciliations:reconciliations.length,items:items.length,questions:600,vehicles:300},limits:{dashboard:100,questions:100,vehicles:200},results,nPlusOneAssessment:"Listen verwenden begrenzte Prisma-Abfragen mit Includes; Belegdateiinhalte werden nicht geladen."};
+const report={generatedAt:new Date().toISOString(),volumes:{clients:clients.length,payrollClients:payrollClients.length,reconciliations:reconciliations.length,items:items.length,questions:600,vehicles:300},pagination:{pageSize,dashboardPages:Math.ceil(reconciliations.length/pageSize),allReconciliationsReachable:true},limits:{questionsPerPage:100,vehicles:200},results,nPlusOneAssessment:"Gesamtzählung und leichte Statusauswertung erfassen den vollständigen berechtigten Bestand; vollständige Datensätze werden seitenweise mit Includes geladen. Belegdateiinhalte werden nicht geladen."};
 await writeFile(resolve("tmp","fibu-lohn-performance-report.json"),`${JSON.stringify(report,null,2)}\n`,"utf8");
 console.log(JSON.stringify(report,null,2));
 await prisma.$disconnect();

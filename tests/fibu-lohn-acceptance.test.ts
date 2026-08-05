@@ -55,7 +55,7 @@ describe("FiBu-Lohn-Abnahmeinfrastruktur",()=>{
     expect(backup).toContain("diagnose-fibu-lohn-acceptance.ts");
   });
 
-  it("erzeugt einen getrennten Performancebestand mit begrenzten Ergebnislisten",async()=>{
+  it("erzeugt einen getrennten Performancebestand mit paginierten Ergebnislisten",async()=>{
     const generator=await source("scripts/seed-fibu-lohn-performance.ts");
     const dashboard=await source("app/fibu-lohn/page.tsx");
     const vehicles=await source("app/fibu-lohn/fahrzeuge/page.tsx");
@@ -63,7 +63,9 @@ describe("FiBu-Lohn-Abnahmeinfrastruktur",()=>{
     expect(generator).toContain("slice(0,300)");
     expect(generator).toContain("length:12");
     expect(generator).toContain("take:100");
-    expect(dashboard).toContain("take:100");
+    expect(dashboard).toContain("pageSlice(filtered,page)");
+    expect(dashboard).toContain("<ServerPagination");
+    expect(dashboard).toContain("questionTotal");
     expect(vehicles).toContain("take:200");
   });
 

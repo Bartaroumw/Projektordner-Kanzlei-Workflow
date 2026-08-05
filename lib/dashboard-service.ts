@@ -106,19 +106,16 @@ export async function getDashboardData(filters: DashboardFilters) {
         client: true,
         tasks: { select: { id:true,status: true, mandatorySnapshot: true, reviewStatus: true, processingNote: true, reviewIssueStatus:true, reviewIssueRaisedByUserId:true, reviewIssueDirectedToUserId:true,sourceTaskId:true } },
       },
-      take: 5000,
     }),
     prisma.client.findMany({
       where: { active: true },
       include: { annualProfiles: { where: { calendarYear: filters.year }, select: { id: true } } },
       orderBy: { clientNumber: "asc" },
-      take: 1000,
     }),
     prisma.accountingPeriod.findMany({
       where: { checklistType: "Monat" },
       select: { id: true, clientId: true, calendarYear: true, month: true, processingStatus: true },
       orderBy: [{ calendarYear: "desc" }, { month: "desc" }],
-      take: 5000,
     }),
   ]);
   const periods: DashboardPeriod[] = rawPeriods.map((period) => ({

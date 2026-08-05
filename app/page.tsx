@@ -44,9 +44,9 @@ export default async function Dashboard({searchParams}:{searchParams:SearchParam
     prisma.payrollReconciliationQuestion.findMany({
       where:{recipientUserId:user.id,status:"Offen beim Rechnungswesen"},
       include:{sender:true,reconciliation:{include:{client:true}},reconciliationItem:true},
-      orderBy:{createdAt:"asc"},take:100,
+      orderBy:{createdAt:"asc"},
     }),
-    prisma.annualChecklist.findMany({where:{status:{not:"Freigegeben"}},include:{client:true,tasks:true},orderBy:[{fiscalYear:"asc"},{updatedAt:"asc"}],take:200}),
+    prisma.annualChecklist.findMany({where:{status:{not:"Freigegeben"}},include:{client:true,tasks:true},orderBy:[{fiscalYear:"asc"},{updatedAt:"asc"}]}),
   ]);
 
   const monthlyProcessing=splitByOperationalAge(data.myProcessing,periodOf,reference);
@@ -129,7 +129,7 @@ export default async function Dashboard({searchParams}:{searchParams:SearchParam
     <section className="mt-10 rounded-xl border-2 border-amber-300 bg-amber-50/40 p-4 sm:p-5">
       <h2 className="text-2xl font-bold text-[var(--color-primary-dark)]">Ältere offene Vorgänge · {olderCount}</h2>
       <p className="mb-5 mt-1 text-sm text-[var(--color-text-muted)]">Offene Vorgänge, deren Arbeitsmonat mehr als sechs Monate vor dem aktuellen Kalendermonat liegt. Diese Einträge erscheinen nicht erneut in den oberen Arbeitslisten.</p>
-      <div className="space-y-8"><PeriodSection title="Rechnungswesenaufgaben" periods={olderMonthly}/>{annualProcessing.older.length>0&&<AnnualSection title="Jahresabschlussbearbeitung" items={annualProcessing.older} kind="processing"/>}{annualReviews.older.length>0&&<AnnualSection title="Jahresabschlussprüfungen" items={annualReviews.older} kind="review"/>}{annualReleases.older.length>0&&<AnnualSection title="Jahresabschlussfreigaben" items={annualReleases.older} kind="release"/>}<PayrollQuestionSection questions={payrollByAge.older}/></div>
+      <div className="space-y-8"><PeriodSection title="Rechnungswesenaufgaben" periods={olderMonthly} allHref="/monatschecklisten?ansicht=offen&alt=1"/>{annualProcessing.older.length>0&&<AnnualSection title="Jahresabschlussbearbeitung" items={annualProcessing.older} kind="processing"/>}{annualReviews.older.length>0&&<AnnualSection title="Jahresabschlussprüfungen" items={annualReviews.older} kind="review"/>}{annualReleases.older.length>0&&<AnnualSection title="Jahresabschlussfreigaben" items={annualReleases.older} kind="release"/>}<PayrollQuestionSection questions={payrollByAge.older}/></div>
     </section>
 
     {filters.officeWide&&<WorkSection title="Kanzleiweite Steuerung"><PeriodSection title="Zur Bearbeitung" periods={splitByOperationalAge(data.work,periodOf,reference).current}/><PeriodSection title="Zur Prüfung" periods={splitByOperationalAge(data.review,periodOf,reference).current}/></WorkSection>}

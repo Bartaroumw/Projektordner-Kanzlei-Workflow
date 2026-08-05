@@ -20,7 +20,7 @@ Rechnungswesen-, Jahresabschluss- und FiBu-Lohn-Listen öffnen standardmäßig d
 
 Direkt sichtbar bleiben Suche, Status und die primäre Aktion. Zuständigkeits-, Stammdaten- und Sortierfilter liegen unter **Weitere Filter**. Aktive Filter erscheinen darunter als kompakte Chips und können einzeln entfernt werden; zusätzlich besitzt jede Liste eine eindeutige Zurücksetzen-Aktion.
 
-Rechnungswesenaufgaben werden seitenweise mit höchstens 100 Einträgen geladen. Jahresabschluss- und FiBu-Lohn-Listen sind auf 200 Einträge begrenzt und weisen die Begrenzung sichtbar aus. Dashboardbereiche zeigen höchstens zehn Detailzeilen und verlinken auf die vollständige Arbeitsliste.
+Rechnungswesen-, Jahresabschluss- und FiBu-Lohn-Listen werden serverseitig mit höchstens 100 Einträgen je Seite geladen. Gesamtzahl, aktuell dargestellter Bereich und Seitenzahl sind sichtbar; Suche, Filter, Sortierung und Rollenbegrenzung bleiben beim Seitenwechsel erhalten. Offene Vorgänge werden nicht mehr durch eine feste 200er-Grenze abgeschnitten. Dashboardbereiche zeigen höchstens zehn Detailzeilen und verlinken auf die vollständig paginierte Arbeitsliste.
 
 ## FiBu-Lohn-Sortierung
 
@@ -38,4 +38,4 @@ Die Umsetzung verändert weder `schema.prisma` noch Migrationen oder Fachdaten. 
 
 ## Prüfung
 
-Prisma Validate, Prisma Client, Migrationsstatus, ESLint, TypeScript, 325 automatisierte Tests und der Produktions-Build waren erfolgreich. Ein optionaler Performance-Smoke-Test blieb planmäßig übersprungen. Entwicklungs- und produktionsnaher Integrationsstart antworteten erfolgreich. Die Browserprüfung umfasste Maria Muster, Paul Prüfung, Klara Leitung und Laura Lohn sowie 1440, 1280, 1024 und 600 Pixel Breite ohne Seitenüberlauf oder Konsolenfehler.
+Prisma Validate, Prisma Client, Migrationsstatus, ESLint, TypeScript, 331 reguläre automatisierte Tests und der Produktions-Build waren erfolgreich. Der zusätzlich aktivierte Performance-Smoke-Test erhöhte den erfolgreichen Gesamtlauf auf 332 Tests und prüfte 1.200 offene Checklisten, 300 ältere offene Vorgänge und 30.000 Aufgaben. Ein eigener FiBu-Lohn-Performancebestand bestätigte 3.600 Abstimmungen auf 36 vollständig erreichbaren Seiten. Entwicklungs- und produktionsnaher Integrationsstart antworteten erfolgreich. Die Browserprüfung umfasste die künstlichen Rollenprofile sowie 1440, 1280, 1024 und 600 Pixel Breite ohne Seitenüberlauf oder sichtbaren Anwendungsfehler.

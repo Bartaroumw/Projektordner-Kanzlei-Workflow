@@ -43,7 +43,7 @@ performanceDescribe("Lokaler Performance-Grundtest", () => {
             month,
             periodLabel: `${month}. Monat 2026`,
             checklistType: "Monat",
-            processingStatus: month === 4 ? "In Bearbeitung" : "Abgeschlossen",
+            processingStatus: "In Bearbeitung",
             processorSnapshot: "Maria Muster",
             reviewerSnapshot: "Paul Prüfung",
             managementNameSnapshot: "Klara Leitung",
@@ -85,13 +85,15 @@ performanceDescribe("Lokaler Performance-Grundtest", () => {
       const startedAt = performance.now();
       const result = await getDashboardData({
         year: 2026,
-        month: 4,
+        month: 8,
         officeWide: true,
       });
       const durationMs = performance.now() - startedAt;
 
       expect(result.clients).toHaveLength(300);
       expect(result.periods).toHaveLength(1_200);
+      expect(result.metrics.total).toBe(1_200);
+      expect(result.metrics.oldOpen).toBe(300);
       expect(await prisma.checklistTask.count()).toBe(30_000);
       expect(durationMs).toBeLessThan(10_000);
       console.log(

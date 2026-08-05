@@ -25,10 +25,13 @@ Diese Next.js-Version kann neue oder geänderte Konventionen enthalten. Vor Änd
 - Bearbeiter, Prüfer und Kanzleileitung dürfen personengleich zugeordnet sein, sofern der aktive Benutzer die jeweilige fachliche Rolle besitzt.
 - Workflowaktionen bleiben auch bei personengleicher Besetzung getrennt und werden einzeln mit der ausgeübten Funktion protokolliert.
 - Ein technisches Vier-Augen-Prinzip wird nicht erzwungen; eine reine Administratorrolle verleiht keine fachlichen Rechte.
-- Ordo-Campus-Wissen wird ausschließlich an der Standardaufgabe gepflegt und nicht in Checklisten-Snapshots kopiert.
+- Ordo-Campus-Wissen wird ausschließlich als eigenständiger Wissensinhalt im zentralen Wissensmanagement gepflegt. Standardaufgaben und FiBu-Lohn-Themen sind nur wiederverwendbare Anwendungsorte; Inhalte werden nicht in Checklisten- oder Abstimmungssnapshots kopiert.
 - Reguläre Benutzer sehen nur aktive Campus-Inhalte; Pflege erfordert die gesonderte Berechtigung `ORDO_CAMPUS_VERWALTEN`.
 - Externe und DATEV-bezogene Wissensquellen werden nur als Linkmetadaten gespeichert; ihre Inhalte werden nicht lokal übernommen.
 - Campus-Inhalte werden in Checklisten erst beim Öffnen geladen; Prüferhinweise bleiben serverseitig auf Prüfer und Kanzleileitung beschränkt.
+- Ein Campus-Inhalt darf mehreren Wissensgebieten, Lernpfaden, Standardaufgaben und FiBu-Lohn-Themen zugeordnet sein. Pro Anwendungsort kann eine Hauptanleitung markiert werden; weitere Inhalte bleiben vollständig erreichbar.
+- Wissensgebiete besitzen höchstens eine Unterebene. Stabile Schlüssel, Altbestandsreferenzen und Verlaufseinträge dürfen nicht nachträglich umgedeutet oder gelöscht werden.
+- Persönliche Campus-Aufrufe und Gelesen-Markierungen sind freiwillige Orientierungshilfen und niemals Schulungs-, Prüfungs- oder Pflichtnachweise.
 - Die Campus-Leseansicht verwendet überall dieselbe Reihenfolge und hebt den verbindlichen Kanzleistandard in den zentralen Designfarben hervor.
 - Campus-Anhänge liegen ausschließlich unter `storage/ordo-campus`, niemals unter `public`; erlaubt sind nur PDF, DOCX, XLSX, PNG und JPG/JPEG bis 15 MB.
 - Ein vollständiges Backup umfasst SQLite-Datenbank und Campus-Anhangsspeicher gemeinsam. Nur die Datenbank zu sichern ist nicht ausreichend.

@@ -32,11 +32,11 @@ export default async function StandardTasksPage({ searchParams }: { searchParams
         AND: [
           search ? { OR: [
             { taskId: { contains: search } }, { title: { contains: search } },
-            { campusKnowledge: { is: { OR:[
-              {shortDescription:{contains:search}},{processingGuidance:{contains:search}},{firmStandard:{contains:search}},
+            { knowledgeContentLinks: { some: { knowledgeContent: { OR:[
+              {shortDescription:{contains:search}},{workingGuidance:{contains:search}},{firmStandard:{contains:search}},
               {reviewerGuidance:{contains:search}},{typicalErrors:{contains:search}},
               {links:{some:{OR:[{title:{contains:search}},{description:{contains:search}}]}}},
-            ] } } },
+            ] } } } },
           ] } : {},
           checklistType ? { checklistType } : {},
           category ? { category: { name: category } } : {},
@@ -45,17 +45,14 @@ export default async function StandardTasksPage({ searchParams }: { searchParams
           rhythm ? { rhythm } : {},
           mandatory === "ja" ? { mandatory: true } : mandatory === "nein" ? { mandatory: false } : {},
           active === "aktiv" ? { active: true } : active === "inaktiv" ? { active: false } : {},
-          campus === "mit-wissen" ? { campusKnowledge: { isNot: null } } :
-          campus === "ohne-wissen" ? { campusKnowledge: { is: null } } :
-          ["Aktiv","Entwurf","Archiviert"].includes(campus) ? { campusKnowledge: { is: { status: campus } } } :
-          campus === "mit-datev" ? { campusKnowledge: { is: { links: { some: { active: true, linkType: { startsWith: "DATEV" } } } } } } :
-          campus === "ohne-datev" ? { OR: [
-            { campusKnowledge: { is: null } },
-            { campusKnowledge: { is: { links: { none: { active: true, linkType: { startsWith: "DATEV" } } } } } },
-          ] } : {},
+          campus === "mit-wissen" ? { knowledgeContentLinks: { some: {} } } :
+          campus === "ohne-wissen" ? { knowledgeContentLinks: { none: {} } } :
+          ["Aktiv","Entwurf","Archiviert"].includes(campus) ? { knowledgeContentLinks: { some: { knowledgeContent: { status: campus } } } } :
+          campus === "mit-datev" ? { knowledgeContentLinks: { some: { knowledgeContent: { links: { some: { active: true, linkType: { startsWith: "DATEV" } } } } } } } :
+          campus === "ohne-datev" ? { knowledgeContentLinks: { none: { knowledgeContent: { links: { some: { active: true, linkType: { startsWith: "DATEV" } } } } } } } : {},
         ],
       },
-      include: { category: true, campusKnowledge: { select: { status: true } } },
+      include: { category: true, knowledgeContentLinks: { include: { knowledgeContent: { select: { status: true } } } } },
       orderBy,
     }),
     prisma.taskCategory.findMany({ orderBy: [{ sortOrder: "asc" }, { name: "asc" }] }),
@@ -90,7 +87,7 @@ export default async function StandardTasksPage({ searchParams }: { searchParams
         <table className="w-full min-w-[1450px] text-left text-sm">
           <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-600"><tr>{["Aufgaben-ID","Checklistenart","Kategorie","Aufgabenbezeichnung","Rechtsformgruppe","Gewinnermittlungsart","Rhythmus","Pflicht","Status","Campus","Version","Aktion"].map((heading) => <th key={heading} className="border-b border-slate-200 px-3 py-3">{heading}</th>)}</tr></thead>
           <tbody className="divide-y divide-slate-100">{tasks.map((task) => <tr key={task.id} className="hover:bg-slate-50">
-            <td className="whitespace-nowrap px-3 py-3 font-semibold">{task.taskId}</td><td className="px-3 py-3">{task.checklistType}</td><td className="px-3 py-3">{task.category.name}</td><td className="px-3 py-3">{task.title}</td><td className="px-3 py-3">{task.legalFormGroups}</td><td className="px-3 py-3">{task.profitDeterminationMethods}</td><td className="px-3 py-3">{task.checklistType==="Jahresabschluss"?"Jährlich":formatExecutionPlanning(task.rhythm,task.executionMonths)}</td><td className="px-3 py-3">{task.mandatory ? "Ja" : "Nein"}</td><td className="px-3 py-3">{task.active ? "Aktiv" : "Inaktiv"}</td><td className="px-3 py-3"><CampusStatus status={task.campusKnowledge?.status}/></td><td className="px-3 py-3">{task.professionalVersion}</td><td className="px-3 py-3"><Link className="font-semibold text-[var(--color-primary-dark)] hover:underline" href={`/standardaufgaben/${task.id}`}>Öffnen</Link></td>
+            <td className="whitespace-nowrap px-3 py-3 font-semibold">{task.taskId}</td><td className="px-3 py-3">{task.checklistType}</td><td className="px-3 py-3">{task.category.name}</td><td className="px-3 py-3">{task.title}</td><td className="px-3 py-3">{task.legalFormGroups}</td><td className="px-3 py-3">{task.profitDeterminationMethods}</td><td className="px-3 py-3">{task.checklistType==="Jahresabschluss"?"Jährlich":formatExecutionPlanning(task.rhythm,task.executionMonths)}</td><td className="px-3 py-3">{task.mandatory ? "Ja" : "Nein"}</td><td className="px-3 py-3">{task.active ? "Aktiv" : "Inaktiv"}</td><td className="px-3 py-3"><CampusStatus count={task.knowledgeContentLinks.length} active={task.knowledgeContentLinks.filter(link=>link.knowledgeContent.status==="Aktiv").length}/></td><td className="px-3 py-3">{task.professionalVersion}</td><td className="px-3 py-3"><Link className="font-semibold text-[var(--color-primary-dark)] hover:underline" href={`/standardaufgaben/${task.id}`}>Öffnen</Link></td>
           </tr>)}{tasks.length === 0 && <tr><td colSpan={12} className="px-4 py-12 text-center text-slate-500">Keine Standardaufgaben zu den gewählten Kriterien gefunden.</td></tr>}</tbody>
         </table>
       </div></div>
@@ -100,7 +97,6 @@ export default async function StandardTasksPage({ searchParams }: { searchParams
 
 function Filter({ label, children }: { name: string; label: string; children: React.ReactNode }) { return <label className="block text-xs font-semibold text-slate-600"><span className="mb-1 block">{label}</span>{children}</label>; }
 function Select({ name, label, value, options, labels }: { name: string; label: string; value: string; options: string[]; labels?: string[] }) { return <Filter name={name} label={label}><select className="input" name={name} defaultValue={value}><option value="">Nicht filtern</option>{options.map((option,index) => <option key={option} value={option}>{labels?.[index] ?? option}</option>)}</select></Filter>; }
-function CampusStatus({status}:{status:string|undefined}) {
-  const marker=status==="Aktiv"?"●":status==="Entwurf"?"◐":status==="Archiviert"?"●":"○";
-  return <span className={`whitespace-nowrap text-xs font-semibold ${status==="Aktiv"?"text-[var(--color-primary-dark)]":"text-[var(--color-text-muted)]"}`}><span aria-hidden="true">{marker}</span> {status??"Kein Wissen"}</span>;
+function CampusStatus({count,active}:{count:number;active:number}) {
+  return <span className={`whitespace-nowrap text-xs font-semibold ${active?"text-[var(--color-primary-dark)]":"text-[var(--color-text-muted)]"}`}><span aria-hidden="true">{active?"●":"○"}</span> {count?`${active} aktiv · ${count} gesamt`:"Kein Wissen"}</span>;
 }

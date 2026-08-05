@@ -48,6 +48,10 @@ Kein universeller Policy-Editor ist erforderlich. Die fachlichen Regeln bleiben 
 
 ## Zentrale Policy-Schnittstelle
 
+### Ordo Campus 2
+
+Aktive interne Benutzer dürfen grundsätzlich alle aktiven Wissensinhalte lesen; Zielgruppen steuern Empfehlungen und Filter. Dies gilt auch für reine Lohnsachbearbeiter. `ORDO_CAMPUS_VERWALTEN` schützt Anlage, Änderung, Zuordnung, Link-, Anhangs-, Gebiets- und Lernpfadpflege. Eine Administratorrolle allein erzeugt kein Campus-Pflegerecht. Prüferhinweise werden unabhängig von der allgemeinen Leseberechtigung ausschließlich an Prüfer und Kanzleileitung ausgeliefert. Alle Lese- und Schreibregeln werden serverseitig geprüft; Navigation und ausgeblendete Schaltflächen sind keine Autorisierung.
+
 Für jedes Modul:
 
 ```text
@@ -89,4 +93,3 @@ Mandantenportal-Benutzer dürfen niemals bloß einen internen `UserRole`-Wert er
 | nächstes internes Modul | Policy-Grenzen und Rollen/Berechtigungen trennen |
 | breiter Mehrbenutzerbetrieb | Organisations- und Objekt-Scopes erforderlich |
 | Mandantenportal | neues externes Identitäts- und Autorisierungsmodell zwingend |
-

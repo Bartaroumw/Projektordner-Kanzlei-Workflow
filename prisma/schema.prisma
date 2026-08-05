@@ -124,6 +124,7 @@ model StandardTask {
   campusAttachments            StandardTaskKnowledgeAttachment[]
   planningHistory              StandardTaskPlanningHistory[]
   payrollTopics                PayrollReconciliationTopic[]
+  knowledgeContentLinks        KnowledgeContentTaskLink[]
 
   @@index([active, checklistType])
   @@index([categoryId, sortOrder])
@@ -421,26 +422,37 @@ model User {
   payrollTopicHistory                  PayrollReconciliationTopicHistory[]
   createdPayrollPositions              PayrollReconciliationPosition[]      @relation("PayrollPositionCreator")
   updatedPayrollPositions              PayrollReconciliationPosition[]      @relation("PayrollPositionUpdater")
-  profileImage                         UserProfileImage?                     @relation("UserProfileImageOwner")
-  uploadedProfileImages                UserProfileImage[]                    @relation("UserProfileImageUploader")
-  profileImageChanges                  UserProfileImageHistory[]             @relation("UserProfileImageActor")
-  profileImageHistory                  UserProfileImageHistory[]             @relation("UserProfileImageTarget")
+  profileImage                         UserProfileImage?                    @relation("UserProfileImageOwner")
+  uploadedProfileImages                UserProfileImage[]                   @relation("UserProfileImageUploader")
+  profileImageChanges                  UserProfileImageHistory[]            @relation("UserProfileImageActor")
+  profileImageHistory                  UserProfileImageHistory[]            @relation("UserProfileImageTarget")
+  createdKnowledgeAreas                KnowledgeArea[]                      @relation("KnowledgeAreaCreator")
+  updatedKnowledgeAreas                KnowledgeArea[]                      @relation("KnowledgeAreaUpdater")
+  createdKnowledgeContents             KnowledgeContent[]                   @relation("KnowledgeContentCreator")
+  updatedKnowledgeContents             KnowledgeContent[]                   @relation("KnowledgeContentUpdater")
+  responsibleKnowledgeContents         KnowledgeContent[]                   @relation("KnowledgeContentResponsible")
+  knowledgeContentHistory              KnowledgeContentHistory[]            @relation("KnowledgeContentHistoryActor")
+  createdKnowledgeLearningPaths        KnowledgeLearningPath[]              @relation("KnowledgeLearningPathCreator")
+  updatedKnowledgeLearningPaths        KnowledgeLearningPath[]              @relation("KnowledgeLearningPathUpdater")
+  knowledgeProgress                    KnowledgeUserProgress[]
+  uploadedKnowledgeAttachments         KnowledgeContentAttachment[]         @relation("KnowledgeContentAttachmentUploader")
+  archivedKnowledgeAttachments         KnowledgeContentAttachment[]         @relation("KnowledgeContentAttachmentArchiver")
 
   @@index([active, fullName])
 }
 
 model UserProfileImage {
-  id                 Int      @id @default(autoincrement())
-  userId             Int      @unique
-  storedFileName     String   @unique
-  mimeType           String
-  fileSizeBytes      Int
-  originalFileName   String
-  uploadedAt         DateTime @default(now())
-  uploadedByUserId   Int
-  updatedAt          DateTime @updatedAt
-  user               User     @relation("UserProfileImageOwner", fields: [userId], references: [id], onDelete: Cascade)
-  uploadedBy         User     @relation("UserProfileImageUploader", fields: [uploadedByUserId], references: [id], onDelete: Restrict)
+  id               Int      @id @default(autoincrement())
+  userId           Int      @unique
+  storedFileName   String   @unique
+  mimeType         String
+  fileSizeBytes    Int
+  originalFileName String
+  uploadedAt       DateTime @default(now())
+  uploadedByUserId Int
+  updatedAt        DateTime @updatedAt
+  user             User     @relation("UserProfileImageOwner", fields: [userId], references: [id], onDelete: Cascade)
+  uploadedBy       User     @relation("UserProfileImageUploader", fields: [uploadedByUserId], references: [id], onDelete: Restrict)
 
   @@index([uploadedByUserId, uploadedAt])
 }
@@ -720,9 +732,253 @@ model PayrollReconciliationTopic {
   campusStandardTask     StandardTask?                       @relation(fields: [campusStandardTaskId], references: [id], onDelete: SetNull)
   reconciliationItems    PayrollReconciliationItem[]
   history                PayrollReconciliationTopicHistory[]
+  knowledgeContentLinks  KnowledgeContentPayrollTopicLink[]
 
   @@index([status, validFrom, validUntil, sortOrder])
   @@index([campusStandardTaskId])
+}
+
+model KnowledgeArea {
+  id               Int                    @id @default(autoincrement())
+  key              String                 @unique
+  title            String
+  shortDescription String
+  description      String?
+  icon             String?
+  sortOrder        Int                    @default(0)
+  status           String                 @default("Aktiv")
+  parentId         Int?
+  createdAt        DateTime               @default(now())
+  createdByUserId  Int
+  updatedAt        DateTime               @updatedAt
+  updatedByUserId  Int
+  parent           KnowledgeArea?         @relation("KnowledgeAreaHierarchy", fields: [parentId], references: [id], onDelete: Restrict)
+  children         KnowledgeArea[]        @relation("KnowledgeAreaHierarchy")
+  createdBy        User                   @relation("KnowledgeAreaCreator", fields: [createdByUserId], references: [id], onDelete: Restrict)
+  updatedBy        User                   @relation("KnowledgeAreaUpdater", fields: [updatedByUserId], references: [id], onDelete: Restrict)
+  contentLinks     KnowledgeContentArea[]
+
+  @@index([status, sortOrder, title])
+  @@index([parentId, status, sortOrder])
+}
+
+model KnowledgeContent {
+  id                Int                                @id @default(autoincrement())
+  key               String                             @unique
+  title             String
+  shortDescription  String?
+  objective         String?
+  mainContent       String?
+  workingGuidance   String?
+  firmStandard      String?
+  typicalErrors     String?
+  reviewerGuidance  String?
+  internalHints     String?
+  status            String                             @default("Entwurf")
+  contentTypes      String
+  targetAudiences   String
+  responsibleUserId Int?
+  createdAt         DateTime                           @default(now())
+  createdByUserId   Int
+  updatedAt         DateTime                           @updatedAt
+  updatedByUserId   Int
+  publishedAt       DateTime?
+  archivedAt        DateTime?
+  majorUpdatedAt    DateTime?
+  nextReviewDate    DateTime?
+  legacyKnowledgeId Int?                               @unique
+  migrationSource   String?
+  responsibleUser   User?                              @relation("KnowledgeContentResponsible", fields: [responsibleUserId], references: [id], onDelete: SetNull)
+  createdBy         User                               @relation("KnowledgeContentCreator", fields: [createdByUserId], references: [id], onDelete: Restrict)
+  updatedBy         User                               @relation("KnowledgeContentUpdater", fields: [updatedByUserId], references: [id], onDelete: Restrict)
+  areas             KnowledgeContentArea[]
+  taskLinks         KnowledgeContentTaskLink[]
+  payrollTopicLinks KnowledgeContentPayrollTopicLink[]
+  links             KnowledgeContentLink[]
+  attachments       KnowledgeContentAttachment[]
+  history           KnowledgeContentHistory[]
+  learningPathItems KnowledgeLearningPathItem[]
+  progress          KnowledgeUserProgress[]
+  tags              KnowledgeContentTag[]
+
+  @@index([status, publishedAt, updatedAt])
+  @@index([responsibleUserId, nextReviewDate])
+  @@index([majorUpdatedAt])
+}
+
+model KnowledgeContentArea {
+  id                 Int              @id @default(autoincrement())
+  knowledgeContentId Int
+  knowledgeAreaId    Int
+  sortOrder          Int              @default(0)
+  primaryArea        Boolean          @default(false)
+  knowledgeContent   KnowledgeContent @relation(fields: [knowledgeContentId], references: [id], onDelete: Cascade)
+  knowledgeArea      KnowledgeArea    @relation(fields: [knowledgeAreaId], references: [id], onDelete: Restrict)
+
+  @@unique([knowledgeContentId, knowledgeAreaId])
+  @@index([knowledgeAreaId, sortOrder])
+  @@index([knowledgeContentId, primaryArea])
+}
+
+model KnowledgeContentTaskLink {
+  id                 Int              @id @default(autoincrement())
+  knowledgeContentId Int
+  standardTaskId     Int
+  linkType           String
+  sortOrder          Int              @default(0)
+  mainContent        Boolean          @default(false)
+  contextHint        String?
+  knowledgeContent   KnowledgeContent @relation(fields: [knowledgeContentId], references: [id], onDelete: Cascade)
+  standardTask       StandardTask     @relation(fields: [standardTaskId], references: [id], onDelete: Restrict)
+
+  @@unique([knowledgeContentId, standardTaskId])
+  @@index([standardTaskId, mainContent, sortOrder])
+}
+
+model KnowledgeContentPayrollTopicLink {
+  id                           Int                        @id @default(autoincrement())
+  knowledgeContentId           Int
+  payrollReconciliationTopicId Int
+  linkType                     String
+  sortOrder                    Int                        @default(0)
+  mainContent                  Boolean                    @default(false)
+  contextHint                  String?
+  knowledgeContent             KnowledgeContent           @relation(fields: [knowledgeContentId], references: [id], onDelete: Cascade)
+  payrollReconciliationTopic   PayrollReconciliationTopic @relation(fields: [payrollReconciliationTopicId], references: [id], onDelete: Restrict)
+
+  @@unique([knowledgeContentId, payrollReconciliationTopicId])
+  @@index([payrollReconciliationTopicId, mainContent, sortOrder])
+}
+
+model KnowledgeContentLink {
+  id                 Int              @id @default(autoincrement())
+  knowledgeContentId Int
+  title              String
+  url                String
+  linkType           String
+  description        String?
+  sortOrder          Int              @default(0)
+  active             Boolean          @default(true)
+  legacyLinkId       Int?             @unique
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+  knowledgeContent   KnowledgeContent @relation(fields: [knowledgeContentId], references: [id], onDelete: Cascade)
+
+  @@index([knowledgeContentId, active, sortOrder])
+  @@index([title])
+}
+
+model KnowledgeContentAttachment {
+  id                 Int              @id @default(autoincrement())
+  knowledgeContentId Int
+  displayName        String
+  originalFileName   String
+  storedFileName     String           @unique
+  storageKey         String           @unique
+  fileExtension      String
+  mimeType           String
+  fileSizeBytes      Int
+  description        String?
+  status             String           @default("Aktiv")
+  sortOrder          Int              @default(0)
+  uploadedAt         DateTime         @default(now())
+  uploadedByUserId   Int
+  archivedAt         DateTime?
+  archivedByUserId   Int?
+  legacyAttachmentId Int?             @unique
+  knowledgeContent   KnowledgeContent @relation(fields: [knowledgeContentId], references: [id], onDelete: Restrict)
+  uploadedBy         User             @relation("KnowledgeContentAttachmentUploader", fields: [uploadedByUserId], references: [id], onDelete: Restrict)
+  archivedBy         User?            @relation("KnowledgeContentAttachmentArchiver", fields: [archivedByUserId], references: [id], onDelete: Restrict)
+
+  @@index([knowledgeContentId, status, sortOrder])
+  @@index([uploadedByUserId, uploadedAt])
+  @@index([archivedByUserId])
+}
+
+model KnowledgeContentHistory {
+  id                 Int              @id @default(autoincrement())
+  knowledgeContentId Int
+  actorUserId        Int
+  actorNameSnapshot  String
+  changedArea        String
+  description        String
+  occurredAt         DateTime         @default(now())
+  legacyHistoryId    Int?             @unique
+  knowledgeContent   KnowledgeContent @relation(fields: [knowledgeContentId], references: [id], onDelete: Restrict)
+  actorUser          User             @relation("KnowledgeContentHistoryActor", fields: [actorUserId], references: [id], onDelete: Restrict)
+
+  @@index([knowledgeContentId, occurredAt])
+  @@index([actorUserId, occurredAt])
+}
+
+model KnowledgeLearningPath {
+  id               Int                         @id @default(autoincrement())
+  key              String                      @unique
+  title            String
+  shortDescription String
+  objective        String
+  targetAudiences  String
+  status           String                      @default("Entwurf")
+  sortOrder        Int                         @default(0)
+  createdAt        DateTime                    @default(now())
+  createdByUserId  Int
+  updatedAt        DateTime                    @updatedAt
+  updatedByUserId  Int
+  createdBy        User                        @relation("KnowledgeLearningPathCreator", fields: [createdByUserId], references: [id], onDelete: Restrict)
+  updatedBy        User                        @relation("KnowledgeLearningPathUpdater", fields: [updatedByUserId], references: [id], onDelete: Restrict)
+  items            KnowledgeLearningPathItem[]
+
+  @@index([status, sortOrder, title])
+}
+
+model KnowledgeLearningPathItem {
+  id                 Int                   @id @default(autoincrement())
+  learningPathId     Int
+  knowledgeContentId Int
+  sortOrder          Int                   @default(0)
+  learningObjective  String?
+  learningPath       KnowledgeLearningPath @relation(fields: [learningPathId], references: [id], onDelete: Cascade)
+  knowledgeContent   KnowledgeContent      @relation(fields: [knowledgeContentId], references: [id], onDelete: Restrict)
+
+  @@unique([learningPathId, knowledgeContentId])
+  @@unique([learningPathId, sortOrder])
+  @@index([knowledgeContentId])
+}
+
+model KnowledgeUserProgress {
+  id                 Int              @id @default(autoincrement())
+  userId             Int
+  knowledgeContentId Int
+  firstViewedAt      DateTime         @default(now())
+  lastViewedAt       DateTime         @default(now())
+  viewCount          Int              @default(1)
+  readAt             DateTime?
+  user               User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  knowledgeContent   KnowledgeContent @relation(fields: [knowledgeContentId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, knowledgeContentId])
+  @@index([userId, lastViewedAt])
+  @@index([userId, readAt])
+}
+
+model KnowledgeTag {
+  id            Int                   @id @default(autoincrement())
+  normalizedKey String                @unique
+  title         String
+  contentLinks  KnowledgeContentTag[]
+
+  @@index([title])
+}
+
+model KnowledgeContentTag {
+  id                 Int              @id @default(autoincrement())
+  knowledgeContentId Int
+  knowledgeTagId     Int
+  knowledgeContent   KnowledgeContent @relation(fields: [knowledgeContentId], references: [id], onDelete: Cascade)
+  knowledgeTag       KnowledgeTag     @relation(fields: [knowledgeTagId], references: [id], onDelete: Restrict)
+
+  @@unique([knowledgeContentId, knowledgeTagId])
+  @@index([knowledgeTagId])
 }
 
 model ClientPayrollResponsibilityHistory {
@@ -843,11 +1099,11 @@ model PayrollReconciliationItem {
 }
 
 model PayrollReconciliationPosition {
-  id                       Int                          @id @default(autoincrement())
+  id                       Int                             @id @default(autoincrement())
   reconciliationItemId     Int
-  positionType             String                       @default("Einzelposition")
+  positionType             String                          @default("Einzelposition")
   title                    String
-  caseCount                Int                          @default(1)
+  caseCount                Int                             @default(1)
   totalAmountCents         Int?
   period                   String?
   summary                  String?
@@ -855,18 +1111,18 @@ model PayrollReconciliationPosition {
   detailsJson              String?
   requiredListType         String?
   requiredListDocumentName String?
-  status                   String                       @default("Entwurf")
+  status                   String                          @default("Entwurf")
   duplicatedFromId         Int?
   createdByUserId          Int
   updatedByUserId          Int
-  createdAt                DateTime                     @default(now())
-  updatedAt                DateTime                     @updatedAt
+  createdAt                DateTime                        @default(now())
+  updatedAt                DateTime                        @updatedAt
   archivedAt               DateTime?
-  reconciliationItem       PayrollReconciliationItem    @relation(fields: [reconciliationItemId], references: [id], onDelete: Restrict)
-  duplicatedFrom           PayrollReconciliationPosition? @relation("PayrollPositionDuplicate", fields: [duplicatedFromId], references: [id], onDelete: SetNull)
+  reconciliationItem       PayrollReconciliationItem       @relation(fields: [reconciliationItemId], references: [id], onDelete: Restrict)
+  duplicatedFrom           PayrollReconciliationPosition?  @relation("PayrollPositionDuplicate", fields: [duplicatedFromId], references: [id], onDelete: SetNull)
   duplicates               PayrollReconciliationPosition[] @relation("PayrollPositionDuplicate")
-  createdBy                User                         @relation("PayrollPositionCreator", fields: [createdByUserId], references: [id], onDelete: Restrict)
-  updatedBy                User                         @relation("PayrollPositionUpdater", fields: [updatedByUserId], references: [id], onDelete: Restrict)
+  createdBy                User                            @relation("PayrollPositionCreator", fields: [createdByUserId], references: [id], onDelete: Restrict)
+  updatedBy                User                            @relation("PayrollPositionUpdater", fields: [updatedByUserId], references: [id], onDelete: Restrict)
   documents                PayrollDocumentReference[]
   history                  PayrollReconciliationHistory[]
 
@@ -988,7 +1244,7 @@ model ClientVehicleChange {
 }
 
 model PayrollReconciliationHistory {
-  id                   Int                        @id @default(autoincrement())
+  id                   Int                            @id @default(autoincrement())
   reconciliationId     Int
   reconciliationItemId Int?
   positionId           Int?
@@ -1000,12 +1256,12 @@ model PayrollReconciliationHistory {
   summary              String
   previousValue        String?
   newValue             String?
-  occurredAt           DateTime                   @default(now())
-  reconciliation       PayrollReconciliation      @relation(fields: [reconciliationId], references: [id], onDelete: Restrict)
-  reconciliationItem   PayrollReconciliationItem? @relation(fields: [reconciliationItemId], references: [id], onDelete: Restrict)
+  occurredAt           DateTime                       @default(now())
+  reconciliation       PayrollReconciliation          @relation(fields: [reconciliationId], references: [id], onDelete: Restrict)
+  reconciliationItem   PayrollReconciliationItem?     @relation(fields: [reconciliationItemId], references: [id], onDelete: Restrict)
   position             PayrollReconciliationPosition? @relation(fields: [positionId], references: [id], onDelete: SetNull)
-  vehicle              ClientVehicle?             @relation(fields: [vehicleId], references: [id], onDelete: SetNull)
-  actorUser            User                       @relation(fields: [actorUserId], references: [id], onDelete: Restrict)
+  vehicle              ClientVehicle?                 @relation(fields: [vehicleId], references: [id], onDelete: SetNull)
+  actorUser            User                           @relation(fields: [actorUserId], references: [id], onDelete: Restrict)
 
   @@index([reconciliationId, occurredAt])
   @@index([reconciliationItemId, occurredAt])

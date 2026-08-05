@@ -100,7 +100,7 @@ describe("FiBu-Lohn-Benutzeroberflächen",()=>{
     const route=await source("app/api/ordo-campus/[kind]/[taskId]/route.ts");
     expect(detail).toContain('kind="fibu-lohn"');
     expect(detail).toContain("taskId={item.id}");
-    expect(route).toContain('kind === "fibu-lohn"');
-    expect(route).toContain("campusStandardTaskId");
+    expect(route).toContain('["monat","jahresabschluss","fibu-lohn"]');
+    expect(route).toContain("sourceTopicId");
   });
 });

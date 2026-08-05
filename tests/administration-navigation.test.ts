@@ -47,7 +47,7 @@ describe("rollenabhängige Verwaltungsnavigation", () => {
       "ORDO_CAMPUS_VERWALTEN",
       "FIBU_LOHN_THEMEN_VERWALTEN",
     ]));
-    expect(sections).toEqual(["fachliche-grundlagen", "benutzer-rechte", "daten-import", "system"]);
+    expect(sections).toEqual(["fachliche-grundlagen", "wissensmanagement", "benutzer-rechte", "daten-import", "system"]);
     expect(new Set(sections).size).toBe(sections.length);
   });
 

@@ -2,6 +2,7 @@ import { prisma } from "../lib/prisma.ts";
 import { uploadCampusAttachment } from "../lib/ordo-campus-attachment-service.ts";
 import { uploadPayrollDocument } from "../lib/payroll-document-service.ts";
 import type { AuthUser } from "../lib/permissions.ts";
+import { provisionKnowledgePlatformFromLegacy } from "../lib/knowledge-platform-migration.ts";
 
 const REQUIRED_DATABASE_URL = "file:./system-integration.db";
 if (process.env.DATABASE_URL !== REQUIRED_DATABASE_URL) {
@@ -45,6 +46,7 @@ await uploadCampusAttachment(
   },
   klara,
 );
+await provisionKnowledgePlatformFromLegacy(prisma, klara.id);
 
 const payrollItem = await prisma.payrollReconciliationItem.findFirstOrThrow({
   where: { reconciliation: { client: { clientNumber: "91002" } } },
@@ -70,6 +72,8 @@ const counts = {
   annualChecklists: await prisma.annualChecklist.count(),
   standardTasks: await prisma.standardTask.count(),
   campusKnowledge: await prisma.standardTaskKnowledge.count(),
+  knowledgeContents: await prisma.knowledgeContent.count(),
+  knowledgeAreas: await prisma.knowledgeArea.count(),
   campusAttachments: await prisma.standardTaskKnowledgeAttachment.count(),
   payrollReconciliations: await prisma.payrollReconciliation.count(),
   payrollDocuments: await prisma.payrollDocumentReference.count(),

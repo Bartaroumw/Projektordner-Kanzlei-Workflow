@@ -11,7 +11,7 @@ const standardTasks = readFileSync(join(root, "app/standardaufgaben/page.tsx"), 
 describe("Ordo-Campus-Bedienoberfläche", () => {
   it("lädt Wissen erst beim Öffnen des Seitenpanels", () => {
     expect(panel).toContain("fetch(`/api/ordo-campus/${kind}/${taskId}`");
-    expect(panel).toContain("if (!open) return");
+    expect(panel).toContain("if(!open)return");
   });
 
   it("integriert denselben Wissenszugang in Monats- und Jahresabschlussaufgaben", () => {
@@ -20,7 +20,7 @@ describe("Ordo-Campus-Bedienoberfläche", () => {
   });
 
   it("zeigt die Wissensbereiche in der verbindlichen Reihenfolge", () => {
-    const labels = ["Kurzbeschreibung", "Ziel der Aufgabe", "Verbindlicher Kanzleistandard", "Bearbeitungshinweise", "Hinweise für die fachliche Prüfung", "Häufige Fehler", "DATEV- und Fachlinks", "Interne Hinweise"];
+    const labels = ["Ziel", "Verbindlicher Kanzleistandard", "Fachwissen", "Arbeitsanleitung", "Typische Fehler", "Hinweise für Prüfer", "Links", "Interne Unterlagen"];
     let position = -1;
     for (const label of labels) {
       const next = panel.indexOf(label);
@@ -34,9 +34,9 @@ describe("Ordo-Campus-Bedienoberfläche", () => {
     expect(panel).toContain('rel="noopener noreferrer"');
   });
 
-  it("bietet Info-Popover und interne Unterlagen ohne Pfadangabe",()=>{
-    expect(panel).toContain("Was ist Ordo Campus?");
-    expect(panel).toContain("Ordo Campus unterstützt Sie direkt bei der Bearbeitung");
+  it("bietet mehrere Wissensinhalte und interne Unterlagen ohne Pfadangabe",()=>{
+    expect(panel).toContain("Passendes Wissen");
+    expect(panel).toContain("Weitere");
     expect(panel).toContain("Interne Unterlagen");
     expect(panel).not.toContain("storageKey");
   });

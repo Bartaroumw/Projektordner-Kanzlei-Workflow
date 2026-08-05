@@ -7,10 +7,11 @@ import {
   type AuthUser,
 } from "@/lib/permissions";
 
-export type AdministrationSection = "fachliche-grundlagen" | "benutzer-rechte" | "daten-import" | "system";
+export type AdministrationSection = "fachliche-grundlagen" | "wissensmanagement" | "benutzer-rechte" | "daten-import" | "system";
 
 export const ADMINISTRATION_SECTION_LABELS: Record<AdministrationSection, string> = {
   "fachliche-grundlagen": "Fachliche Grundlagen",
+  wissensmanagement: "Wissensmanagement",
   "benutzer-rechte": "Benutzer und Rechte",
   "daten-import": "Daten und Import",
   system: "System",
@@ -30,6 +31,7 @@ export function administrationSectionsFor(user: AuthUser): AdministrationSection
   ) {
     sections.push("fachliche-grundlagen");
   }
+  if (canManageOrdoCampus(user)) sections.push("wissensmanagement");
   if (canManageUsers(user)) sections.push("benutzer-rechte");
   if (canManageStandardTasks(user)) sections.push("daten-import");
   if (canManageUsers(user)) sections.push("system");

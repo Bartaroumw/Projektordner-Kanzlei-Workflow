@@ -175,3 +175,9 @@ npm.cmd run dev:integration
 ```
 
 Kontrolliertes `prisma migrate deploy` ist gegen `dev.db` nach vollständiger gemeinsamer Sicherung und Prüfung zulässig. Der bekannte Schema-Historien-Drift ist beseitigt; ein isolierter `prisma migrate dev`-Test meldete keinen Drift und keine unerwartete Migration. `prisma migrate dev` darf deshalb für künftige additive Entwicklung unter denselben Sicherungs- und Preflight-Bedingungen wieder kontrolliert verwendet werden. Bei Reset-Aufforderung oder unerwartetem Drift ist abzubrechen. `prisma db push`, `prisma migrate reset`, Seeds und Testresets gegen `dev.db` bleiben gesperrt. Details und Rollbackverfahren stehen in `docs/SCHEMA_DRIFT_ABSCHLUSSBERICHT.md`.
+
+## Ordo Campus 2 – Wissens- und Lernplattform
+
+Migration 18 `20260805160000_ordo_campus_2_knowledge_platform` ergänzt die unabhängigen Wissensinhalte, Wissensgebiete, Lernpfade, Mehrfachverknüpfungen, Tags und den persönlichen freiwilligen Lesefortschritt. Alle alten Campus-Tabellen bleiben unverändert erhalten. Eindeutige `legacy*Id`-Felder ordnen jeden Inhalt, Link, Anhang und Verlauf exakt seiner Herkunft zu; physische Dateien werden nicht dupliziert.
+
+Der Kopientest gegen eine bytegenaue Fassung von `dev.db` bestätigte 8 von 8 übernommenen Inhalten, 7 von 7 Links, 8 von 8 Altverläufen, 8 Aufgaben- und 6 Rechnungswesen–Lohn-Themenverknüpfungen. Alle 36 vorherigen Tabellen und deren Datenhashes blieben unverändert; zweiter Deploy, SQLite-Prüfungen und bytegenaue Wiederherstellung waren erfolgreich. Fachkonzept, Modell, Migration und Bedienung stehen in `docs/ORDO_CAMPUS_2_*.md`.

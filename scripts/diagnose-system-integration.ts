@@ -44,6 +44,11 @@ const [
   vehicles,
   migrations,
   profileImages,
+  knowledgeContents,
+  legacyKnowledge,
+  knowledgeLinks,
+  legacyKnowledgeLinks,
+  knowledgeTaskLinks,
 ] = await Promise.all([
   prisma.user.findMany({ include: { roles: true } }),
   prisma.client.findMany(),
@@ -51,7 +56,7 @@ const [
   prisma.annualChecklist.findMany(),
   prisma.checklistTask.findMany(),
   prisma.annualChecklistTask.findMany(),
-  prisma.standardTaskKnowledgeAttachment.findMany({ select: { storageKey: true } }),
+  prisma.knowledgeContentAttachment.findMany({ select: { storageKey: true } }),
   prisma.payrollDocumentReference.findMany({ select: { storageKey: true } }),
   prisma.payrollReconciliationPosition.findMany({
     include: {
@@ -67,6 +72,11 @@ const [
     'SELECT "migration_name", "finished_at", "rolled_back_at" FROM "_prisma_migrations" ORDER BY "started_at"',
   ),
   prisma.userProfileImage.findMany({ select: { storedFileName: true } }),
+  prisma.knowledgeContent.findMany({ select: { id: true, legacyKnowledgeId: true } }),
+  prisma.standardTaskKnowledge.findMany({ select: { id: true } }),
+  prisma.knowledgeContentLink.findMany({ select: { legacyLinkId: true } }),
+  prisma.standardTaskKnowledgeLink.findMany({ select: { id: true } }),
+  prisma.knowledgeContentTaskLink.findMany({ select: { knowledgeContentId: true, standardTaskId: true } }),
 ]);
 
 const userById = new Map(users.map((user) => [user.id, user]));
@@ -168,6 +178,9 @@ const orphanPayrollFiles = payrollStored.filter((name) => !payrollReferences.has
 const missingProfileImages = profileImages.filter((item) => !profileImageStored.includes(item.storedFileName));
 const orphanProfileImages = profileImageStored.filter((name) => !profileImageReferences.has(name));
 const incompleteMigrations = migrations.filter((migration) => !migration.finished_at || migration.rolled_back_at);
+const missingLegacyKnowledge = legacyKnowledge.filter((legacy) => !knowledgeContents.some((content) => content.legacyKnowledgeId === legacy.id));
+const missingLegacyLinks = legacyKnowledgeLinks.filter((legacy) => !knowledgeLinks.some((link) => link.legacyLinkId === legacy.id));
+const missingKnowledgeTaskLinks = knowledgeContents.filter((content) => content.legacyKnowledgeId && !knowledgeTaskLinks.some((link) => link.knowledgeContentId === content.id));
 
 const findings = {
   duplicatePeriods: duplicatePeriods.length,
@@ -191,6 +204,9 @@ const findings = {
   missingProfileImages: missingProfileImages.map((item) => item.storedFileName),
   orphanProfileImages,
   incompleteMigrations: incompleteMigrations.map((migration) => migration.migration_name),
+  missingLegacyKnowledge: missingLegacyKnowledge.map((item) => item.id),
+  missingLegacyLinks: missingLegacyLinks.map((item) => item.id),
+  missingKnowledgeTaskLinks: missingKnowledgeTaskLinks.map((item) => item.id),
 };
 const summary = {
   environment: "Systemintegration",
@@ -208,6 +224,8 @@ const summary = {
     payrollDocuments: payrollDocuments.length,
     profileImages: profileImages.length,
     vehicles: vehicles.length,
+    knowledgeContents: knowledgeContents.length,
+    knowledgeTaskLinks: knowledgeTaskLinks.length,
   },
   findings,
 };

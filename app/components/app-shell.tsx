@@ -36,7 +36,7 @@ export function AppShell({ children, user }: { children: React.ReactNode; user:A
   const hasProfessionalAccess=Boolean(user?.roles.some(role=>["MITARBEITER","PRUEFER","KANZLEILEITUNG","MANDANTEN_VERWALTEN"].includes(role)));
   const hasPayrollAccess=Boolean(user?.roles.some(role=>["LOHNSACHBEARBEITER","MITARBEITER","PRUEFER","KANZLEILEITUNG"].includes(role)));
   const payrollOnly=Boolean(user?.roles.includes("LOHNSACHBEARBEITER")&&!hasProfessionalAccess);
-  const hasCampusAccess=hasProfessionalAccess;
+  const hasCampusAccess=Boolean(user?.active);
   const hasAdministrationAccess=Boolean(user&&canOpenAdministration(user));
   const navigation=[
     ...(!payrollOnly?[{label:"Dashboard",href:"/",icon:"dashboard" as const}]:[]),

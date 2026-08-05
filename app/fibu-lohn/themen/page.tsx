@@ -24,10 +24,10 @@ export default async function PayrollTopicsPage({searchParams}:{searchParams:Sea
     where:{
       ...(search?{OR:[{key:{contains:search}},{title:{contains:search}},{shortDescription:{contains:search}},{reviewQuestion:{contains:search}}]}:{}),
       ...(status?{status}:{}),
-      ...(campus==="mit"?{campusStandardTask:{is:{campusKnowledge:{isNot:null}}}}:campus==="ohne"?{OR:[{campusStandardTaskId:null},{campusStandardTask:{is:{campusKnowledge:{is:null}}}}]}:{}),
+      ...(campus==="mit"?{knowledgeContentLinks:{some:{}}}:campus==="ohne"?{knowledgeContentLinks:{none:{}}}:{}),
       ...(vehicle==="ja"?{vehicleRelated:true}:vehicle==="nein"?{vehicleRelated:false}:{}),
     },
-    include:{campusStandardTask:{select:{id:true,title:true,campusKnowledge:{select:{status:true}}}}},
+    include:{campusStandardTask:{select:{id:true,title:true}},knowledgeContentLinks:{include:{knowledgeContent:{select:{status:true}}}}},
     orderBy:[{sortOrder:"asc"},{title:"asc"}],
   });
   const topics=databaseTopics.filter((topic)=>collection==="ja"?PAYROLL_COLLECTION_TOPICS.has(topic.key):collection==="nein"?!PAYROLL_COLLECTION_TOPICS.has(topic.key):true);
@@ -48,7 +48,7 @@ export default async function PayrollTopicsPage({searchParams}:{searchParams:Sea
       <table className="w-full min-w-[1250px] text-left text-sm"><thead className="bg-[var(--color-primary-light)]"><tr>{["Reihenfolge","Thema","Kurzbeschreibung","Status","Campus","Fahrzeugbezug","Sammelerfassung","Pflichtangaben","Letzte Änderung","Aktion"].map((heading)=><th className="p-3" key={heading}>{heading}</th>)}</tr></thead>
         <tbody>{topics.map((topic)=><tr className="border-t align-top" key={topic.id}>
           <td className="p-3 font-semibold">{topic.sortOrder}</td><td className="p-3"><strong>{topic.title}</strong><p className="mt-1 text-xs text-[var(--color-text-muted)]">{topic.reviewQuestion}</p></td><td className="p-3">{topic.shortDescription??"–"}</td>
-          <td className="p-3 font-semibold">{topic.status}</td><td className="p-3">{topic.campusStandardTask?.campusKnowledge?.status??"Nicht hinterlegt"}</td><td className="p-3">{topic.vehicleRelated?"Ja":"Nein"}</td><td className="p-3">{PAYROLL_COLLECTION_TOPICS.has(topic.key)?"Zulässig":"Nicht zulässig"}</td>
+          <td className="p-3 font-semibold">{topic.status}</td><td className="p-3">{topic.knowledgeContentLinks.filter(link=>link.knowledgeContent.status==="Aktiv").length} aktive Inhalte</td><td className="p-3">{topic.vehicleRelated?"Ja":"Nein"}</td><td className="p-3">{PAYROLL_COLLECTION_TOPICS.has(topic.key)?"Zulässig":"Nicht zulässig"}</td>
           <td className="p-3">{parseConfiguredList(topic.requiredStandardFields).join(" · ")||"Keine"}</td><td className="p-3">{formatDate(topic.updatedAt)}</td><td className="p-3"><Link className="font-semibold text-[var(--color-primary-dark)] hover:underline" href={`/fibu-lohn/themen/${topic.id}/bearbeiten`}>Thema bearbeiten</Link></td>
         </tr>)}{!topics.length&&<tr><td className="p-10 text-center text-[var(--color-text-muted)]" colSpan={10}>Keine Rechnungswesen–Lohn-Themen zu den gewählten Filtern gefunden.</td></tr>}</tbody>
       </table>

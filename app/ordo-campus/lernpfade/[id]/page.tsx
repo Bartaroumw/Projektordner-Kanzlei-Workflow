@@ -1,0 +1,12 @@
+import Link from "next/link";
+import { notFound } from "next/navigation";
+import { OrdoCampusHeader } from "@/app/components/ordo-campus-tabs";
+import { requireUser } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
+
+export default async function LearningPathPage({ params }: { params: Promise<{ id: string }> }) {
+  const user = await requireUser(); const id = Number((await params).id);
+  const path = await prisma.knowledgeLearningPath.findFirst({ where: { id, status: "Aktiv" }, include: { items: { where: { knowledgeContent: { status: "Aktiv" } }, include: { knowledgeContent: { include: { progress: { where: { userId: user.id } }, areas: { where: { primaryArea: true }, include: { knowledgeArea: true } } } } }, orderBy: { sortOrder: "asc" } } } });
+  if (!path) notFound(); const read = path.items.filter((item) => item.knowledgeContent.progress[0]?.readAt).length;
+  return <div><OrdoCampusHeader active="/ordo-campus/lernpfade" title={path.title} description={path.shortDescription}/><section className="mb-6 rounded-xl bg-[var(--color-primary-light)] p-6"><h2 className="font-bold text-[var(--color-primary-dark)]">Ziel</h2><p className="mt-2 leading-7">{path.objective}</p><p className="mt-4 font-semibold">{read} von {path.items.length} Inhalten als gelesen markiert</p><div className="mt-2 h-2 overflow-hidden rounded-full bg-white"><div className="h-full bg-[var(--color-primary)]" style={{ width: `${path.items.length ? read / path.items.length * 100 : 0}%` }}/></div></section><ol className="space-y-3">{path.items.map((item, index) => <li className="rounded-xl border border-[var(--color-border)] bg-white p-5" key={item.id}><div className="flex gap-4"><span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[var(--color-primary-light)] font-bold text-[var(--color-primary-dark)]">{index + 1}</span><div><div className="flex flex-wrap items-center gap-2"><Link className="text-lg font-bold hover:underline" href={`/ordo-campus/wissen/${item.knowledgeContent.id}`}>{item.knowledgeContent.title}</Link>{item.knowledgeContent.progress[0]?.readAt && <span className="rounded-full bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-800">Gelesen</span>}</div>{item.learningObjective && <p className="mt-2 text-sm text-[var(--color-text-muted)]">{item.learningObjective}</p>}<p className="mt-2 text-xs">{item.knowledgeContent.areas[0]?.knowledgeArea.title ?? "Wissensinhalt"}</p></div></div></li>)}</ol></div>;
+}

@@ -8,7 +8,7 @@ Die Hauptnavigation ist dauerhaft auf wenige Arbeits- und Verwaltungsbereiche be
 - **Mandanten**: gezielter Mandanteneinstieg
 - **Rechnungswesen**: laufendes Rechnungswesen, Jahresabschluss und Statusübersicht
 - **Rechnungswesen ↔ Lohn**: Rechnungswesen–Lohn-Abstimmungen, offene Lohnrückfragen und Fahrzeuge
-- **Ordo Campus**: Wissensübersicht und aufgabenbezogenes Kanzleiwissen
+- **Ordo Campus**: eigenständige Wissens- und Lernplattform für alle aktiven internen Benutzer
 - **Verwaltung**: zentrale fachliche Grundlagen, Benutzer und Rechte, Daten und Import sowie Systeminformationen
 
 Die Einträge werden aus den aktiven Rollen und Zusatzberechtigungen des angemeldeten Benutzers abgeleitet. Mehrfachrollen erzeugen keine doppelten Menüpunkte.
@@ -21,7 +21,7 @@ Die Seitenleiste besteht auf Desktop aus drei Bereichen: fester Markenbereich, u
 
 ## Mandant als Arbeitskontext
 
-Der normale Klick auf eine Mandantenzeile öffnet immer `/mandanten/[id]`. Der Mandantenarbeitsbereich bietet rollenabhängige Einstiege in Übersicht, laufendes Rechnungswesen, Jahresabschluss, Rechnungswesen ↔ Lohn, Fahrzeuge, mandantenspezifische Aufgaben und Historie. Allgemeines Ordo-Campus-Wissen bleibt an Standardaufgaben und Rechnungswesen–Lohn-Themen gebunden und wird nicht als künstlicher Mandantenreiter dupliziert.
+Der normale Klick auf eine Mandantenzeile öffnet immer `/mandanten/[id]`. Der Mandantenarbeitsbereich bietet rollenabhängige Einstiege in Übersicht, laufendes Rechnungswesen, Jahresabschluss, Rechnungswesen ↔ Lohn, Fahrzeuge, mandantenspezifische Aufgaben und Historie. Allgemeines Ordo-Campus-Wissen bleibt mandantenunabhängig; Standardaufgaben und Rechnungswesen–Lohn-Themen verknüpfen es lediglich als Anwendungsort. Ein künstlicher Mandantenreiter wird nicht erzeugt.
 
 Gezielte Links wie **Aktuelle Monatscheckliste öffnen**, Dashboardaufgaben, Rückfragen und Prüfungen bleiben direkte Fachlinks. Diese Unterscheidung bewahrt gespeicherte Links und reduziert gleichzeitig unbeabsichtigte Sprünge aus dem Mandantenkontext.
 
@@ -35,11 +35,11 @@ Das Modul enthält **Rechnungswesen–Lohn-Abstimmungen**, **Offene Lohnrückfra
 
 ## Ordo Campus
 
-Ordo Campus bleibt in der Hauptnavigation, weil es im Arbeitsalltag gelesen und durchsucht wird. Berechtigte Pflegeeinstiege führen direkt zur jeweiligen Standardaufgabe. Verwaltung ist kein verpflichtender Umweg.
+Ordo Campus bleibt in der Hauptnavigation, weil es im Arbeitsalltag gelesen und durchsucht wird. Die Startseite führt zu Wissensgebieten, Lernpfaden, Kanzleistandards, neuen beziehungsweise aktualisierten und zuletzt angesehenen Inhalten sowie zur Volltextsuche. Aktive interne Benutzer erhalten den Einstieg unabhängig von Rechnungswesen- oder Lohnrollen. Die zentrale Pflege liegt ausschließlich unter `Verwaltung → Wissensmanagement`; ein dezenter Link aus der Leseansicht erscheint nur bei Pflegeberechtigung.
 
 ## Verwaltung
 
-Die Reiter **Fachliche Grundlagen**, **Benutzer und Rechte**, **Daten und Import** und **System** erscheinen nur, wenn der Benutzer dort mindestens eine Funktion verwenden darf. Der erste zulässige Reiter ist die Standardansicht. Details stehen in `docs/VERWALTUNGSSTRUKTUR.md`.
+Die Reiter **Fachliche Grundlagen**, **Wissensmanagement**, **Benutzer und Rechte**, **Daten und Import** und **System** erscheinen nur, wenn der Benutzer dort mindestens eine Funktion verwenden darf. Der erste zulässige Reiter ist die Standardansicht. Details stehen in `docs/VERWALTUNGSSTRUKTUR.md`.
 
 Mandantenspezifische Aufgaben bleiben primär beim Mandanten. Die zentrale Verwaltungsübersicht unterstützt Suche, Filterung und Qualitätskontrolle, aber keine losgelöste Neuanlage.
 

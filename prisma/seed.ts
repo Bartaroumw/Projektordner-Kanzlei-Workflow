@@ -40,6 +40,7 @@ import {
   FIBU_LOHN_CHECKLIST_KNOWLEDGE,
   FIBU_LOHN_CHECKLIST_TASK,
 } from "../lib/fibu-lohn-checklist-catalog.ts";
+import { provisionKnowledgePlatformFromLegacy, seedKnowledgeProgressExamples } from "../lib/knowledge-platform-migration.ts";
 
 const users:ReadonlyArray<{key:string;username:string;fullName:string;password:string;roles:ReadonlyArray<string>;active?:boolean}> = [
   { key:"maria", username:"maria.muster", fullName:"Maria Muster", password:"Test-Maria-2026!", roles:["MITARBEITER","PRUEFER"] },
@@ -420,6 +421,8 @@ const annual10003=await createAnnualChecklist(clients.get("10003")!.id,2025,mari
 const annual10004=await createAnnualChecklist(clients.get("10004")!.id,2025,klara);await advanceToReview(annual10004.id,klara);await transitionAnnualChecklist(annual10004.id,"BEGIN_REVIEW",klara);const annualIssue=await prisma.annualChecklistTask.findFirstOrThrow({where:{annualChecklistId:annual10004.id}});await reviewAnnualTask(annualIssue.id,{reviewStatus:"Rückfrage",reviewNote:"Künstliche Rückfrage zum Jahresabschluss."},klara);await transitionAnnualChecklist(annual10004.id,"RETURN_REWORK",klara);
 const annualOlder=await createAnnualChecklist(clients.get("10004")!.id,2024,klara);await advanceToReview(annualOlder.id,klara);await closeAnnualReview(annualOlder.id,klara);await transitionAnnualChecklist(annualOlder.id,"SUBMIT_RELEASE",klara);await transitionAnnualChecklist(annualOlder.id,"RELEASE",klara,"Künstliche Freigabe eines älteren Abschlusses.");
 
+await provisionKnowledgePlatformFromLegacy(prisma, u("klara").id);
+await seedKnowledgeProgressExamples(prisma, "maria.muster");
 await validateSeedConsistency(prisma);
 await prisma.$disconnect();
 console.log("Deterministische künstliche Testdaten wurden konsistent angelegt.");

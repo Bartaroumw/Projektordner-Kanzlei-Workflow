@@ -34,7 +34,7 @@ npm.cmd run dev
 
 Die Anwendung ist danach unter [http://localhost:3000](http://localhost:3000) erreichbar.
 
-Wichtig: Der normale Start verwendet die bestehende `.env` und die am 31.07.2026 erfolgreich baselined sowie am 04.08.2026 driftbereinigte `prisma/dev.db`. Prisma erkennt alle 16 vorhandenen Migrationen als angewendet; `schema.prisma`, eine frische 1–16-Datenbank und `dev.db` stimmen strukturell überein. Kontrolliertes `prisma migrate deploy` und `prisma migrate dev` sind nach vollständiger gemeinsamer Sicherung, sauberem Git-Stand und erfolgreicher Status-/Driftprüfung zulässig. `prisma db push`, `prisma migrate reset`, Seeds und Testresets gegen `dev.db` bleiben ausdrücklich gesperrt. Für isolierte systemweite Prüfungen steht weiterhin die getrennte Integrationsumgebung bereit:
+Wichtig: Der normale Start verwendet die bestehende `.env` und die am 31.07.2026 erfolgreich baselined sowie am 04.08.2026 driftbereinigte `prisma/dev.db`. Nach der kontrollierten Ordo-Campus-2-Übernahme erkennt Prisma alle 18 Migrationen als angewendet; `schema.prisma`, eine frische 1–18-Datenbank und `dev.db` stimmen strukturell überein. Kontrolliertes `prisma migrate deploy` und `prisma migrate dev` sind nur nach vollständiger gemeinsamer Sicherung, sauberem Git-Stand und erfolgreicher Status-/Driftprüfung zulässig. `prisma db push`, `prisma migrate reset`, Seeds und Testresets gegen `dev.db` bleiben ausdrücklich gesperrt. Für isolierte systemweite Prüfungen steht weiterhin die getrennte Integrationsumgebung bereit:
 
 ```powershell
 npm.cmd run testdata:system-integration
@@ -240,19 +240,21 @@ npm.cmd run build
 
 ## Ordo Campus
 
-Ordo Campus ist der aufgabenbezogene Wissensbereich von Ordo Caroli. Die Standardaufgabe bleibt die einzige führende Wissensquelle; Monats- und Jahresabschlussaufgaben speichern weiterhin nur ihre bestehende Referenz zur Standardaufgabe. Campus-Inhalte werden nicht in Checklisten-Snapshots kopiert und daher nicht doppelt gepflegt.
+Ordo Campus ist seit Migration 18 die eigenständige Wissens- und Lernplattform von Ordo Caroli. Der Wissensinhalt ist die führende Quelle; Standardaufgaben und Rechnungswesen–Lohn-Themen sind wiederverwendbare Anwendungsorte. Ein Inhalt kann mehreren Aufgaben, Themen, Wissensgebieten und Lernpfaden zugeordnet sein. Campus-Inhalte werden weiterhin nicht in Checklisten- oder Abstimmungssnapshots kopiert.
 
-Pro Standardaufgabe kann ein strukturierter Wissensdatensatz mit Kurzbeschreibung, Ziel, Bearbeitungshinweisen, hervorgehobenem Kanzleistandard, Prüferhinweisen, typischen Fehlern und internen Hinweisen geführt werden. Der Wissensstatus lautet `Entwurf`, `Aktiv` oder `Archiviert`. Reguläre Leser sehen nur aktive Inhalte; berechtigte Campus-Pfleger können auch Entwürfe und archivierte Inhalte einsehen.
+Ein Wissensinhalt besitzt stabilen Schlüssel, Kurzbeschreibung, Ziel, Hauptinhalt, Bearbeitungshinweise, hervorgehobenen Kanzleistandard, Prüferhinweise, typische Fehler und interne Hinweise. Mehrfachzuordnungen für Inhaltstypen, Zielgruppen, Wissensgebiete, Tags und Anwendungsorte sind möglich. Der Status lautet `Entwurf`, `Aktiv` oder `Archiviert`. Reguläre Leser sehen grundsätzlich alle aktiven Inhalte; Zielgruppen steuern Empfehlungen und Filter. Prüferhinweise bleiben serverseitig auf Prüfer und Kanzleileitung begrenzt.
 
 Wissenslinks speichern ausschließlich Titel, URL, Typ, Beschreibung, Reihenfolge und Aktivstatus. Unterstützt werden DATEV-Hilfe, DATEV-Info-Dokument, DATEV-Lernplattform, DATEV-Lernvideo, Gesetz, Verwaltungsanweisung, interne Wissensseite, externe Fachquelle und sonstiger Link. DATEV-Inhalte selbst werden weder kopiert noch lokal gespeichert.
 
-Die Zusatzberechtigung `Ordo Campus verwalten` erlaubt Wissen und Links anzulegen, zu ändern, zu aktivieren und zu archivieren. Administratoren können diese Berechtigung vergeben, erhalten sie aber nicht automatisch. Jede Änderung erzeugt einen unveränderlichen Verlaufseintrag mit Benutzer-ID, Namenssnapshot, Zeitpunkt, Standardaufgabe und geändertem Bereich. Eine vollständige Artikelversionierung und ein Freigabeworkflow sind noch nicht Bestandteil dieser Stufe.
+Die Zusatzberechtigung `Ordo Campus verwalten` erlaubt Wissensinhalte, Gebiete, Lernpfade, Zuordnungen, Links und Anhänge anzulegen, zu ändern, zu aktivieren und zu archivieren. Administratoren können diese Berechtigung vergeben, erhalten sie aber nicht automatisch. Jede Änderung erzeugt einen unveränderlichen Verlaufseintrag. Die Pflege liegt zentral unter `Verwaltung → Wissensmanagement`.
 
-Die Suche der Standardaufgaben umfasst zusätzlich Kurzbeschreibung, Bearbeitungshinweise, Kanzleistandard, Prüferhinweise, typische Fehler sowie Linktitel und Linkbeschreibung. Die Übersicht kennzeichnet den Campus-Status und kann nach vorhandenem Wissen, Wissensstatus sowie DATEV-Link gefiltert werden.
+Die Campus-Suche umfasst alle zulässigen Inhaltsfelder, Links, Tags, Wissensgebiete sowie verknüpfte Aufgaben und Rechnungswesen–Lohn-Themen. Filter für Gebiet, Inhaltstyp, Zielgruppe und Aktualität sind kombinierbar. Die Startseite bündelt Wissensgebiete, Lernpfade, Kanzleistandards, neue beziehungsweise aktualisierte und zuletzt angesehene Inhalte.
 
-In Monats- und Jahresabschlusschecklisten öffnet `Ordo Campus` ein responsives Seitenpanel innerhalb der Arbeitsansicht. Die vollständigen Inhalte werden erst beim Öffnen geschützt vom Server geladen. Kurzbeschreibung, Ziel, verbindlicher Kanzleistandard, Bearbeitungshinweise, rollenabhängige Prüferhinweise, häufige Fehler, Links und interne Hinweise erscheinen immer in derselben Reihenfolge. Der Kanzleistandard ist in den Ordo-Caroli-/Concilium-Farben hervorgehoben. Prüferhinweise sehen nur Prüfer und Kanzleileitung; diese Einschränkung wird serverseitig durchgesetzt.
+In Monats- und Jahresabschlusschecklisten sowie Rechnungswesen–Lohn-Abstimmungen öffnet `Ordo Campus` ein responsives Seitenpanel. Die Inhalte werden erst beim Öffnen geschützt vom Server geladen. Hauptanleitung und weitere Inhalte bleiben getrennt erreichbar; der Kanzleistandard ist in den Ordo-Caroli-/Concilium-Farben hervorgehoben.
 
-Die Pflege erfolgt in den sieben Reitern `Übersicht`, `Bearbeitung`, `Kanzleistandard`, `Prüfung`, `Links`, `Anhänge` und `Verlauf`. Absätze, Listen, Nummerierungen, `**Fettschrift**` und Weblinks werden ohne unsichere HTML-Übernahme lesbar dargestellt. Externe Links öffnen mit den Sicherheitsattributen `noopener noreferrer` in einem neuen Tab. Das künstliche Seed-Beispiel `MON-BANK-001` enthält aktive Monatsinhalte; `JA-TEST-001` enthält aktive Jahresabschlussinhalte. Alle Links und Inhalte sind ausdrücklich künstlich.
+Benutzer können Inhalte freiwillig als gelesen markieren; Aufrufe erscheinen unter `Zuletzt angesehen`. Diese persönliche Orientierung ist kein Schulungs- oder Pflichtnachweis. Absätze, Listen, Nummerierungen, `**Fettschrift**` und Weblinks werden ohne unsichere HTML-Übernahme dargestellt. Externe Links öffnen mit `noopener noreferrer` in einem neuen Tab. Alle Seed-Inhalte und Links sind ausdrücklich künstlich.
+
+Fachkonzept, Datenmodell, Migration, Bedienung und Pflege sind unter `docs/ORDO_CAMPUS_2_*.md` dokumentiert. Migration 18 übernimmt alle bisherigen Inhalte, Links, Anhänge und Verläufe eindeutig, lässt die alten Tabellen unverändert bestehen und dupliziert keine physischen Anhangsdateien.
 
 ### Interne Campus-Anhänge
 
@@ -262,9 +264,9 @@ Anhänge werden nicht unter `public`, sondern standardmäßig im lokalen Ordner 
 
 Uploads sind ausschließlich mit der Zusatzberechtigung `Ordo Campus verwalten` möglich. Datenbankdatensatz und Verlauf werden gemeinsam in einer Transaktion geschrieben. Scheitert die Datenbankoperation nach dem Speichern, wird die neue Datei wieder entfernt. Anhänge werden nicht regulär gelöscht, sondern mit Benutzer und Zeitpunkt archiviert. Archivierte Dateien bleiben für Campus-Verwalter in der Pflege nachvollziehbar, erscheinen aber nicht mehr im regulären Seitenpanel.
 
-Downloads erfolgen ausschließlich über eine geschützte Serverroute. Für reguläre Benutzer müssen Wissen und Anhang aktiv sein, die konkrete Checklistenaufgabe muss auf dieselbe Standardaufgabe verweisen und der angemeldete Benutzer muss diese Checkliste sehen dürfen. Die Antwort setzt `Content-Type`, sichere `Content-Disposition`, `X-Content-Type-Options: nosniff` und `Cache-Control: private, no-store`. Interne Speicherpfade und technische Dateinamen werden nicht ausgegeben.
+Downloads erfolgen ausschließlich über eine geschützte Serverroute. Für reguläre Benutzer müssen Wissensinhalt und Anhang aktiv sein. Die Antwort setzt `Content-Type`, sichere `Content-Disposition`, `X-Content-Type-Options: nosniff` und `Cache-Control: private, no-store`. Interne Speicherpfade und technische Dateinamen werden nicht ausgegeben.
 
-Der Info-Button neben `Ordo Campus` erläutert Zweck und Umgang direkt in einem tastaturbedienbaren Popover. Mandantenspezifische Aufgaben verwenden in Version 1.0 weiterhin ihre bestehenden Beschreibungen. Eine zweite Campus- und Anhangsarchitektur für solche Vorlagen wurde bewusst nicht provisorisch dupliziert.
+Der Info-Button neben `Ordo Campus` erläutert Zweck und Umgang direkt in einem tastaturbedienbaren Popover. Mandantenspezifische Aufgaben verwenden weiterhin ihre bestehenden Beschreibungen; für sie wird keine zweite Campus-Architektur dupliziert.
 
 Der deterministische Seed enthält vollständige, ausschließlich künstliche Campus-Inhalte für `MON-BANK-001`, `MON-KASSE-001`, `MON-BIL-001`, `MON-DARL-001` und `MON-EUER-001` sowie das Jahresabschlussbeispiel `JA-TEST-001`. Binäre Seed-Dateien werden bewusst nicht dauerhaft erzeugt; Uploadtests erstellen kleine künstliche Dateien kontrolliert im Testordner.
 
@@ -500,7 +502,7 @@ Die systemweite Prüfung aller bisherigen Module verwendet ausschließlich küns
 
 ```powershell
 # Löscht und erstellt ausschließlich die oben genannte Integrationsumgebung.
-# Alle 16 Migrationen, Seeds und die lesende Diagnose werden ausgeführt.
+# Alle 18 Migrationen, Seeds und die lesende Diagnose werden ausgeführt.
 npm.cmd run testdata:system-integration
 
 # Diagnose ohne Datenänderung
@@ -516,7 +518,7 @@ npm.cmd run start:integration
 
 Der Reset besitzt feste absolute Pfadprüfungen und lehnt Entwicklungs-, Workflow-, Abnahme-, Pilot- und Produktivpfade ab. Der Integrationsbestand umfasst Anmeldung, Mandanten, Rechnungswesen, Jahresabschluss, Standardaufgaben, Ordo Campus samt Anhang, FiBu-Lohn samt Beleg, Rückfragen und Fahrzeuge.
 
-Die `prisma/dev.db` wurde nach der systemweiten Prüfung separat auf vollständigen Kopien analysiert und am 31.07.2026 mit der bestätigten Methode baselined. Die ersten 14 Migrationen wurden als bereits vorhanden registriert; Migration 15 wurde regulär angewendet. Am 04.08.2026 wurde der anschließend separat geprüfte Schema-Historien-Drift mit `20260804080000_reconcile_schema_history_drift` verlustfrei bereinigt. Prisma meldet 16 von 16 Migrationen; Schema, frischer Neuaufbau und `dev.db` stimmen überein. Prisma-Schema, Client, ESLint, TypeScript, 305 Tests, Build, Entwicklungsstart, Neustart und produktionsnaher Start gegen `dev.db` waren erfolgreich. `dev:integration` bleibt die sichere isolierte Umgebung für Reset-, Seed- und Systemintegrationsprüfungen.
+Die `prisma/dev.db` wurde am 31.07.2026 baselined und am 04.08.2026 mit Migration 16 driftfrei hergestellt. Migration 17 ergänzte geschützte Profilbilder. Migration 18 `20260805160000_ordo_campus_2_knowledge_platform` überführt Ordo Campus additiv in die unabhängige Wissens- und Lernplattform. Die Altbestände bleiben vollständig bestehen; ihre Inhalte, Verknüpfungen, Anhänge und Verläufe werden über eindeutige Herkunftsschlüssel übernommen. Vor der echten Anwendung wurde der Vorgang auf einer bytegenauen Kopie einschließlich Idempotenz und Wiederherstellung geprüft. `dev:integration` bleibt die sichere isolierte Umgebung für Reset-, Seed- und Systemintegrationsprüfungen.
 
 ## Workflow-, Navigations- und UX-Optimierung
 

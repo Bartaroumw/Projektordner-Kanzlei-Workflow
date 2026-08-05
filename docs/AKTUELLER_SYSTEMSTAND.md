@@ -7,7 +7,7 @@ Stand: 05.08.2026
 - Next.js 16.2.12 und React 19.2.4
 - Node.js 24.18.0 und npm 11.16.0
 - Prisma und Prisma Client 6.19.3
-- SQLite mit 17 unveränderten, chronologisch geordneten Migrationen
+- SQLite mit 18 chronologisch geordneten Migrationen; Migration 18 erweitert Ordo Campus additiv
 - TypeScript 5.9.3, ESLint 9.39.5 und Vitest 4.1.10
 - lokaler App Router mit 45 `page.tsx`-Dateien, 9 Server-Action-Dateien und 7 Route Handlern
 - 36 Prisma-Modelle
@@ -89,6 +89,14 @@ Die Desktop-Navigation ist in Markenbereich, unabhängig scrollbar bleibende Hau
 Migration 17 `20260805120000_user_profile_images` ergänzt ausschließlich die optionale Profilbildreferenz und ihren Auditverlauf. Profilbilder liegen geschützt unter `storage/profile-images`, werden serverseitig vollständig geprüft und nur über eine authentifizierte Route ausgeliefert. Die Migration wurde frisch in der Systemintegration und verlustfrei auf einer bytegenauen Kopie von `dev.db` geprüft. Alle 34 zuvor vorhandenen Anwendungstabellen blieben einschließlich Zeilenzahlen und Dateninhalten unverändert; SQLite-Integrität und Fremdschlüsselprüfung waren erfolgreich.
 
 Prisma Validate, Prisma Client, ESLint, TypeScript, 346 automatisierte Tests, Integrations-Build sowie Entwicklungs- und produktionsnaher Integrationsstart waren erfolgreich. Hinzufügen, Ersetzen und Entfernen eines künstlichen Profilbilds wurden im Browser geprüft; nach Austausch und Entfernung blieben keine verwaisten Dateien zurück. Die künstlichen Rollenprofile Bearbeiter/Prüfer, Lohnsachbearbeiter und Administrator sowie die Zielbreiten 1440, 1280, 1024 und 600 Pixel wurden ohne horizontalen Seitenüberlauf oder Browserfehler geprüft.
+
+## Ordo Campus 2 – Stand 05.08.2026
+
+Ordo Campus ist nun die unabhängige Wissens- und Lernplattform. Führende Wissensinhalte lassen sich mehreren Wissensgebieten, Lernpfaden, Standardaufgaben und Rechnungswesen–Lohn-Themen zuordnen. Die Hauptnavigation steht allen aktiven internen Benutzerprofilen offen; Pflege erfolgt nur mit `ORDO_CAMPUS_VERWALTEN` unter `Verwaltung → Wissensmanagement`. Persönliche Aufrufe und Gelesen-Markierungen bleiben freiwillig und sind kein Schulungsnachweis.
+
+Migration 18 `20260805160000_ordo_campus_2_knowledge_platform` ist additiv. Der Kopientest übernahm 8 von 8 Altinhalten, 7 von 7 Links und 8 von 8 Altverläufen eindeutig in 8 unabhängige Inhalte mit 8 Aufgaben- und 6 Themenverknüpfungen. 42 Wissensgebiete und vier Lernpfade wurden angelegt. Die 36 alten Tabellen blieben einschließlich Zeilenzahlen und Datenhashes unverändert; zweiter Deploy, SQLite-Integrität, Fremdschlüsselprüfung und bytegenaue Wiederherstellung waren erfolgreich.
+
+Die Systemintegration wurde frisch aus allen 18 Migrationen aufgebaut und bestand die erweiterte Diagnose ohne Befund. Prisma Validate und Generate, ESLint, TypeScript, 368 automatisierte Tests, Produktions-Build, Entwicklungsstart und produktionsnaher Start waren erfolgreich; der große Performance-Smoke-Test blieb bewusst übersprungen. Campus- und Wissensmanagementseiten wurden bei 1.440, 1.280, 1.024 und 600 Pixeln ohne horizontalen Überlauf, Browserfehler oder Konsolenwarnung geprüft. Der Sicherungspfad der echten Entwicklungsdatenbank wird im Abschlussbericht dokumentiert.
 
 ## Bekannte Warnungen
 

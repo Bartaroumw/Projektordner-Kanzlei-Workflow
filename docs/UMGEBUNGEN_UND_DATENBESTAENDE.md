@@ -20,12 +20,12 @@ Nach der PC-Übertragung wurden zwei unveränderte Dateien unter `storage/ordo-c
 npm.cmd run dev
 ```
 
-Dieser Befehl verwendet `.env` und damit den vorhandenen Entwicklungsbestand. Er löscht oder migriert nichts. Wegen der noch fehlenden Migrationsbaseline der `dev.db` dürfen keine Prisma-Reset-, Push- oder Deploy-Befehle gegen diesen Bestand ausgeführt werden.
+Dieser Befehl verwendet `.env` und damit den vorhandenen Entwicklungsbestand. Er löscht oder migriert nichts. Die Migrationsbaseline und Driftbereinigung von `dev.db` sind hergestellt. Ein Deploy ist trotzdem nur nach vollständigem gemeinsamen Backup, sauberem Git-Stand sowie erfolgreicher Status-, Kopien- und Driftprüfung zulässig. Reset, Push, Seeds und Testresets gegen diesen Bestand bleiben verboten.
 
 ## Systemintegration
 
 ```powershell
-# Löscht ausschließlich die klar benannte Integrationsdatenbank und deren zwei Speicherordner.
+# Löscht ausschließlich die klar benannte Integrationsdatenbank und ihre getrennten Speicherordner.
 npm.cmd run testdata:system-integration
 
 # Lesende Konsistenzprüfung

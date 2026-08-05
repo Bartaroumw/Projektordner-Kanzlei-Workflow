@@ -1,0 +1,7 @@
+import Link from "next/link";
+import { redirect } from "next/navigation";
+import { requireUser } from "@/lib/auth";
+import { canManageOrdoCampus } from "@/lib/permissions";
+import { prisma } from "@/lib/prisma";
+
+export default async function ManageLearningPathsPage(){const user=await requireUser();if(!canManageOrdoCampus(user))redirect("/zugriff-verweigert?bereich=Wissensmanagement");const paths=await prisma.knowledgeLearningPath.findMany({include:{_count:{select:{items:true}}},orderBy:[{sortOrder:"asc"},{title:"asc"}]});return <div><header className="mb-6 flex flex-wrap items-end justify-between gap-4"><div><Link className="text-sm font-semibold text-[var(--color-primary-dark)] hover:underline" href="/verwaltung?bereich=wissensmanagement">← Wissensmanagement</Link><h1 className="mt-3 text-3xl font-bold">Lernpfade verwalten</h1></div><Link className="button-primary" href="/verwaltung/wissensmanagement/lernpfade/neu">Lernpfad anlegen</Link></header><div className="grid gap-4 md:grid-cols-2">{paths.map(path=><Link className="rounded-xl border bg-white p-5 hover:border-[var(--color-primary)]" href={`/verwaltung/wissensmanagement/lernpfade/${path.id}`} key={path.id}><div className="flex justify-between gap-3"><h2 className="text-lg font-bold">{path.title}</h2><span className="text-xs font-semibold">{path.status}</span></div><p className="mt-2 text-sm text-[var(--color-text-muted)]">{path.shortDescription}</p><p className="mt-3 text-xs">{path._count.items} Inhalte · Reihenfolge {path.sortOrder}</p></Link>)}</div></div>}

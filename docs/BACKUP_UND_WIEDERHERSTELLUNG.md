@@ -15,6 +15,8 @@ Diese Anleitung gilt für den lokalen Betrieb von Ordo Caroli. Vor jedem Eingrif
 
 Die Datenbank und alle drei Dateispeicher gehören fachlich zusammen. Sie müssen immer zum selben Zeitpunkt gesichert und gemeinsam wiederhergestellt werden.
 
+Seit Ordo Campus 2 verweist das neue Wissensmodell auf dieselben physischen Dateien unter `storage/ordo-campus`; Migration 18 kopiert keine Anhänge. Deshalb müssen bei Sicherung und Wiederherstellung alte und neue Campus-Referenzen zusammen mit genau demselben Campus-Speicherstand erhalten bleiben.
+
 **Nur die SQLite-Datenbank zu sichern ist nicht ausreichend.** Ohne die gleichzeitig gesicherten Ordner `storage/ordo-campus`, `storage/fibu-lohn` und `storage/profile-images` fehlen die zugehörigen lokalen Dateien.
 
 ## Vollständiges Backup
@@ -76,3 +78,4 @@ Die anschließende Konsistenzdiagnose meldete keine verwaisten Datensätze, fehl
 - Datenbank und Anhänge nicht aus unterschiedlichen Sicherungszeitpunkten mischen.
 - `npm.cmd run db:reset:test` ist kein Backup. Der Befehl löscht die lokale künstliche Entwicklungsdatenbank.
 - Vor einem Netzwerk- oder Pilotbetrieb sind ein täglicher Sicherungsplan, Aufbewahrungsfristen, verschlüsselte Sicherungsmedien und ein verantwortlicher Administrator festzulegen.
+- Ein Rollback von Migration 18 erfolgt durch die gemeinsame Wiederherstellung des unmittelbar vorher erzeugten Sicherungssatzes, nicht durch manuelles Löschen der neuen Tabellen.

@@ -78,7 +78,7 @@ await afterClient.$disconnect();
 const changedTables = Object.keys(before).filter((table) => before[table].count !== after[table].count || before[table].hash !== after[table].hash);
 if (changedTables.length) throw new Error(`Bestehende Daten wurden verändert: ${changedTables.join(", ")}`);
 if (serialize(integrity) !== serialize([{ quick_check: "ok" }]) || foreignKeys.length) throw new Error("SQLite-Integritätsprüfung fehlgeschlagen.");
-if (migrations.length !== 17 || migrations.at(-1)?.migration_name !== "20260805120000_user_profile_images") throw new Error("Migration 17 wurde nicht korrekt registriert.");
+if (migrations.length !== 18 || migrations.at(-1)?.migration_name !== "20260805160000_ordo_campus_2_knowledge_platform") throw new Error("Die vollständige Migrationskette bis Migration 18 wurde nicht korrekt registriert.");
 if (profileImages !== 0 || profileHistory !== 0) throw new Error("Die additive Migration hat unerwartete Profildaten angelegt.");
 
 copyFileSync(targetPath, restorePath);

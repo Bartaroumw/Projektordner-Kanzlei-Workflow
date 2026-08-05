@@ -1,49 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { currentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { canManageOrdoCampus,canViewAnnualChecklist,canViewClient,canViewPayrollReconciliation } from "@/lib/permissions";
+import { canManageOrdoCampus } from "@/lib/permissions";
 import { readCampusAttachmentFile } from "@/lib/ordo-campus-attachment-service";
-
-export const dynamic = "force-dynamic";
-
-export async function GET(request:NextRequest,{params}:{params:Promise<{attachmentId:string}>}){
-  const user=await currentUser();
-  if(!user)return NextResponse.json({error:"Bitte melden Sie sich erneut an."},{status:401});
-  const attachmentId=Number((await params).attachmentId);
-  if(!Number.isInteger(attachmentId))return unavailable();
-  const attachment=await prisma.standardTaskKnowledgeAttachment.findUnique({where:{id:attachmentId},include:{standardTask:{include:{campusKnowledge:true}}}});
-  if(!attachment?.standardTask.campusKnowledge)return unavailable();
-
-  const maintenance=request.nextUrl.searchParams.get("pflege")==="1";
-  if(maintenance){
-    if(!canManageOrdoCampus(user))return NextResponse.json({error:"Sie besitzen keine Berechtigung für diesen Download."},{status:403});
-  }else{
-    if(attachment.status!=="Aktiv"||attachment.standardTask.campusKnowledge.status!=="Aktiv")return unavailable();
-    const kind=request.nextUrl.searchParams.get("kind");
-    const taskId=Number(request.nextUrl.searchParams.get("taskId"));
-    const allowed=kind==="monat"
-      ? await prisma.checklistTask.findUnique({where:{id:taskId},select:{standardTaskId:true,period:{select:{processorUserId:true,reviewerUserId:true,managementUserId:true}}}}).then(task=>Boolean(task&&task.standardTaskId===attachment.standardTaskId&&canViewClient(user,task.period)))
-      : kind==="jahresabschluss"
-        ? await prisma.annualChecklistTask.findUnique({where:{id:taskId},select:{standardTaskId:true,annualChecklist:{select:{processorUserId:true,reviewerUserId:true,managementUserId:true}}}}).then(task=>Boolean(task&&task.standardTaskId===attachment.standardTaskId&&canViewAnnualChecklist(user,task.annualChecklist)))
-        : kind==="fibu-lohn"
-          ? await prisma.payrollReconciliationItem.findUnique({where:{id:taskId},select:{
-              sourceTopic:{select:{campusStandardTaskId:true}},
-              reconciliation:{select:{processorUserId:true,reviewerUserId:true,payrollUserId:true}},
-            }}).then(item=>Boolean(item&&item.sourceTopic.campusStandardTaskId===attachment.standardTaskId&&canViewPayrollReconciliation(user,item.reconciliation)))
-          : false;
-    if(!allowed)return NextResponse.json({error:"Sie besitzen keine Berechtigung für diesen Download."},{status:403});
-  }
-  try{
-    const bytes=await readCampusAttachmentFile(attachment.storageKey);
-    const asciiName=attachment.originalFileName.replace(/[^\x20-\x7E]/g,"_").replaceAll('"',"_");
-    return new NextResponse(bytes,{headers:{
-      "Content-Type":attachment.mimeType,
-      "Content-Disposition":`attachment; filename="${asciiName}"; filename*=UTF-8''${encodeURIComponent(attachment.originalFileName)}`,
-      "Content-Length":String(bytes.byteLength),
-      "X-Content-Type-Options":"nosniff",
-      "Cache-Control":"private, no-store",
-    }});
-  }catch{return unavailable()}
-}
-
+export const dynamic="force-dynamic";
+export async function GET(request:NextRequest,{params}:{params:Promise<{attachmentId:string}>}){const user=await currentUser();if(!user)return NextResponse.json({error:"Bitte melden Sie sich erneut an."},{status:401});const id=Number((await params).attachmentId);const attachment=Number.isInteger(id)?await prisma.knowledgeContentAttachment.findUnique({where:{id},include:{knowledgeContent:{select:{id:true,status:true}}}}):null;if(!attachment)return unavailable();const maintenance=request.nextUrl.searchParams.get("pflege")==="1";if(maintenance&&!canManageOrdoCampus(user))return NextResponse.json({error:"Sie besitzen keine Berechtigung für diesen Download."},{status:403});if(!maintenance&&(attachment.status!=="Aktiv"||attachment.knowledgeContent.status!=="Aktiv"))return unavailable();const requestedContent=Number(request.nextUrl.searchParams.get("contentId"));if(requestedContent&&requestedContent!==attachment.knowledgeContentId)return unavailable();try{const bytes=await readCampusAttachmentFile(attachment.storageKey);const ascii=attachment.originalFileName.replace(/[^\x20-\x7E]/g,"_").replaceAll('"',"_");return new NextResponse(bytes,{headers:{"Content-Type":attachment.mimeType,"Content-Disposition":`attachment; filename="${ascii}"; filename*=UTF-8''${encodeURIComponent(attachment.originalFileName)}`,"Content-Length":String(bytes.byteLength),"X-Content-Type-Options":"nosniff","Cache-Control":"private, no-store"}})}catch{return unavailable()}}
 function unavailable(){return NextResponse.json({error:"Der Anhang wurde nicht gefunden oder ist nicht mehr verfügbar."},{status:404})}

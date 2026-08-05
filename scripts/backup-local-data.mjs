@@ -35,7 +35,7 @@ if (!existsSync(databasePath)) throw new Error("prisma/dev.db wurde nicht gefund
 
 const timestamp = new Intl.DateTimeFormat("sv-SE", { timeZone: "Europe/Berlin", dateStyle: "short", timeStyle: "medium" })
   .format(new Date()).replaceAll(":", "-").replace(" ", "_");
-const backupRoot = resolve(projectRoot, "backups", `${timestamp}_before_user_profile_migration`);
+const backupRoot = resolve(projectRoot, "backups", `${timestamp}_full_local_backup`);
 if (existsSync(backupRoot)) throw new Error(`SCHUTZABBRUCH: Der Sicherungsordner existiert bereits: ${backupRoot}`);
 mkdirSync(backupRoot, { recursive: true });
 

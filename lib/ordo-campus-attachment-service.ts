@@ -176,6 +176,38 @@ export async function updateCampusAttachment(attachmentId: number, input: { disp
   });
 }
 
+export async function uploadKnowledgeContentAttachment(knowledgeContentId: number, input: CampusUploadInput, user: AuthUser) {
+  authorize(user);
+  const validated = validateFile(input);
+  const content = await prisma.knowledgeContent.findUnique({ where: { id: knowledgeContentId } });
+  if (!content) throw new OrdoCampusError("Der Wissensinhalt wurde nicht gefunden.", "NOT_FOUND");
+  await mkdir(CAMPUS_ATTACHMENT_STORAGE_ROOT, { recursive: true });
+  const storedFileName = `${randomUUID()}${validated.extension}`;
+  const target = storagePath(storedFileName);
+  try { await writeFile(target, input.bytes, { flag: "wx" }); }
+  catch { throw new OrdoCampusError("Die Datei konnte nicht gespeichert werden.", "INVALID_INPUT"); }
+  try {
+    return await prisma.$transaction(async (tx) => {
+      const attachment = await tx.knowledgeContentAttachment.create({ data: { knowledgeContentId, displayName: validated.displayName, originalFileName: validated.originalFileName, storedFileName, storageKey: storedFileName, fileExtension: validated.extension.slice(1).toUpperCase(), mimeType: validated.mimeType, fileSizeBytes: input.bytes.byteLength, description: validated.description, sortOrder: input.sortOrder, uploadedByUserId: user.id } });
+      await tx.knowledgeContentHistory.create({ data: { knowledgeContentId, actorUserId: user.id, actorNameSnapshot: user.fullName, changedArea: "Anhänge", description: `Anhang „${attachment.displayName}“ hochgeladen.` } });
+      return attachment;
+    });
+  } catch { await unlink(target).catch(() => undefined); throw new OrdoCampusError("Die Datei konnte nicht gespeichert werden.", "INVALID_INPUT"); }
+}
+
+export async function updateKnowledgeContentAttachment(attachmentId: number, input: { displayName: string; description: string; sortOrder: number; active: boolean }, user: AuthUser) {
+  authorize(user);
+  const attachment = await prisma.knowledgeContentAttachment.findUnique({ where: { id: attachmentId } });
+  if (!attachment) throw new OrdoCampusError("Der Anhang wurde nicht gefunden.", "NOT_FOUND");
+  const displayName = input.displayName.trim(); if (!displayName) throw new OrdoCampusError("Der Anzeigename ist erforderlich.", "INVALID_INPUT");
+  const status = input.active ? "Aktiv" : "Archiviert";
+  return prisma.$transaction(async (tx) => {
+    const updated = await tx.knowledgeContentAttachment.update({ where: { id: attachmentId }, data: { displayName: displayName.slice(0, 300), description: input.description.trim().slice(0, 2000) || null, sortOrder: Math.max(0, Math.min(999999, Math.trunc(input.sortOrder))), status, archivedAt: status === "Archiviert" ? new Date() : null, archivedByUserId: status === "Archiviert" ? user.id : null } });
+    await tx.knowledgeContentHistory.create({ data: { knowledgeContentId: attachment.knowledgeContentId, actorUserId: user.id, actorNameSnapshot: user.fullName, changedArea: "Anhänge", description: `Anhang „${updated.displayName}“ ${status === "Archiviert" ? "archiviert" : "aktualisiert"}.` } });
+    return updated;
+  });
+}
+
 export async function readCampusAttachmentFile(storageKey: string) {
   return readFile(storagePath(storageKey));
 }

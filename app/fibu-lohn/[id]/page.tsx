@@ -50,7 +50,7 @@ export default async function PayrollReconciliationPage({params,searchParams}:{p
   const reconciliation=Number.isInteger(id)?await prisma.payrollReconciliation.findUnique({where:{id},include:{
     client:true,accountingPeriod:true,
     items:{include:{
-      sourceTopic:{include:{campusStandardTask:{select:{campusKnowledge:{select:{status:true}}}}}},
+      sourceTopic:{include:{knowledgeContentLinks:{where:{knowledgeContent:{status:"Aktiv"}},select:{id:true}}}},
       positions:{where:{status:{not:"Archiviert"}},orderBy:{createdAt:"asc"}},
       documents:{include:{uploadedBy:true,archivedBy:true},orderBy:{uploadedAt:"desc"}},
       questions:{include:{sender:true,recipient:true},orderBy:{createdAt:"desc"}},
@@ -123,7 +123,7 @@ export default async function PayrollReconciliationPage({params,searchParams}:{p
 
 type LoadedReconciliation=Prisma.PayrollReconciliationGetPayload<{include:{
   items:{include:{
-    sourceTopic:{include:{campusStandardTask:{select:{campusKnowledge:{select:{status:true}}}}}};
+    sourceTopic:{select:{knowledgeContentLinks:{select:{id:true}}}};
     positions:true;
     documents:{include:{uploadedBy:true;archivedBy:true}};
     questions:{include:{sender:true;recipient:true}};
@@ -139,11 +139,11 @@ function TopicCard({item,reconciliation,process,payroll,transferred}:{item:Loade
   const requiredFields=parseConfiguredList(item.requiredFieldsSnapshot),requiredDocuments=parseConfiguredList(item.requiredDocumentsSnapshot);
   const activeDocuments=item.documents.filter(document=>document.status==="Aktiv");
   const openQuestions=item.questions.filter(question=>question.status!=="Erledigt durch Lohn");
-  const campusActive=item.sourceTopic.campusStandardTask?.campusKnowledge?.status==="Aktiv";
+  const campusCount=item.sourceTopic.knowledgeContentLinks.length;
   return <article id={`thema-${item.id}`} className="scroll-mt-5 rounded-lg border border-[var(--color-border)] bg-white p-5 shadow-sm">
     <div className="flex flex-wrap items-start justify-between gap-4"><div className="max-w-3xl"><p className="text-xs font-semibold uppercase tracking-wide text-[var(--color-primary)]">{item.topicKeySnapshot}</p><h3 className="mt-1 text-xl font-bold">{item.topicTitleSnapshot}</h3><p className="mt-2 text-sm">{item.reviewQuestionSnapshot}</p>{item.descriptionSnapshot&&<p className="mt-1 text-sm text-[var(--color-text-muted)]">{item.descriptionSnapshot}</p>}</div><div className="grid gap-2 text-right"><Status label="Themenstatus" value={item.status}/><Status label="Lohnverarbeitung" value={item.payrollProcessingStatus}/></div></div>
     <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-5"><Data label="Sachverhalt" value={item.matterPresent}/><Data label="Belege" value={String(activeDocuments.length)}/><Data label="Offene Rückfragen" value={String(openQuestions.length)}/><Data label="Nachreichung" value={item.documentToFollow?"Offen":"Nein"}/><Data label="Letzte Änderung" value={formatDateTime(item.updatedAt)}/></div>
-    <OrdoCampusPanel kind="fibu-lohn" taskId={item.id} activeKnowledge={campusActive}/>
+    <OrdoCampusPanel kind="fibu-lohn" taskId={item.id} knowledgeCount={campusCount}/>
     {item.detailsJson&&item.matterPresent==="Ja"&&<Details value={item.detailsJson}/>}
     {!process&&item.positions.length>0&&<PositionReadOnlyList positions={item.positions}/>}
     {item.note&&<p className="mt-3 rounded border border-[var(--color-border)] bg-[var(--color-background)] p-3 text-sm"><strong>Interne Notiz:</strong> {item.note}</p>}

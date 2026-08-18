@@ -10,6 +10,10 @@ Die Mandantenliste verwendet eine dauerhaft sichtbare Suche und einen direkten S
 
 Der Kopf zeigt Mandantennummer, Name, Aktivstatus, vorhandenes Jahresprofil mit Rechtsform und Gewinnermittlungsart sowie Bearbeiter, Prüfer, Kanzleileitung und bei Kanzleilohn den Lohnsachbearbeiter. Da das aktuelle Schema kein eigenes Feld „Mandantengruppe“ besitzt, wird verlustfrei „Nicht hinterlegt“ angezeigt; es wurde keine Migration erzeugt.
 
+Bei der Neuanlage ist **Jahresprofil direkt anlegen** standardmäßig aktiviert und schlägt das aktuelle Kalenderjahr vor. Mandant und bestehendes Jahresprofilmodell werden in einer Transaktion gespeichert. Wird die Option deaktiviert, entsteht nur der Mandant; der Arbeitsbereich zeigt anschließend für das aktuelle Jahr eine Qualitätsmeldung mit direkter Aktion **Jahresprofil anlegen**.
+
+**Lohnabrechnung durch Kanzlei** ist ein Mandantenstammdatum. Das Beginndatum ist optional, ein Enddatum wird in der normalen Pflege nicht mehr eingegeben. Deaktivierung stoppt nur künftige Erzeugungen und protokolliert die Änderung; historische Abstimmungen bleiben bestehen. Das Lohnmerkmal eines Jahresprofils ist hiervon unabhängig.
+
 Die Übersicht verwendet ausschließlich vorhandene Daten und zentrale Statusfunktionen:
 
 - Rechnungswesen: lückenloser Abschluss, Bearbeitungs- und Prüfstand, offener Zeitraum und Prüfpunkte.

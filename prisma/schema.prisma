@@ -308,6 +308,13 @@ model ChecklistTask {
   transferReason               String?
   transferActorName            String?
   transferExpectedAction       String?
+  transferNote                 String?
+  transferStatus               String?
+  transferProposedAt           DateTime?
+  transferProposedByUserId     Int?
+  transferDecidedAt            DateTime?
+  transferDecidedByUserId      Int?
+  transferDecisionReason       String?
   transferredAt                DateTime?
   reviewStatus                 String                 @default("Nicht geprüft")
   reviewerInitials             String?
@@ -341,6 +348,7 @@ model ChecklistTask {
   @@index([standardTaskId])
   @@index([customClientTaskId])
   @@index([sourceTaskId])
+  @@index([transferStatus, transferTargetYear, transferTargetMonth])
 }
 
 model WorkflowHistory {
@@ -1037,6 +1045,9 @@ model PayrollReconciliation {
   payrollStatus           String                          @default("Neu")
   transferredAt           DateTime?
   seenAt                  DateTime?
+  firstViewedAt           DateTime?
+  firstViewedByUserId     Int?
+  lastViewedAt            DateTime?
   completedAt             DateTime?
   createdAt               DateTime                        @default(now())
   updatedAt               DateTime                        @updatedAt
@@ -1053,6 +1064,7 @@ model PayrollReconciliation {
   @@unique([clientId, payrollYear, payrollMonth])
   @@index([payrollUserId, payrollStatus, payrollYear, payrollMonth])
   @@index([clientId, accountingYear, accountingMonth])
+  @@index([firstViewedByUserId, lastViewedAt])
 }
 
 model PayrollReconciliationItem {

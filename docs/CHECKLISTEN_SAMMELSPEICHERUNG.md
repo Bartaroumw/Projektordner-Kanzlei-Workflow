@@ -9,7 +9,7 @@ Rechnungswesen- und Jahresabschlussaufgaben speichern normale Bearbeitungsfelder
 - Begründung für „Nicht zutreffend“
 - bei Rechnungswesenaufgaben das Übernahmeflag für die nächste tatsächliche Ausführung
 
-Fachliche Workflowaktionen bleiben getrennte Vorgänge. Dazu gehören insbesondere Übertrag, Rückfrage, Nachbearbeitung, Prüfung, Übergabe, Abschluss, Wiederöffnung, Uploads und FiBu-Lohn-Aktionen.
+Normale Prüfentscheidungen werden in einer eigenen Sticky-Prüfleiste ebenfalls gesammelt. Fachliche Workflowaktionen bleiben getrennte Vorgänge. Dazu gehören insbesondere Übertragungsvorschlag und -entscheidung, Rückfrage, Nachbearbeitung, endgültiger Prüfabschluss, Übergabe, Abschluss, Wiederöffnung, Uploads und Fahrzeugstammdatenaktionen.
 
 ## Lokaler Zustand
 
@@ -43,6 +43,10 @@ Workflowformulare mit offenen normalen Änderungen werden blockiert, bis die Ein
 
 `Strg + S` beziehungsweise `Cmd + S` löst die Sammelspeicherung aus, wenn Änderungen vorhanden sind. Statusmeldungen verwenden `aria-live`. Die Sticky-Leiste ist umbruchfähig und bleibt bei schmalen Ansichten bedienbar.
 
-## Keine Migration
+## Rechnungswesen–Lohn
 
-Das vorhandene `updatedAt` reicht für die optimistische Konflikterkennung aus. Es wurde keine neue Datenbankmigration angelegt.
+Themenentscheidung, strukturierte Angaben, Notizen, Nachreichungsdaten sowie neue und bestehende Einzel- oder fachlich zulässige Sammelpositionen werden über eine eigene Sticky-Leiste gesammelt. Thema und Position sind getrennte Teilresultate. Upload, Archivierung, Rückfragen, Fahrzeuge, Gesamtübergabe und Lohnabschluss bleiben separate Aktionen.
+
+## Migration
+
+Das vorhandene `updatedAt` reicht für die optimistische Konflikterkennung aus. Migration `20260818120000_workflow_simplification` ergänzt ausschließlich den kontrollierten Übertragungsvorschlag und technische Felder zur Lohn-Erstansicht; die Sammelspeicherung selbst benötigt keine weiteren Tabellen.

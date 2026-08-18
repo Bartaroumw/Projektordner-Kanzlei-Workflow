@@ -42,9 +42,9 @@ export function TaskForm({
               </>
             ) : <input className="input" name="taskId" required />}
           </Field>
-          <Field label="Checklistenart" required error={error("checklistType")}>
+          <Field label="Einsatzbereich" required error={error("checklistType")}>
             <select className="input" name="checklistType" value={checklistType} onChange={(event) => setChecklistType(event.target.value)}>
-              {CHECKLIST_TYPES.map((value) => <option key={value}>{value}</option>)}
+              {CHECKLIST_TYPES.map((value) => <option key={value} value={value}>{value==="Monat"?"Laufendes Rechnungswesen":value}</option>)}
             </select>
           </Field>
           <Field label="Kategorie" required error={error("categoryName")}>

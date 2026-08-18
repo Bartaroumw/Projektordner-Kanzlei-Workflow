@@ -93,7 +93,7 @@ export function ChecklistBatchProvider({
   );
   const localCompletedTasks = useMemo(() => {
     const completed = (status: string) =>
-      ["Erledigt", "Nicht zutreffend", "In Folgemonat übertragen"].includes(status);
+      ["Erledigt", "Nicht zutreffend", "Übertragung vorgeschlagen", "In Folgemonat übertragen"].includes(status);
     return Math.max(0, Math.min(totalTasks, serverCompletedTasks + Object.values(entries).reduce(
       (difference, value) =>
         difference + Number(completed(value.current.status)) - Number(completed(value.baseline.status)),

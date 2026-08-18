@@ -30,6 +30,7 @@
     "testdata:system-integration": "node scripts/reset-system-integration.mjs",
     "test:migration:user-profile-copy": "node scripts/test-user-profile-migration-copy.mjs",
     "test:migration:ordo-campus-2-copy": "node scripts/test-ordo-campus-2-migration-copy.mjs",
+    "test:migration:workflow-simplification-copy": "node scripts/test-workflow-simplification-migration-copy.mjs",
     "backup:local": "node scripts/backup-local-data.mjs",
     "testdata:system-integration:diagnose": "node scripts/run-system-integration-diagnose.mjs",
     "dev:integration": "node scripts/run-system-integration.mjs dev",

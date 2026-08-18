@@ -5,12 +5,13 @@
 ## Rechnungswesenbearbeiter
 
 1. Öffnen Sie die Monatscheckliste und dort „Monatliche FiBu-Lohn-Abstimmung“.
-2. Öffnen Sie jedes der sechs Themen und entscheiden Sie bewusst zwischen „Kein Sachverhalt“, „Übergabe in Vorbereitung“ und „Vollständig an Lohn übergeben“.
-3. Erfassen Sie bei einem Sachverhalt die strukturierten Angaben und stellen Sie erforderliche Belege bereit.
-4. Eine fachlich zulässige Nachreichung wird mit Belegart und Begründung dokumentiert.
-5. Prüfen Sie die Zusammenfassung und bestätigen Sie einmalig „Vollständig an Lohn übergeben“.
-6. Offene Lohnrückfragen erscheinen auf dem Dashboard. Der Link führt direkt zum Antwortbereich der Themenkarte.
-7. Erfassen Sie die Antwort an derselben Themenkarte. Eine nach der Übergabe ergänzte Datei wird sichtbar als „Nachträglich ergänzt“ gekennzeichnet.
+2. Bearbeiten Sie beliebig viele der sechs Themen und Sachverhaltspositionen. Die Sticky-Leiste zählt geänderte Themen, ungespeicherte Positionen und Fehler.
+3. Speichern Sie normale Themenentscheidungen, strukturierte Angaben, Personen, Beträge, Zeiträume, Notizen und Nachreichungsdaten mit **Alle Änderungen speichern**. Gültige Einträge werden auch dann gespeichert, wenn ein anderer Eintrag noch unvollständig ist.
+4. Stellen Sie erforderliche Belege separat bereit. Upload, Archivierung, Fahrzeugstammdaten, Rückfragen und Gesamtübergabe bleiben eigenständige fachliche Aktionen.
+5. Eine fachlich zulässige Nachreichung wird mit Belegart und Begründung dokumentiert.
+6. Prüfen Sie die Zusammenfassung und bestätigen Sie einmalig „Vollständig an Lohn übergeben“.
+7. Offene Lohnrückfragen erscheinen auf dem Dashboard. Der Link führt direkt zum Antwortbereich der Themenkarte.
+8. Erfassen Sie die Antwort an derselben Themenkarte. Eine nach der Übergabe ergänzte Datei wird sichtbar als „Nachträglich ergänzt“ gekennzeichnet.
 
 ## Rechnungswesenprüfer
 
@@ -21,10 +22,10 @@ Die Rechnungswesenprüfung und die Lohnbearbeitung bleiben getrennt: Der Prüfer
 ## Lohnsachbearbeiter
 
 1. Öffnen Sie „Meine Abstimmungen“ und wählen Sie den Abrechnungsmonat.
-2. Öffnen Sie eine Übergabe und markieren Sie sie als gesehen.
+2. Öffnen Sie eine Übergabe. Die erste Ansicht wird mit Zeitpunkt und Benutzer technisch protokolliert; der fachliche Status bleibt **Neu** und es gibt keinen „Gesehen“-Button.
 3. Prüfen Sie die hervorgehobenen Themen mit Sachverhalt, Angaben, Belegen und Fahrzeugdaten.
 4. Stellen Sie Rückfragen direkt am Thema. Nach der Antwort schließen Sie die Rückfrage ausdrücklich.
-5. Markieren Sie jeden übernommenen Sachverhalt als verarbeitet.
+5. Markieren Sie jeden übernommenen Sachverhalt als verarbeitet. Die erste erfolgreiche Lohnhandlung wechselt automatisch von **Neu** auf **In Bearbeitung**.
 6. Prüfen Sie angekündigte Nachreichungen. Eine offene Nachreichung verhindert den Lohnabschluss, bis der passende Beleg vorliegt und die Nachreichung ausdrücklich abgeschlossen wurde.
 7. Schließen Sie die gesamte Abstimmung als erledigt ab. Offene Rückfragen, offene Nachreichungen und unverarbeitete Sachverhalte verhindern diesen Schritt.
 

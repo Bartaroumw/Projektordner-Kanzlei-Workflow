@@ -1,13 +1,13 @@
 # Aktueller Systemstand
 
-Stand: 05.08.2026
+Stand: 18.08.2026
 
 ## Technischer Stand
 
 - Next.js 16.2.12 und React 19.2.4
 - Node.js 24.18.0 und npm 11.16.0
 - Prisma und Prisma Client 6.19.3
-- SQLite mit 18 chronologisch geordneten Migrationen; Migration 18 erweitert Ordo Campus additiv
+- SQLite mit 19 chronologisch geordneten Migrationen; Migration 19 vereinfacht Workflows additiv
 - TypeScript 5.9.3, ESLint 9.39.5 und Vitest 4.1.10
 - lokaler App Router mit 45 `page.tsx`-Dateien, 9 Server-Action-Dateien und 7 Route Handlern
 - 36 Prisma-Modelle
@@ -107,6 +107,20 @@ Die Systemintegration wurde frisch aus allen 18 Migrationen aufgebaut und bestan
 - `npm audit --omit=dev` meldet weiterhin 3 hoch eingestufte betroffene Produktions-Abhängigkeitsknoten; die vollständige Installationsprüfung meldet einschließlich Entwicklungsabhängigkeiten 12 hohe Hinweise. Die angebotene erzwungene Korrektur wäre inkompatibel; `npm audit fix --force` ist unzulässig.
 - Der fachliche Verlauf ist nachvollziehbar, aber kein revisionssicherer Audit-Trail.
 - Vor einem Pilot- oder Mehrbenutzerbetrieb bleiben eine erneut geprüfte gemeinsame Backup/Restore-Prozedur, HTTPS, Zugriffsschutz und Betriebskonzept erforderlich.
+
+## Workflowvereinfachung – Stand 18.08.2026
+
+Migration 19 `20260818120000_workflow_simplification` ergänzt den kontrollierten Aufgabenübertragungsvorschlag und die technische Erstansicht von Rechnungswesen–Lohn-Abstimmungen. Die frühere fachliche Ausprägung `Gesehen` wird nach **In Bearbeitung** überführt; ihr bestehender Zeitnachweis bleibt erhalten.
+
+Bearbeitungs- und Prüfstart werden mit der ersten erfolgreichen fachlichen Speicherung automatisch und einmalig protokolliert. Monats- und Jahresabschlussprüfungen sowie normale Themen-/Positionsdaten der Rechnungswesen–Lohn-Abstimmung besitzen zentrale Sammelspeicherungen mit Teilresultaten, Fehlernavigation, Verwerfen und Konfliktschutz. Abschluss-, Übergabe-, Rückfrage-, Upload-, Archivierungs- und Fahrzeugaktionen bleiben getrennt.
+
+Übertragungen werden vom Bearbeiter vorgeschlagen und vom Prüfer genehmigt oder zwingend zur Nachbearbeitung abgelehnt. Bei der Mandantenanlage ist ein atomar gespeichertes Jahresprofil für das aktuelle Jahr standardmäßig aktiviert. Standardaufgaben trennen sichtbar Einsatzbereich und Rhythmus. Kanzleilohn wird unabhängig vom Jahresprofil über Mandantenstamm, aktive Lohnzuordnung und optionalen Beginn gesteuert.
+
+Der Kopientest prüfte alle 49 bestehenden Anwendungstabellen dateninhaltlich, zwei Deploy-Läufe, SQLite-Integrität, Fremdschlüssel, Quell- und Speicher-Hashes sowie bytegenaue Wiederherstellung erfolgreich. Die Systemintegration wurde aus allen 19 Migrationen aufgebaut und diagnostiziert. Prisma Validate/Generate, ESLint, TypeScript, 386 reguläre automatisierte Tests und der Integrations-Build waren erfolgreich; `tests/performance-smoke.test.ts` blieb als opt-in Performance-Smoke-Test bewusst übersprungen.
+
+Vor der kontrollierten Anwendung auf `prisma/dev.db` wurde am 18.08.2026 der gemeinsame Vollbackup-Satz `backups/2026-08-18_14-03-52_full_local_backup` erstellt. Er enthält die bytegenaue Datenbankkopie, `.env` und die drei regulären Speicherordner samt SHA-256-Manifest. Der Ausgangshash der Datenbank lautet `8f7a2cb5a23f41e411fe7281537c46a1c033e01c8d1c161c36c3596a430328f7`.
+
+Migration 19 wurde anschließend aus dem sauberen Abschlusscommit kontrolliert auf `prisma/dev.db` angewendet. Prisma meldet alle 19 Migrationen als aktuell; `quick_check` lautet `ok`, `foreign_key_check` meldet keine Verletzung und es verbleibt kein Legacy-Lohnstatus `Gesehen`. Der Datenbankhash nach der erwarteten Schema- und Migrationshistorienänderung lautet `bb275ed6d7eea3c676ed75395fab5380cdcb791cdbc96d8d63c39b5b3d9e71f9`. Der normale Entwicklungsstart war danach unter der Anmeldeseite mit HTTP 200 erfolgreich.
 
 ## Freigabe für die Weiterentwicklung
 

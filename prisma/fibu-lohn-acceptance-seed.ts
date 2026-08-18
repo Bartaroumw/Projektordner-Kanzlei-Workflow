@@ -10,7 +10,7 @@ import {
 import {
   completePayrollReconciliation,
   createPayrollQuestion,
-  markPayrollReconciliationSeen,
+  recordPayrollReconciliationView,
   markPayrollItemProcessed,
   parseConfiguredList,
   submitPayrollReconciliation,
@@ -174,7 +174,7 @@ await submitPayrollReconciliation(reconciliation92002.id,anna);
 const period92003=await createMonthlyPeriod(clients.get("92003")!.id,previous.year,previous.month);
 const reconciliation92003=await prepare((await reconciliationFor(period92003.id)).id,1);
 await submitPayrollReconciliation(reconciliation92003.id,anna);
-await markPayrollReconciliationSeen(reconciliation92003.id,laura);
+await recordPayrollReconciliationView(reconciliation92003.id,laura);
 await createPayrollQuestion(reconciliation92003.items[0].id,"Künstliche offene Rückfrage zur fachlichen Einordnung des übergebenen Sachverhalts.",laura);
 
 // 92004: zulässige, aber für den Lohnabschluss noch offene Nachreichung.
@@ -219,7 +219,7 @@ if(await prisma.payrollReconciliation.count({where:{accountingPeriodId:period920
 const historicalPeriod92007=await createMonthlyPeriod(clients.get("92007")!.id,previousPrevious.year,previousPrevious.month);
 const historicalReconciliation92007=await prepare((await reconciliationFor(historicalPeriod92007.id)).id,0);
 await submitPayrollReconciliation(historicalReconciliation92007.id,anna);
-await markPayrollReconciliationSeen(historicalReconciliation92007.id,laura);
+await recordPayrollReconciliationView(historicalReconciliation92007.id,laura);
 await completePayrollReconciliation(historicalReconciliation92007.id,laura);
 await finishMonthlyChecklist(historicalPeriod92007.id);
 const client92007=clients.get("92007")!;
@@ -237,7 +237,7 @@ await prepare((await reconciliationFor(currentPeriod92007.id)).id,1);
 const period92008=await createMonthlyPeriod(clients.get("92008")!.id,previousPrevious.year,previousPrevious.month);
 const reconciliation92008=await prepare((await reconciliationFor(period92008.id)).id,2);
 await submitPayrollReconciliation(reconciliation92008.id,anna);
-await markPayrollReconciliationSeen(reconciliation92008.id,laura);
+await recordPayrollReconciliationView(reconciliation92008.id,laura);
 for(const item of reconciliation92008.items.filter(item=>item.status==="Vollständig an Lohn übergeben"))await markPayrollItemProcessed(item.id,laura);
 await completePayrollReconciliation(reconciliation92008.id,laura);
 await finishMonthlyChecklist(period92008.id);

@@ -3,8 +3,9 @@ import { hashPassword } from "../lib/password.ts";
 import {
   completeRework,
   createMonthlyPeriod,
+  decideChecklistTaskTransfer,
+  proposeChecklistTaskTransfer,
   reviewChecklistTask,
-  transferChecklistTask,
   transitionPeriod,
   updateChecklistTask,
 } from "../lib/monthly-checklist-service.ts";
@@ -20,7 +21,7 @@ import type { AuthUser } from "../lib/permissions.ts";
 import {
   completePayrollReconciliation,
   createPayrollQuestion,
-  markPayrollReconciliationSeen,
+  recordPayrollReconciliationView,
   submitPayrollReconciliation,
   updatePayrollReconciliationItem,
   savePayrollPosition,
@@ -214,7 +215,7 @@ await prisma.customClientTask.createMany({data:[
 
 async function finishMandatory(periodId:number,actor:string){
   const tasks=await prisma.checklistTask.findMany({where:{periodId}});
-  for(const task of tasks.filter(task=>!["Erledigt","Nicht zutreffend","In Folgemonat übertragen"].includes(task.status)))await updateChecklistTask(task.id,{status:"Erledigt",processingNote:"Künstlich vollständig bearbeitet.",processorInitials:actor,notApplicableReason:""});
+  for(const task of tasks.filter(task=>!["Erledigt","Nicht zutreffend","In Folgemonat übertragen","Übertragung vorgeschlagen"].includes(task.status)))await updateChecklistTask(task.id,{status:"Erledigt",processingNote:"Künstlich vollständig bearbeitet.",processorInitials:actor,notApplicableReason:""});
 }
 async function completePeriod(periodId:number,processor:string,reviewer:string){
   await finishMandatory(periodId,processor);
@@ -230,8 +231,13 @@ async function completePeriod(periodId:number,processor:string,reviewer:string){
 // 10001: Januar mit Übertrag abschließen, Februar in Bearbeitung.
 const jan10001=await createMonthlyPeriod(clients.get("10001")!.id,2026,1);
 const transferSource=await prisma.checklistTask.findFirstOrThrow({where:{periodId:jan10001.id}});
-await transferChecklistTask(transferSource.id,{reason:"Künstliche Unterlage folgt im Februar.",actorName:"Maria Muster",targetYear:2026,targetMonth:2,expectedAction:"Künstliche Unterlage prüfen."});
-await completePeriod(jan10001.id,"Maria Muster","Paul Prüfung");
+const mariaMonthly=await authUser("maria"),paulMonthly=await authUser("paul");
+await proposeChecklistTaskTransfer(transferSource.id,{reason:"Künstliche Unterlage folgt im Februar.",targetYear:2026,targetMonth:2,expectedAction:"Künstliche Unterlage prüfen."},mariaMonthly);
+await finishMandatory(jan10001.id,"Maria Muster");
+await transitionPeriod(jan10001.id,"SUBMIT_REVIEW","Maria Muster");
+await decideChecklistTaskTransfer(transferSource.id,"APPROVE","Künstlicher Übertrag fachlich bestätigt.",paulMonthly);
+for(const task of await prisma.checklistTask.findMany({where:{periodId:jan10001.id,id:{not:transferSource.id}}}))await reviewChecklistTask(task.id,{reviewStatus:"In Ordnung",reviewerInitials:"Paul Prüfung",reviewNote:"Künstlich abschließend geprüft."});
+await transitionPeriod(jan10001.id,"COMPLETE_REVIEW","Paul Prüfung");
 const feb10001=await createMonthlyPeriod(clients.get("10001")!.id,2026,2);
 const first10001=await prisma.checklistTask.findFirstOrThrow({where:{periodId:feb10001.id}});
 await updateChecklistTask(first10001.id,{status:"In Bearbeitung",processingNote:"Künstliche laufende Bearbeitung.",processorInitials:"Maria Muster",notApplicableReason:""});
@@ -272,7 +278,7 @@ async function preparePayrollAsNoMatter(periodId:number,processor:AuthUser){
 const jan91001=await createMonthlyPeriod(clients.get("91001")!.id,2026,1);
 const payrollJan91001=await preparePayrollAsNoMatter(jan91001.id,anna);
 await submitPayrollReconciliation(payrollJan91001.id,anna);
-await markPayrollReconciliationSeen(payrollJan91001.id,laura);
+await recordPayrollReconciliationView(payrollJan91001.id,laura);
 await completePayrollReconciliation(payrollJan91001.id,laura);
 await completePeriod(jan91001.id,anna.fullName,peter.fullName);
 
@@ -284,13 +290,13 @@ await completePeriod(feb91001.id,anna.fullName,peter.fullName);
 const mar91001=await createMonthlyPeriod(clients.get("91001")!.id,2026,3);
 const payrollMar91001=await preparePayrollAsNoMatter(mar91001.id,anna);
 await submitPayrollReconciliation(payrollMar91001.id,anna);
-await markPayrollReconciliationSeen(payrollMar91001.id,laura);
+await recordPayrollReconciliationView(payrollMar91001.id,laura);
 await completePeriod(mar91001.id,anna.fullName,peter.fullName);
 
 const apr91001=await createMonthlyPeriod(clients.get("91001")!.id,2026,4);
 const payrollApr91001=await preparePayrollAsNoMatter(apr91001.id,anna);
 await submitPayrollReconciliation(payrollApr91001.id,anna);
-await markPayrollReconciliationSeen(payrollApr91001.id,laura);
+await recordPayrollReconciliationView(payrollApr91001.id,laura);
 await createPayrollQuestion(payrollApr91001.items[0].id,"Künstliche Rückfrage zur monatlichen Übergabe.",laura);
 await completePeriod(apr91001.id,anna.fullName,peter.fullName);
 

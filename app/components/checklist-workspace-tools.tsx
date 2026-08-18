@@ -22,6 +22,7 @@ const filters = [
   ["erledigt", "Erledigt"],
   ["nicht-zutreffend", "Nicht zutreffend"],
   ["uebertragen", "Übertragen"],
+  ["uebertrag-vorgeschlagen", "Übertragung vorgeschlagen"],
   ["ungespeichert", "Ungespeichert"],
   ["fehlerhaft", "Fehlerhaft"],
   ["rueckfrage", "Rückfrage"],
@@ -98,7 +99,7 @@ export function ChecklistWorkspaceTools({
     jumpToTask(errorTasks[index].id, true);
     setErrorCursor((index + 1) % errorTasks.length);
   };
-  const openTasks = tasks.filter((task) => !["Erledigt", "Nicht zutreffend", "In Folgemonat übertragen"].includes(taskState(task).status));
+  const openTasks = tasks.filter((task) => !["Erledigt", "Nicht zutreffend", "Übertragung vorgeschlagen", "In Folgemonat übertragen"].includes(taskState(task).status));
   const jumpNextOpen = () => {
     if (!openTasks.length) return;
     const currentIndex = openTasks.findIndex((task) => task.id === visibleTaskId);
@@ -114,6 +115,7 @@ export function ChecklistWorkspaceTools({
       filter === "erledigt" && state.status === "Erledigt" ||
       filter === "nicht-zutreffend" && state.status === "Nicht zutreffend" ||
       filter === "uebertragen" && task.transferred ||
+      filter === "uebertrag-vorgeschlagen" && state.status === "Übertragung vorgeschlagen" ||
       filter === "ungespeichert" && state.dirty ||
       filter === "fehlerhaft" && Boolean(state.error) ||
       filter === "rueckfrage" && task.hasQuestion ||
@@ -143,7 +145,7 @@ export function ChecklistWorkspaceTools({
         <div className="flex items-center justify-between gap-3"><h2 id="task-navigator-title" className="text-xl font-semibold">Aufgabenübersicht</h2><button type="button" className="button-secondary" onClick={()=>setPanelOpen(false)} aria-label="Aufgabenübersicht schließen">Schließen</button></div>
         <label className="mt-4 block text-sm font-semibold">Aufgabensuche<input className="input mt-1" value={search} onChange={(event)=>setSearch(event.target.value)} placeholder="Code, Aufgabe oder Bereich"/></label>
         <label className="mt-3 block text-sm font-semibold">Statusfilter<select className="input mt-1" value={filter} onChange={(event)=>setFilter(event.target.value as typeof filter)}>{filters.map(([value,label])=><option key={value} value={value}>{label}</option>)}</select></label>
-        <div className="mt-4 space-y-4">{categories.map((category)=>{const categoryTasks=shownTasks.filter(task=>task.category===category);if(!categoryTasks.length)return null;const allCategory=tasks.filter(task=>task.category===category);const completed=allCategory.filter(task=>["Erledigt","Nicht zutreffend","In Folgemonat übertragen"].includes(taskState(task).status)).length;const errors=allCategory.filter(task=>Boolean(taskState(task).error)).length;return <section key={category}><h3 className="flex items-center justify-between gap-3 border-b pb-2 text-sm font-semibold"><span>{category}</span><span>{completed}/{allCategory.length} · {errors} Fehler</span></h3><ul className="mt-2 space-y-2">{categoryTasks.map(task=>{const state=taskState(task);return <li key={task.id}><button type="button" onClick={()=>jumpToTask(task.id,Boolean(state.error))} aria-current={visibleTaskId===task.id?"location":undefined} className={`w-full rounded border p-3 text-left text-sm ${visibleTaskId===task.id?"border-[var(--color-primary)] bg-[var(--color-primary-light)]":"border-[var(--color-border)] bg-white"}`}><span className="font-mono text-xs">{task.code}</span><span className="mt-1 block font-semibold">{task.title}</span><span className="mt-2 block text-xs text-slate-600">{state.status} · {task.reviewStatus}{state.dirty?" · Ungespeichert":""}{state.error?" · Fehlerhaft":""}{task.hasQuestion?" · Rückfrage":""}{task.transferred?" · Übertrag":""}{task.campusAvailable?" · Campus":""}</span></button></li>})}</ul></section>})}{!shownTasks.length&&<p className="rounded border bg-white p-6 text-center text-sm text-slate-600">Keine Aufgaben entsprechen dem Filter.</p>}</div>
+        <div className="mt-4 space-y-4">{categories.map((category)=>{const categoryTasks=shownTasks.filter(task=>task.category===category);if(!categoryTasks.length)return null;const allCategory=tasks.filter(task=>task.category===category);const completed=allCategory.filter(task=>["Erledigt","Nicht zutreffend","Übertragung vorgeschlagen","In Folgemonat übertragen"].includes(taskState(task).status)).length;const errors=allCategory.filter(task=>Boolean(taskState(task).error)).length;return <section key={category}><h3 className="flex items-center justify-between gap-3 border-b pb-2 text-sm font-semibold"><span>{category}</span><span>{completed}/{allCategory.length} · {errors} Fehler</span></h3><ul className="mt-2 space-y-2">{categoryTasks.map(task=>{const state=taskState(task);return <li key={task.id}><button type="button" onClick={()=>jumpToTask(task.id,Boolean(state.error))} aria-current={visibleTaskId===task.id?"location":undefined} className={`w-full rounded border p-3 text-left text-sm ${visibleTaskId===task.id?"border-[var(--color-primary)] bg-[var(--color-primary-light)]":"border-[var(--color-border)] bg-white"}`}><span className="font-mono text-xs">{task.code}</span><span className="mt-1 block font-semibold">{task.title}</span><span className="mt-2 block text-xs text-slate-600">{state.status} · {task.reviewStatus}{state.dirty?" · Ungespeichert":""}{state.error?" · Fehlerhaft":""}{task.hasQuestion?" · Rückfrage":""}{task.transferred?" · Übertrag":""}{task.campusAvailable?" · Campus":""}</span></button></li>})}</ul></section>})}{!shownTasks.length&&<p className="rounded border bg-white p-6 text-center text-sm text-slate-600">Keine Aufgaben entsprechen dem Filter.</p>}</div>
       </aside>
     </div>}
   </>;

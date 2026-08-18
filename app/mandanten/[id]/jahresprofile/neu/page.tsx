@@ -3,7 +3,7 @@ import { createAnnualProfileAction } from "@/app/mandanten/actions";
 import { AnnualProfileForm } from "@/app/mandanten/annual-profile-form";
 import { prisma } from "@/lib/prisma";
 
-export default async function NewAnnualProfilePage({ params }: { params: Promise<{ id: string }> }) {
+export default async function NewAnnualProfilePage({ params,searchParams }: { params: Promise<{ id: string }>;searchParams:Promise<{jahr?:string}> }) {
   const id = Number((await params).id);
   const client = Number.isInteger(id)
     ? await prisma.client.findUnique({
@@ -13,9 +13,10 @@ export default async function NewAnnualProfilePage({ params }: { params: Promise
     : null;
   if (!client) notFound();
   const latest = client.annualProfiles[0];
+  const requestedYear=Number((await searchParams).jahr);
   const suggestion = latest
-    ? { ...latest, id: undefined, calendarYear: latest.calendarYear + 1 }
-    : { calendarYear: new Date().getFullYear() };
+    ? { ...latest, id: undefined, calendarYear: Number.isInteger(requestedYear)&&requestedYear>=2000&&requestedYear<=2100?requestedYear:latest.calendarYear + 1 }
+    : { calendarYear: Number.isInteger(requestedYear)&&requestedYear>=2000&&requestedYear<=2100?requestedYear:new Date().getFullYear() };
   const action = createAnnualProfileAction.bind(null, client.id);
 
   return (

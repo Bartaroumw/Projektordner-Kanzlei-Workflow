@@ -53,7 +53,7 @@ function clientInput(formData: FormData):
     payrollPreparedByFirm: booleanValue(formData, "payrollPreparedByFirm"),
     payrollUserId: formData.get("payrollUserId") ? Number(formData.get("payrollUserId")) : null,
     payrollServiceStart: optionalDate(formData, "payrollServiceStart"),
-    payrollServiceEnd: optionalDate(formData, "payrollServiceEnd"),
+    payrollServiceEnd: null,
     payrollResponsibilityNote: formData.get("payrollResponsibilityNote") ?? "",
     vatFilingPeriod: formData.get("vatFilingPeriod"),
     active: booleanValue(formData, "active"),
@@ -114,8 +114,11 @@ export async function createClientAction(
   const user=await requireClientManagement();
   const input = clientInput(formData);
   if (!input.success) return input.state;
+  const createAnnual=booleanValue(formData,"createAnnualProfile");
+  const annual=createAnnual?annualInput(formData):null;
+  if(annual&&!annual.success)return annual.state;
   try {
-    const client = await createClient(input.data,user);
+    const client = await createClient(input.data,user,annual?.success?annual.data:null);
     revalidatePath("/mandanten");
     redirect(`/mandanten/${client.id}?erfolg=angelegt`);
   } catch (error) {

@@ -11,7 +11,7 @@ Die Ansicht enthält:
 * vorherigen und nächsten Lohnabrechnungsmonat,
 * Mandantensuche,
 * Filter nach Lohnstatus,
-* Kennzahlen für Neu, Gesehen, Rückfrage offen und Erledigt,
+* Kennzahlen für Neu, In Bearbeitung, Rückfrage offen und Erledigt,
 * Abstimmungsliste mit Sachverhalten, Belegen, Nachreichungen, Rückfragen und Eingang,
 * offene Rückfragen mit direktem Link zur Themenkarte.
 
@@ -19,4 +19,4 @@ Standardmäßig werden offene Vorgänge vor erledigten Vorgängen und anschließ
 
 ## Verarbeitung
 
-Lohn kann eine vollständig übergebene Abstimmung als gesehen markieren, Rückfragen stellen und Themen mit Sachverhalt einzeln als verarbeitet markieren. Der Gesamtabschluss ist erst möglich, wenn alle Rückfragen durch Lohn erledigt und alle übergebenen Sachverhalte verarbeitet wurden.
+Die Erstansicht wird automatisch technisch protokolliert und lässt den Status **Neu** unverändert. Lohn kann Rückfragen stellen und Themen mit Sachverhalt einzeln als verarbeitet markieren; die erste erfolgreiche Fachaktion startet automatisch **In Bearbeitung**. Der Gesamtabschluss ist erst möglich, wenn alle Rückfragen durch Lohn erledigt und alle übergebenen Sachverhalte verarbeitet wurden.

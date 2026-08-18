@@ -1,10 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import type { Client } from "@prisma/client";
 import type { FormState } from "@/app/mandanten/actions";
-import { VAT_FILING_PERIODS } from "@/lib/validation";
+import { LEGAL_FORM_GROUPS, PROFIT_METHODS, VAT_FILING_PERIODS } from "@/lib/validation";
 import { ToastMessage } from "@/app/components/toast-message";
 
 type ClientFormProps = {
@@ -21,6 +21,7 @@ const initialState: FormState = {};
 
 export function ClientForm({ action, client, cancelHref, users }: ClientFormProps) {
   const [state, formAction, pending] = useActionState(action, initialState);
+  const [createAnnualProfile,setCreateAnnualProfile]=useState(!client);
   const errorFor = (field: string) => state.fieldErrors?.[field]?.[0];
 
   return (
@@ -70,14 +71,36 @@ export function ClientForm({ action, client, cancelHref, users }: ClientFormProp
           <Field label="Beginn der Lohnbetreuung" error={errorFor("payrollServiceStart")}>
             <input className="input" id="payrollServiceStart" name="payrollServiceStart" type="date" defaultValue={client?.payrollServiceStart?.toISOString().slice(0,10) ?? ""}/>
           </Field>
-          <Field label="Ende der Lohnbetreuung" error={errorFor("payrollServiceEnd")}>
-            <input className="input" id="payrollServiceEnd" name="payrollServiceEnd" type="date" defaultValue={client?.payrollServiceEnd?.toISOString().slice(0,10) ?? ""}/>
-          </Field>
         </div>
         <div className="mt-4"><Field label="Interner Hinweis zur Lohnzuständigkeit" error={errorFor("payrollResponsibilityNote")}>
           <textarea className="input min-h-24 resize-y" id="payrollResponsibilityNote" name="payrollResponsibilityNote" defaultValue={client?.payrollResponsibilityNote ?? ""} />
         </Field></div>
       </section>
+      {!client&&<section className="rounded-lg border border-[var(--color-border)] bg-[var(--color-background)] p-5">
+        <label className="flex items-center gap-3 text-base font-semibold text-[var(--color-primary-dark)]">
+          <input type="checkbox" name="createAnnualProfile" checked={createAnnualProfile} onChange={event=>setCreateAnnualProfile(event.target.checked)} className="h-4 w-4" />
+          Jahresprofil direkt anlegen
+        </label>
+        <p className="mt-1 text-sm text-[var(--color-text-muted)]">Mandant und Jahresprofil werden gemeinsam gespeichert. Schlägt das Profil fehl, wird auch der Mandant nicht angelegt.</p>
+        {createAnnualProfile&&<div className="mt-5 space-y-5">
+          <input type="hidden" name="confirmed" value="on" />
+          <div className="grid gap-5 md:grid-cols-3">
+            <Field label="Jahr" required error={errorFor("calendarYear")}><input className="input" id="calendarYear" name="calendarYear" type="number" min="2000" max="2100" defaultValue={new Date().getFullYear()} required /></Field>
+            <Field label="Rechtsform" required error={errorFor("legalFormGroup")}><select className="input" id="legalFormGroup" name="legalFormGroup" defaultValue="Einzelunternehmen">{LEGAL_FORM_GROUPS.map(value=><option key={value}>{value}</option>)}</select></Field>
+            <Field label="Gewinnermittlungsart" required error={errorFor("profitDeterminationMethod")}><select className="input" id="profitDeterminationMethod" name="profitDeterminationMethod" defaultValue="Einnahmenüberschussrechnung">{PROFIT_METHODS.map(value=><option key={value}>{value}</option>)}</select></Field>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <AnnualFeature name="hasCashRegister" label="Kasse vorhanden" />
+            <AnnualFeature name="hasPayroll" label="Lohn im Jahresprofil" />
+            <AnnualFeature name="hasFixedAssets" label="Anlagevermögen" />
+            <AnnualFeature name="hasReceivablesPayables" label="Debitoren/Kreditoren" />
+            <AnnualFeature name="hasLoans" label="Darlehen" />
+            <AnnualFeature name="subjectToVat" label="Umsatzsteuerpflichtig" />
+            <AnnualFeature name="hasPermanentExtension" label="Dauerfristverlängerung" />
+          </div>
+          <p className="text-xs text-[var(--color-text-muted)]">Das Lohnmerkmal des Jahresprofils steuert nicht die Rechnungswesen–Lohn-Abstimmung. Dafür gilt ausschließlich „Lohnabrechnung durch Kanzlei“ im Mandantenstamm.</p>
+        </div>}
+      </section>}
       <Field label="Interner Hinweis" error={errorFor("internalNote")}>
         <textarea className="input min-h-28 resize-y" id="internalNote" name="internalNote" defaultValue={client?.internalNote ?? ""} />
       </Field>
@@ -96,6 +119,8 @@ export function ClientForm({ action, client, cancelHref, users }: ClientFormProp
 }
 
 function UserSelect({name,value,users}:{name:string;value:number|null|undefined;users:{id:number;fullName:string}[]}){return <select className="input" id={name} name={name} defaultValue={value??""}><option value="">Nicht zugeordnet</option>{users.map(user=><option key={user.id} value={user.id}>{user.fullName}</option>)}</select>}
+
+function AnnualFeature({name,label}:{name:string;label:string}){return <label className="flex items-center gap-3 rounded border border-[var(--color-border)] bg-white px-3 py-2 text-sm"><input type="checkbox" name={name} className="h-4 w-4" />{label}</label>}
 
 function Field({
   label,

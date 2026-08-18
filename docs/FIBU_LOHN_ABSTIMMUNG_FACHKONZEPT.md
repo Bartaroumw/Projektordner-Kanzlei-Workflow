@@ -38,7 +38,9 @@ Rechnungswesen:
 
 Lohn:
 
-`Neu → Gesehen → Rückfrage offen → Erledigt`
+`Neu → In Bearbeitung → Rückfrage offen → In Bearbeitung → Erledigt`
+
+Das bloße Öffnen setzt nur technische Erst-/Letztansichtsmetadaten und lässt den fachlichen Status **Neu** unverändert.
 
 `Storniert` ist als optionaler technischer Status vorbereitet.
 

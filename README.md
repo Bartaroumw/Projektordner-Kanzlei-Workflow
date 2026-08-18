@@ -34,7 +34,7 @@ npm.cmd run dev
 
 Die Anwendung ist danach unter [http://localhost:3000](http://localhost:3000) erreichbar.
 
-Wichtig: Der normale Start verwendet die bestehende `.env` und die am 31.07.2026 erfolgreich baselined sowie am 04.08.2026 driftbereinigte `prisma/dev.db`. Nach der kontrollierten Ordo-Campus-2-Übernahme erkennt Prisma alle 18 Migrationen als angewendet; `schema.prisma`, eine frische 1–18-Datenbank und `dev.db` stimmen strukturell überein. Kontrolliertes `prisma migrate deploy` und `prisma migrate dev` sind nur nach vollständiger gemeinsamer Sicherung, sauberem Git-Stand und erfolgreicher Status-/Driftprüfung zulässig. `prisma db push`, `prisma migrate reset`, Seeds und Testresets gegen `dev.db` bleiben ausdrücklich gesperrt. Für isolierte systemweite Prüfungen steht weiterhin die getrennte Integrationsumgebung bereit:
+Wichtig: Der normale Start verwendet die bestehende `.env` und die am 31.07.2026 erfolgreich baselined sowie am 04.08.2026 driftbereinigte `prisma/dev.db`. Nach der Workflowvereinfachung erkennt Prisma alle 19 Migrationen als angewendet; `schema.prisma`, eine frische 1–19-Datenbank und `dev.db` stimmen strukturell überein. Kontrolliertes `prisma migrate deploy` und `prisma migrate dev` sind nur nach vollständiger gemeinsamer Sicherung, sauberem Git-Stand und erfolgreicher Status-/Driftprüfung zulässig. `prisma db push`, `prisma migrate reset`, Seeds und Testresets gegen `dev.db` bleiben ausdrücklich gesperrt. Für isolierte systemweite Prüfungen steht weiterhin die getrennte Integrationsumgebung bereit:
 
 ```powershell
 npm.cmd run testdata:system-integration
@@ -90,7 +90,7 @@ Eine Aufgabe kann mit dem Status `In Folgemonat übertragen` fachlich abgeschlos
 - Zeitpunkt,
 - optional erwartete Unterlage oder nächste Handlung.
 
-Die ursprüngliche Aufgabe bleibt unverändert erhalten. Beim ausdrücklichen Anlegen der nächsten Checkliste entsteht eine eigenständige Aufgabe mit Herkunft `Übertrag aus Vormonat` und Referenz auf die ursprüngliche Aufgabe. Bearbeitungs- und Prüfnotizen werden kopiert, aber nicht gemeinsam referenziert. Eine doppelte Übertragung in dasselbe Ziel wird verhindert.
+Der Bearbeiter schlägt eine Übertragung mit Zielperiode, Begründung und erwarteter Handlung vor. Erst der zugeordnete Prüfer genehmigt oder lehnt ab. Vor der Genehmigung entsteht keine Zielaufgabe. Bei Genehmigung wird sie in der bereits vorhandenen Zielperiode oder kontrolliert beim späteren Anlegen dieser Periode mit Herkunft `Übertrag aus Vormonat` und Referenz auf die ursprüngliche Aufgabe erzeugt. Eine Ablehnung erzeugt keine Zielaufgabe und führt zwingend in die Nachbearbeitung. Dubletten werden serverseitig verhindert.
 
 Pflichtaufgaben gelten als behandelt, wenn sie `Erledigt`, begründet `Nicht zutreffend` oder ordnungsgemäß `In Folgemonat übertragen` sind. Ein übertragener Prüfpunkt bleibt als Prüfnotiz und offener Prüfstatus in der neuen Aufgabe erhalten.
 
@@ -286,7 +286,7 @@ Ordo Campus ist für allgemeine Kanzleistandards und fachliche Anleitungen besti
 
 ## Jahresabschlusschecklisten
 
-Das separate Modul `Jahresabschlüsse` enthält ausschließlich stichtagsbezogene Abschlussarbeiten. Laufende Kontenabstimmungen, Kontonotizen, Anlagenbuchführung und andere unterjährig mögliche Tätigkeiten bleiben in den Monatschecklisten. Standardaufgaben besitzen dafür den Bereich `Monat`, `Jahresabschluss` oder – nur nach ausdrücklicher fachlicher Entscheidung – `Beide`.
+Das separate Modul `Jahresabschlüsse` enthält ausschließlich stichtagsbezogene Abschlussarbeiten. Laufende Kontenabstimmungen, Kontonotizen, Anlagenbuchführung und andere unterjährig mögliche Tätigkeiten bleiben in den Monatschecklisten. Standardaufgaben besitzen dafür den sichtbaren Einsatzbereich `Laufendes Rechnungswesen`, `Jahresabschluss` oder – nur nach ausdrücklicher fachlicher Entscheidung – `Beide`.
 
 Voraussetzungen für die Anlage sind ein aktiver Mandant, ein Jahresprofil für das Wirtschaftsjahr und drei aktive, fachlich passende Funktionszuordnungen. Personengleiche Zuordnungen sind zulässig. Pro Mandant und Wirtschaftsjahr ist nur eine Jahresabschlusscheckliste erlaubt. Rollen, Profilwerte und Aufgabeninhalte werden bei der Anlage als eigenständige Snapshots gespeichert.
 
@@ -320,7 +320,7 @@ Der vollständige Testdatenreset erzeugt diese Fälle deterministisch. Für eine
 
 ## Workflowkorrekturen und Bedienung
 
-Bearbeitungsstatus und Prüfstatus werden strikt getrennt. Der Prüfstatus einer erledigten Aufgabe lautet zunächst `Nicht geprüft`; der Prüfer muss jede Aufgabe ausdrücklich auf `In Ordnung`, `Rückfrage` oder `Beanstandung` setzen. Rückfrage und Beanstandung geben die Checkliste unmittelbar in die Nachbearbeitung zurück. Nach der Antwort lautet der Prüfstatus `Erledigt nach Nachbearbeitung` und erfordert eine erneute ausdrückliche Prüfung.
+Bearbeitungsstatus und Prüfstatus werden strikt getrennt. Das Öffnen verändert keinen Status. Die Bearbeitung beginnt mit der ersten erfolgreich gespeicherten Aufgabenänderung, die Prüfung mit der ersten erfolgreich gespeicherten Prüfentscheidung. Mehrere Prüfentscheidungen werden über die Sticky-Prüfleiste gesammelt gespeichert; gültige Entscheidungen bleiben auch bei einem fehlerhaften Eintrag erhalten. Der Prüfstatus einer erledigten Aufgabe lautet zunächst `Nicht geprüft`; Rückfrage und Beanstandung geben die Checkliste in die Nachbearbeitung zurück. Nach der Antwort lautet der Prüfstatus `Erledigt nach Nachbearbeitung` und erfordert eine erneute ausdrückliche Prüfung.
 
 Der serverseitige Abschluss prüft zentral alle Aufgaben. Offene Bearbeitungen, fehlende Nicht-zutreffend-Begründungen, offene Rückfragen oder Beanstandungen sowie nicht abschließend geprüfte Aufgaben verhindern den Abschluss und werden in einer verständlichen Sammelmeldung genannt. Direkte Serveraufrufe verwenden dieselbe Regel.
 
@@ -336,7 +336,7 @@ Die additive Migration `20260727230000_workflow_ux_corrections` ergänzt ausschl
 
 ## Rechnungswesen–Lohn-Abstimmungen
 
-Teil 1 des Moduls bildet den monatlichen QM- und Informationsübergabeprozess vom Rechnungswesen an die Lohnabteilung fachlich und technisch ab. Für einen Mandanten wird die Standardaufgabe `Monatliche FiBu-Lohn-Abstimmung` nur erzeugt, wenn `Lohnabrechnung durch Kanzlei` aktiviert und ein aktiver Benutzer mit der Rolle `Lohnsachbearbeiter` zugeordnet ist.
+Teil 1 des Moduls bildet den monatlichen QM- und Informationsübergabeprozess vom Rechnungswesen an die Lohnabteilung fachlich und technisch ab. Für einen Mandanten wird die Standardaufgabe `Monatliche FiBu-Lohn-Abstimmung` nur erzeugt, wenn `Lohnabrechnung durch Kanzlei` aktiviert, das optionale Beginndatum erreicht und ein aktiver Benutzer mit der Rolle `Lohnsachbearbeiter` zugeordnet ist. Ein leeres Beginndatum gilt für künftig neu angelegte Perioden. Das Jahresprofilmerkmal `hasPayroll` beeinflusst diese Regel nicht.
 
 Pro Mandant und Lohnabrechnungsmonat ist genau eine Abstimmung zulässig. Rechnungswesenmonat und vorgesehener Lohnabrechnungsmonat werden getrennt gespeichert; als verständlicher Standard wird der Folgemonat vorgeschlagen. Jede Abstimmung speichert Benutzer-IDs und Namenssnapshots von Bearbeiter, Prüfer und Lohnsachbearbeiter. Spätere Stammdatenänderungen verändern historische Zuständigkeiten nicht.
 
@@ -351,7 +351,7 @@ Der konfigurierbare Startkatalog enthält sechs aktive Themen:
 
 Beim Anlegen werden diese Themen als eigenständige Themenkarten mit Bezeichnung, Prüffrage, Reihenfolge, Pflichtfeldern und Belegarten kopiert. Änderungen oder Archivierungen im zentralen Katalog verändern eine bestehende Abstimmung nicht.
 
-Rechnungswesenstatus und Lohnstatus sind bewusst getrennt. Das Rechnungswesen arbeitet von `Offen` über `In Bearbeitung` und `Übergabebereit` bis `Vollständig übergeben`. Lohn arbeitet anschließend unabhängig mit `Neu`, `Gesehen`, `Rückfrage offen`, `Erledigt` oder optional `Storniert`. Die verknüpfte Rechnungswesenaufgabe wird bei der verbindlichen Gesamtübergabe erledigt. Spätere Lohnbearbeitung, Rückfragen oder Lohnerledigung blockieren und öffnen die Monatscheckliste nicht und ändern keinen Prüfstatus.
+Rechnungswesenstatus und Lohnstatus sind bewusst getrennt. Das Rechnungswesen arbeitet von `Offen` über `In Bearbeitung` und `Übergabebereit` bis `Vollständig übergeben`. Lohn arbeitet anschließend unabhängig mit `Neu`, `In Bearbeitung`, `Rückfrage offen` und `Erledigt`. Die Erstansicht wird technisch über Zeit und Benutzer protokolliert, ändert aber den fachlichen Status nicht. Die erste erfolgreiche Lohnhandlung startet automatisch `In Bearbeitung`. Die verknüpfte Rechnungswesenaufgabe wird bei der verbindlichen Gesamtübergabe erledigt. Spätere Lohnbearbeitung, Rückfragen oder Lohnerledigung blockieren und öffnen die Monatscheckliste nicht und ändern keinen Prüfstatus.
 
 Belege werden getrennt von Ordo Campus standardmäßig unter `storage/fibu-lohn` gespeichert. Zulässig sind PDF, DOCX, XLSX, PNG und JPG/JPEG bis 15 MB. Endung, MIME-Typ und grundlegende Dateisignatur werden serverseitig geprüft; physische UUID-Dateinamen und Pfadgrenzen verhindern die Offenlegung oder freie Wahl interner Speicherpfade. Das Datenmodell hält eine Dokumentenreferenz, sodass später ein DMS- oder Dokumentendienst angebunden werden kann, ohne die fachliche Themenbeziehung neu zu entwerfen.
 
@@ -441,14 +441,14 @@ Januarvorbereitungen werden als jährliche Rechnungswesenaufgaben mit Ausführun
 
 Mandantenspezifische wiederkehrende Aufgaben unterstützen dieselben Ausführungsrhythmen und Monatslisten. Einmalige Aufgaben behalten ihre feste Kombination aus Jahr und Monat.
 
-Bei **Nicht zutreffend** wird die Begründung nur nach Auswahl dieses Status eingeblendet und serverseitig verlangt. Eine gespeicherte Begründung bleibt bei späteren Statuswechseln erhalten und erscheint bei erneuter Auswahl wieder. **Aufgabe übertragen** ist als geschlossene Zusatzaktion ausgeführt; erst nach dem Öffnen erscheinen Begründung und Folgemonat.
+Bei **Nicht zutreffend** wird die Begründung nur nach Auswahl dieses Status eingeblendet und serverseitig verlangt. Eine gespeicherte Begründung bleibt bei späteren Statuswechseln erhalten und erscheint bei erneuter Auswahl wieder. **Übertragung vorschlagen** ist als geschlossene Zusatzaktion ausgeführt; erst nach dem Öffnen erscheinen Zielperiode, Begründung, erwartete Handlung und optionaler Hinweis.
 
 Bekannte Einschränkung: Die Ausführungsmonate beziehen sich in dieser Version auf das Kalenderjahr. Eine relative Verschiebung anhand eines abweichenden Wirtschaftsjahres ist noch nicht implementiert.
 ## Rechnungswesen–Lohn-Abstimmungen – Benutzeroberfläche
 
 Die FiBu-Lohn-Abstimmung ist als eigener, lokaler Arbeitsbereich integriert. Für Kanzleilohn-Mandanten wird bei der Erstellung einer Monatscheckliste genau eine Abstimmung für den vorgesehenen Lohnabrechnungsmonat angelegt. Die zugehörige Checklistenaufgabe zeigt Themenfortschritt, Sachverhalte, offene Rückfragen, Lohnzuständigkeit und den direkten Einstieg.
 
-Rechnungswesenbearbeiter prüfen sechs Themen bewusst einzeln. Vorhandene Sachverhalte werden mit themenspezifischen Angaben und geschützten Belegen erfasst. Erst die ausdrücklich bestätigte Gesamtübergabe erfüllt die Informationspflicht des Rechnungswesens. Der anschließende Lohnstatus (`Neu`, `Gesehen`, `Rückfrage offen`, `Erledigt`) verändert die abgeschlossene Rechnungswesenbearbeitung nicht.
+Rechnungswesenbearbeiter bearbeiten die sechs Themen und ihre Positionen lokal und speichern normale Formulardaten zentral über die Sticky-Leiste. Teilfehler lassen gültige Themen und Positionen bestehen; Konflikte überschreiben keine Eingaben. Upload, Archivierung, Fahrzeugstammdaten, Rückfragen, Gesamtübergabe und Lohnabschluss bleiben getrennt. Der anschließende Lohnstatus (`Neu`, `In Bearbeitung`, `Rückfrage offen`, `Erledigt`) verändert die abgeschlossene Rechnungswesenbearbeitung nicht.
 
 Lohnsachbearbeiter werden nach der Anmeldung direkt zu „Meine FiBu-Lohn-Abstimmungen“ geführt. Die Ansicht enthält Abrechnungsmonat, Mandantensuche, Statusfilter, Kennzahlen und direkte Links. Rückfragen führen zur betreffenden Themenkarte. Antworten und Nachreichungen öffnen die Monatscheckliste nicht wieder. Nach der Gesamtübergabe bleiben nachvollziehbare Ergänzungen und das kontrollierte Abschließen angekündigter Nachreichungen möglich; beide Aktionen werden gesondert protokolliert und verändern die ursprüngliche Übergabe nicht.
 
@@ -502,7 +502,7 @@ Die systemweite Prüfung aller bisherigen Module verwendet ausschließlich küns
 
 ```powershell
 # Löscht und erstellt ausschließlich die oben genannte Integrationsumgebung.
-# Alle 18 Migrationen, Seeds und die lesende Diagnose werden ausgeführt.
+# Alle 19 Migrationen, Seeds und die lesende Diagnose werden ausgeführt.
 npm.cmd run testdata:system-integration
 
 # Diagnose ohne Datenänderung
@@ -573,7 +573,7 @@ Normale Bearbeitungsfelder mehrerer Rechnungswesen- oder Jahresabschlussaufgaben
 
 Gültige Aufgaben werden auch dann gespeichert, wenn eine andere Aufgabe einen Validierungs-, Berechtigungs- oder Konfliktfehler besitzt. Erfolgreiche Serverantworten werden sofort zum neuen lokalen Ausgangszustand; fehlerhafte Eingaben bleiben sichtbar. `updatedAt` verhindert das stille Überschreiben zwischenzeitlicher Änderungen. Deshalb war keine Prisma-Migration erforderlich.
 
-Überträge, Rückfragen, Prüfungen, Statusübergaben, Abschlüsse, Uploads und FiBu-Lohn-Aktionen bleiben ausdrücklich getrennte Workflowaktionen. Offene normale Änderungen blockieren diese Aktionen. Interne Navigation und Browser-Verlassen warnen vor Datenverlust. `Strg + S` beziehungsweise `Cmd + S` löst die Sammelspeicherung aus.
+Übertragungsvorschläge, Rückfragen, Statusübergaben, Abschlüsse, Uploads und Fahrzeugänderungen bleiben ausdrücklich getrennte Workflowaktionen. Normale Prüfentscheidungen und normale Rechnungswesen–Lohn-Themen-/Positionsdaten besitzen eigene zentrale Sammelspeicherungen mit Teilresultaten und Konfliktschutz. Offene normale Änderungen blockieren getrennte Workflowaktionen. Interne Navigation und Browser-Verlassen warnen vor Datenverlust. `Strg + S` beziehungsweise `Cmd + S` löst die jeweilige Sammelspeicherung aus.
 
 Details: `docs/CHECKLISTEN_SAMMELSPEICHERUNG.md`.
 

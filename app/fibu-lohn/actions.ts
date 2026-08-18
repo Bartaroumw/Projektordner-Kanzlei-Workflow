@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireUser } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
 import {
   addPayrollReconciliationSupplement,
   answerPayrollQuestion,
@@ -11,7 +12,6 @@ import {
   completePayrollReconciliation,
   createPayrollQuestion,
   markPayrollItemProcessed,
-  markPayrollReconciliationSeen,
   PayrollReconciliationError,
   submitPayrollReconciliation,
   updatePayrollReconciliationItem,
@@ -20,9 +20,11 @@ import {
   savePayrollPosition,
   duplicatePayrollPosition,
   removePayrollPosition,
+  recordPayrollReconciliationView,
 } from "@/lib/payroll-reconciliation-service";
 import { archivePayrollDocument } from "@/lib/payroll-document-service";
 import { createClientVehicle, updateClientVehicle, type VehicleInput } from "@/lib/payroll-vehicle-service";
+import type { PayrollBatchChange,PayrollBatchSaveResult,PayrollBatchSaveResultItem } from "@/lib/payroll-batch";
 
 function text(formData:FormData,name:string){return String(formData.get(name)??"").trim()}
 export type PayrollFormState={error?:string;success?:string};
@@ -80,10 +82,46 @@ export async function savePayrollPositionAction(itemId:number,positionId:number|
       title:text(formData,"title"),caseCount:Number(text(formData,"caseCount"))||1,totalAmount:text(formData,"totalAmount"),
       period:text(formData,"period"),summary:text(formData,"summary"),people:text(formData,"people").split(/\r?\n/),
       details,requiredListType:text(formData,"requiredListType"),requiredListDocumentName:text(formData,"requiredListDocumentName"),
+      expectedUpdatedAt:text(formData,"expectedUpdatedAt")||undefined,
     },user);
     revalidatePath(`/fibu-lohn/${reconciliationId}`);
     redirect(target(reconciliationId,"position",undefined,itemId));
   }catch(error){if(isRedirect(error))throw error;redirect(target(reconciliationId,undefined,friendly(error),itemId))}
+}
+
+export async function savePayrollBatchAction(reconciliationId:number,change:PayrollBatchChange):Promise<PayrollBatchSaveResult>{
+  const user=await requireUser();const results:PayrollBatchSaveResultItem[]=[];
+  const itemIds=[...new Set([...change.positions.map(position=>position.itemId),...change.topics.map(topic=>topic.itemId)])];
+  const scopedItems=new Set((await prisma.payrollReconciliationItem.findMany({where:{id:{in:itemIds},reconciliationId},select:{id:true}})).map(item=>item.id));
+  const noMatterItems=new Set(change.topics.filter(topic=>topic.decision==="Kein relevanter Sachverhalt").map(topic=>topic.itemId));
+  for(const position of change.positions){
+    try{
+      if(!scopedItems.has(position.itemId))throw new PayrollReconciliationError("NOT_ALLOWED","Die Position gehört nicht zur geöffneten Abstimmung.");
+      if(noMatterItems.has(position.itemId))throw new PayrollReconciliationError("INVALID_INPUT","Zu einem Thema ohne relevanten Sachverhalt kann keine Position gespeichert werden.");
+      const saved=await savePayrollPosition(position.itemId,position.positionId,{positionType:position.positionType,title:position.title,caseCount:position.caseCount,totalAmount:position.totalAmount,period:position.period,summary:position.summary,people:position.people.split(/\r?\n/),details:position.details,requiredListType:position.requiredListType,requiredListDocumentName:position.requiredListDocumentName,expectedUpdatedAt:position.expectedUpdatedAt},user);
+      results.push({key:position.key,ok:true,code:"SAVED",message:"Gespeichert",savedPosition:{itemId:position.itemId,positionId:saved.id,positionType:position.positionType,title:saved.title,caseCount:saved.caseCount,totalAmount:position.totalAmount,period:position.period,summary:position.summary,people:position.people,details:position.details,requiredListType:position.requiredListType,requiredListDocumentName:position.requiredListDocumentName,updatedAt:saved.updatedAt.toISOString()}});
+    }catch(error){results.push(payrollBatchFailure(position.key,error))}
+  }
+  for(const topic of change.topics){
+    try{
+      if(!scopedItems.has(topic.itemId))throw new PayrollReconciliationError("NOT_ALLOWED","Das Thema gehört nicht zur geöffneten Abstimmung.");
+      const status=topic.decision==="Kein relevanter Sachverhalt"?"Kein Sachverhalt":topic.decision==="Sachverhalt vorhanden"?"Übergabe in Vorbereitung":"Noch nicht geprüft";
+      const saved=await updatePayrollReconciliationItem(topic.itemId,{status,note:topic.note,details:topic.details,documentToFollow:topic.documentToFollow,followUpReason:topic.followUpReason,expectedFollowUpAt:topic.expectedFollowUpAt?new Date(`${topic.expectedFollowUpAt}T00:00:00.000Z`):null,missingDocumentType:topic.missingDocumentType,expectedUpdatedAt:topic.expectedUpdatedAt},user);
+      results.push({key:`topic:${topic.itemId}`,ok:true,code:"SAVED",message:"Gespeichert",savedTopic:{decision:topic.decision,note:topic.note,details:topic.details,documentToFollow:topic.documentToFollow,followUpReason:topic.followUpReason,expectedFollowUpAt:topic.expectedFollowUpAt,missingDocumentType:topic.missingDocumentType,updatedAt:saved.updatedAt.toISOString()}});
+    }catch(error){results.push(payrollBatchFailure(`topic:${topic.itemId}`,error))}
+  }
+  if(results.some(result=>result.ok))revalidatePath(`/fibu-lohn/${reconciliationId}`);
+  return{results};
+}
+
+function payrollBatchFailure(key:string,error:unknown):PayrollBatchSaveResultItem{
+  const code=error instanceof PayrollReconciliationError?error.code:"";
+  return{key,ok:false,code:code==="CONFLICT"?"CONFLICT":code==="NOT_FOUND"?"NOT_FOUND":code==="NOT_ALLOWED"?"FORBIDDEN":["INVALID_INPUT","INCOMPLETE"].includes(code)?"VALIDATION":"TECHNICAL",message:friendly(error)};
+}
+
+export async function recordPayrollViewAction(reconciliationId:number){
+  const user=await requireUser();
+  try{await recordPayrollReconciliationView(reconciliationId,user);revalidatePath(`/fibu-lohn/${reconciliationId}`)}catch(error){if(error instanceof PayrollReconciliationError&&error.code==="NOT_ALLOWED")throw error;}
 }
 
 export async function duplicatePayrollPositionAction(positionId:number,itemId:number){
@@ -102,11 +140,6 @@ export async function submitPayrollAction(reconciliationId:number,formData:FormD
   const user=await requireUser();
   if(formData.get("confirmed")!=="on")redirect(target(reconciliationId,undefined,"Bitte bestätigen Sie die verbindliche Gesamtübergabe."));
   try{await submitPayrollReconciliation(reconciliationId,user);revalidatePath(`/fibu-lohn/${reconciliationId}`);redirect(target(reconciliationId,"uebergeben"))}
-  catch(error){if(isRedirect(error))throw error;redirect(target(reconciliationId,undefined,friendly(error)))}
-}
-export async function markSeenAction(reconciliationId:number){
-  const user=await requireUser();
-  try{await markPayrollReconciliationSeen(reconciliationId,user);revalidatePath(`/fibu-lohn/${reconciliationId}`);redirect(target(reconciliationId,"gesehen"))}
   catch(error){if(isRedirect(error))throw error;redirect(target(reconciliationId,undefined,friendly(error)))}
 }
 export async function markProcessedAction(itemId:number){

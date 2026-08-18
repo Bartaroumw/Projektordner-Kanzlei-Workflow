@@ -11,7 +11,7 @@ import { FIBU_LOHN_COLLECTION_TOPIC_KEYS } from "./fibu-lohn-topic-catalog.ts";
 export const PAYROLL_RECONCILIATION_KNOWLEDGE_KEY = "FIBU_LOHN_ABSTIMMUNG";
 export const PAYROLL_TOPIC_STATUSES = ["Noch nicht geprüft", "Kein Sachverhalt", "Übergabe in Vorbereitung", "Vollständig an Lohn übergeben"] as const;
 export const PAYROLL_ACCOUNTING_STATUSES = ["Offen", "In Bearbeitung", "Übergabebereit", "Vollständig übergeben"] as const;
-export const PAYROLL_STATUSES = ["Neu", "Gesehen", "Rückfrage offen", "Erledigt", "Storniert"] as const;
+export const PAYROLL_STATUSES = ["Neu", "In Bearbeitung", "Rückfrage offen", "Erledigt"] as const;
 export const PAYROLL_USER_DECISIONS = ["Noch nicht geprüft", "Kein relevanter Sachverhalt", "Sachverhalt vorhanden"] as const;
 export const PAYROLL_COLLECTION_TOPICS = new Set<string>(FIBU_LOHN_COLLECTION_TOPIC_KEYS);
 
@@ -45,6 +45,7 @@ export class PayrollReconciliationError extends Error {
       | "TOPICS_MISSING"
       | "DUPLICATE"
       | "INCOMPLETE"
+      | "CONFLICT"
       | "NOT_FOUND",
     message: string,
   ) {
@@ -192,6 +193,7 @@ export async function createPayrollReconciliationForChecklist(
   if(!period)throw new PayrollReconciliationError("NOT_FOUND","Die Monatscheckliste wurde nicht gefunden.");
   const client=period.client;
   if(!client.payrollPreparedByFirm)throw new PayrollReconciliationError("CLIENT_NOT_CONFIGURED","Für diesen Mandanten wird keine Lohnabrechnung durch die Kanzlei erstellt.");
+  if(client.payrollServiceStart){const start=client.payrollServiceStart.getUTCFullYear()*12+client.payrollServiceStart.getUTCMonth()+1,current=period.calendarYear*12+period.month;if(current<start)throw new PayrollReconciliationError("CLIENT_NOT_CONFIGURED","Der Rechnungswesenmonat liegt vor dem Beginn der Lohnbetreuung.");}
   const payrollUser=client.payrollUser;
   if(!client.payrollUserId||!payrollUser?.active||!payrollUser.roles.some(role=>role.role==="LOHNSACHBEARBEITER"))throw new PayrollReconciliationError("ASSIGNEE_MISSING","Ein aktiver Lohnsachbearbeiter mit entsprechender Rolle ist erforderlich.");
   const target=payrollTarget??nextPayrollMonth(period.calendarYear,period.month);
@@ -206,14 +208,16 @@ export async function createPayrollReconciliationForChecklist(
 
 export async function updatePayrollReconciliationItem(
   itemId:number,
-  input:{status:string;note?:string;details?:Record<string,unknown>;documentToFollow?:boolean;followUpReason?:string;expectedFollowUpAt?:Date|null;missingDocumentType?:string},
+  input:{status:string;note?:string;details?:Record<string,unknown>;documentToFollow?:boolean;followUpReason?:string;expectedFollowUpAt?:Date|null;missingDocumentType?:string;expectedUpdatedAt?:string},
   user:AuthUser,
 ) {
   if(!PAYROLL_TOPIC_STATUSES.includes(input.status as typeof PAYROLL_TOPIC_STATUSES[number]))throw new PayrollReconciliationError("INVALID_INPUT","Der Themenstatus ist ungültig.");
   const item=await prisma.payrollReconciliationItem.findUnique({where:{id:itemId},include:{reconciliation:true,documents:{where:{status:"Aktiv"}},positions:{where:{status:{not:"Archiviert"}}}}});
   if(!item)throw new PayrollReconciliationError("NOT_FOUND","Das Abstimmungsthema wurde nicht gefunden.");
+  if(input.expectedUpdatedAt&&item.updatedAt.toISOString()!==input.expectedUpdatedAt)throw new PayrollReconciliationError("CONFLICT",`Das Thema „${item.topicTitleSnapshot}“ wurde zwischenzeitlich geändert. Ihre Eingaben wurden nicht überschrieben.`);
   if(!canProcessPayrollReconciliation(user,item.reconciliation))throw new PayrollReconciliationError("NOT_ALLOWED","Sie dürfen dieses Abstimmungsthema nicht bearbeiten.");
   if(item.reconciliation.accountingStatus==="Vollständig übergeben")throw new PayrollReconciliationError("INVALID_INPUT","Eine bereits vollständig übergebene Abstimmung kann nicht nachträglich geändert werden.");
+  if(input.status==="Kein Sachverhalt"&&item.positions.length)throw new PayrollReconciliationError("INVALID_INPUT","Ein Thema mit vorhandenen Sachverhaltspositionen kann nicht als „Kein Sachverhalt“ gespeichert werden. Entfernen oder archivieren Sie zuerst die Positionen.");
   if(input.status==="Vollständig an Lohn übergeben"){
     const check=validateTopicCompleteness({
       ...item,status:input.status,detailsJson:JSON.stringify(input.details??readDetails(item.detailsJson)),
@@ -224,12 +228,14 @@ export async function updatePayrollReconciliationItem(
   }
   const matterPresent=input.status==="Kein Sachverhalt"?"Nein":input.status==="Noch nicht geprüft"?"Noch offen":"Ja";
   return prisma.$transaction(async tx=>{
-    const updated=await tx.payrollReconciliationItem.update({where:{id:item.id},data:{
+    const write=await tx.payrollReconciliationItem.updateMany({where:{id:item.id,updatedAt:item.updatedAt},data:{
       status:input.status,matterPresent,note:input.note?.trim()||null,detailsJson:input.details?JSON.stringify(input.details):item.detailsJson,
       processedByUserId:user.id,reviewedAt:new Date(),fullyTransferredAt:input.status==="Vollständig an Lohn übergeben"?new Date():null,
       documentToFollow:Boolean(input.documentToFollow),followUpReason:input.followUpReason?.trim()||null,
       expectedFollowUpAt:input.expectedFollowUpAt??null,missingDocumentType:input.missingDocumentType?.trim()||null,
     }});
+    if(write.count!==1)throw new PayrollReconciliationError("CONFLICT",`Das Thema „${item.topicTitleSnapshot}“ wurde zwischenzeitlich geändert. Ihre Eingaben wurden nicht überschrieben.`);
+    const updated=await tx.payrollReconciliationItem.findUniqueOrThrow({where:{id:item.id}});
     await tx.payrollReconciliationHistory.create({data:{reconciliationId:item.reconciliationId,reconciliationItemId:item.id,actorUserId:user.id,actorNameSnapshot:user.fullName,actorDepartment:"Rechnungswesen",action:"Thema geprüft",summary:`Thema „${item.topicTitleSnapshot}“ wurde auf „${input.status}“ gesetzt.`,previousValue:item.status,newValue:input.status}});
     if(input.status==="Übergabe in Vorbereitung"&&item.positions.length)await refreshPositionBasedTopicStatus(tx,item.id);
     await updateAccountingSummary(tx,item.reconciliationId);
@@ -248,6 +254,7 @@ export type PayrollPositionInput = {
   details?: Record<string, unknown>;
   requiredListType?: string;
   requiredListDocumentName?: string;
+  expectedUpdatedAt?:string;
 };
 
 export function validatePayrollPositionInput(
@@ -311,6 +318,7 @@ export async function savePayrollPosition(
     ? await prisma.payrollReconciliationPosition.findFirst({ where: { id: positionId, reconciliationItemId: itemId } })
     : null;
   if (positionId && !existing) throw new PayrollReconciliationError("NOT_FOUND", "Die Position wurde nicht gefunden.");
+  if(existing&&input.expectedUpdatedAt&&existing.updatedAt.toISOString()!==input.expectedUpdatedAt)throw new PayrollReconciliationError("CONFLICT",`Die Position „${existing.title}“ wurde zwischenzeitlich geändert. Ihre Eingaben wurden nicht überschrieben.`);
   const data = validatePayrollPositionInput(item.topicKeySnapshot, input, parseConfiguredList(item.requiredFieldsSnapshot));
   const requiredListUploaded = existing && data.requiredListType
     ? await prisma.payrollDocumentReference.count({
@@ -327,8 +335,9 @@ export async function savePayrollPosition(
     status: data.requiredListType && !requiredListUploaded ? "Entwurf" : validatedPositionData.status,
   };
   return prisma.$transaction(async (tx) => {
+    if(existing){const write=await tx.payrollReconciliationPosition.updateMany({where:{id:existing.id,updatedAt:existing.updatedAt},data:{...positionData,updatedByUserId:user.id}});if(write.count!==1)throw new PayrollReconciliationError("CONFLICT",`Die Position „${existing.title}“ wurde zwischenzeitlich geändert. Ihre Eingaben wurden nicht überschrieben.`)}
     const position = existing
-      ? await tx.payrollReconciliationPosition.update({ where: { id: existing.id }, data: { ...positionData, updatedByUserId: user.id } })
+      ? await tx.payrollReconciliationPosition.findUniqueOrThrow({where:{id:existing.id}})
       : await tx.payrollReconciliationPosition.create({ data: { ...positionData, reconciliationItemId: item.id, createdByUserId: user.id, updatedByUserId: user.id } });
     await tx.payrollReconciliationItem.update({
       where: { id: item.id },
@@ -504,14 +513,22 @@ export async function submitPayrollReconciliation(reconciliationId:number,user:A
   });
 }
 
-export async function markPayrollReconciliationSeen(reconciliationId:number,user:AuthUser){
+export async function recordPayrollReconciliationView(reconciliationId:number,user:AuthUser){
   const reconciliation=await requirePayrollAssignment(reconciliationId,user);
   if(reconciliation.accountingStatus!=="Vollständig übergeben")throw new PayrollReconciliationError("INVALID_INPUT","Die Abstimmung wurde noch nicht vollständig an Lohn übergeben.");
   return prisma.$transaction(async tx=>{
-    const updated=await tx.payrollReconciliation.update({where:{id:reconciliation.id},data:{payrollStatus:"Gesehen",seenAt:new Date()}});
-    await addHistory(tx,reconciliation.id,user,"Abstimmung gesehen","Die Lohnabteilung hat die Abstimmung als gesehen markiert.",reconciliation.payrollStatus,"Gesehen");
+    const now=new Date();
+    const first=await tx.payrollReconciliation.updateMany({where:{id:reconciliation.id,firstViewedAt:null},data:{firstViewedAt:now,firstViewedByUserId:user.id,seenAt:now,lastViewedAt:now}});
+    const updated=first.count?await tx.payrollReconciliation.findUniqueOrThrow({where:{id:reconciliation.id}}):await tx.payrollReconciliation.update({where:{id:reconciliation.id},data:{lastViewedAt:now}});
+    if(first.count)await addHistory(tx,reconciliation.id,user,"Erstansicht durch Lohn","Die Abstimmung wurde erstmals vom zugeordneten Lohnsachbearbeiter geöffnet.",null,now.toISOString());
     return updated;
   });
+}
+
+async function ensurePayrollProcessingStarted(tx:ReconciliationTransaction,reconciliation:{id:number;payrollStatus:string},user:AuthUser){
+  if(reconciliation.payrollStatus!=="Neu")return;
+  const started=await tx.payrollReconciliation.updateMany({where:{id:reconciliation.id,payrollStatus:"Neu"},data:{payrollStatus:"In Bearbeitung"}});
+  if(started.count)await addHistory(tx,reconciliation.id,user,"Lohnbearbeitung automatisch begonnen","Die Lohnbearbeitung wurde mit der ersten fachlichen Lohnaktion automatisch begonnen.","Neu","In Bearbeitung");
 }
 
 export async function createPayrollQuestion(itemId:number,message:string,user:AuthUser){
@@ -521,6 +538,7 @@ export async function createPayrollQuestion(itemId:number,message:string,user:Au
   if(!canHandlePayrollReconciliation(user,item.reconciliation))throw new PayrollReconciliationError("NOT_ALLOWED","Nur der zugeordnete Lohnsachbearbeiter darf eine Rückfrage stellen.");
   if(!item.reconciliation.processorUserId)throw new PayrollReconciliationError("ASSIGNEE_MISSING","Der ursprüngliche Rechnungswesenbearbeiter fehlt.");
   return prisma.$transaction(async tx=>{
+    await ensurePayrollProcessingStarted(tx,item.reconciliation,user);
     const question=await tx.payrollReconciliationQuestion.create({data:{reconciliationId:item.reconciliationId,reconciliationItemId:item.id,senderUserId:user.id,recipientUserId:item.reconciliation.processorUserId!,senderDepartment:"Lohn",recipientDepartment:"Rechnungswesen",message:text}});
     await tx.payrollReconciliation.update({where:{id:item.reconciliationId},data:{payrollStatus:"Rückfrage offen"}});
     await addHistory(tx,item.reconciliationId,user,"Rückfrage gestellt",`Rückfrage zu „${item.topicTitleSnapshot}“ gestellt.`,null,"Offen beim Rechnungswesen",item.id);
@@ -538,7 +556,7 @@ export async function answerPayrollQuestion(questionId:number,answer:string,user
     const otherOpenQuestions=await tx.payrollReconciliationQuestion.count({where:{
       reconciliationId:question.reconciliationId,id:{not:question.id},status:"Offen beim Rechnungswesen",
     }});
-    await tx.payrollReconciliation.update({where:{id:question.reconciliationId},data:{payrollStatus:otherOpenQuestions?"Rückfrage offen":"Gesehen"}});
+    await tx.payrollReconciliation.update({where:{id:question.reconciliationId},data:{payrollStatus:otherOpenQuestions?"Rückfrage offen":"In Bearbeitung"}});
     await addHistory(tx,question.reconciliationId,user,"Rückfrage beantwortet",`Rückfrage zu „${question.reconciliationItem.topicTitleSnapshot}“ beantwortet.`,"Offen beim Rechnungswesen","Beantwortet",question.reconciliationItemId);
     return updated;
   });
@@ -550,7 +568,10 @@ export async function completePayrollQuestion(questionId:number,user:AuthUser){
   if(!canHandlePayrollReconciliation(user,question.reconciliation))throw new PayrollReconciliationError("NOT_ALLOWED","Sie dürfen diese Rückfrage nicht erledigen.");
   if(question.status!=="Beantwortet")throw new PayrollReconciliationError("INVALID_INPUT","Die Rückfrage wurde noch nicht beantwortet.");
   return prisma.$transaction(async tx=>{
+    await ensurePayrollProcessingStarted(tx,question.reconciliation,user);
     const updated=await tx.payrollReconciliationQuestion.update({where:{id:question.id},data:{status:"Erledigt durch Lohn",completedAt:new Date()}});
+    const remaining=await tx.payrollReconciliationQuestion.count({where:{reconciliationId:question.reconciliationId,id:{not:question.id},status:{not:"Erledigt durch Lohn"}}});
+    if(!remaining)await tx.payrollReconciliation.update({where:{id:question.reconciliationId},data:{payrollStatus:"In Bearbeitung"}});
     await addHistory(tx,question.reconciliationId,user,"Rückfrage erledigt","Die Rückfrage wurde durch Lohn erledigt.","Beantwortet","Erledigt durch Lohn",question.reconciliationItemId);
     return updated;
   });
@@ -562,6 +583,7 @@ export async function markPayrollItemProcessed(itemId:number,user:AuthUser){
   if(!canHandlePayrollReconciliation(user,item.reconciliation))throw new PayrollReconciliationError("NOT_ALLOWED","Sie dürfen dieses Thema nicht als verarbeitet markieren.");
   if(item.status==="Übergabe in Vorbereitung"||item.status==="Noch nicht geprüft")throw new PayrollReconciliationError("INVALID_INPUT","Das Thema wurde vom Rechnungswesen noch nicht vollständig übergeben.");
   return prisma.$transaction(async tx=>{
+    await ensurePayrollProcessingStarted(tx,item.reconciliation,user);
     const updated=await tx.payrollReconciliationItem.update({where:{id:item.id},data:{payrollProcessingStatus:"Verarbeitet",payrollProcessedAt:new Date()}});
     await addHistory(tx,item.reconciliationId,user,"Thema verarbeitet",`Thema „${item.topicTitleSnapshot}“ wurde durch Lohn verarbeitet.`,item.payrollProcessingStatus,"Verarbeitet",item.id);
     return updated;
@@ -607,6 +629,7 @@ export async function completePayrollReconciliation(reconciliationId:number,user
   if(reconciliation.items.some(item=>item.documentToFollow))throw new PayrollReconciliationError("INCOMPLETE","Mindestens eine angekündigte Nachreichung ist noch nicht fachlich abgeschlossen.");
   if(reconciliation.items.some(item=>item.status==="Vollständig an Lohn übergeben"&&item.payrollProcessingStatus!=="Verarbeitet"))throw new PayrollReconciliationError("INCOMPLETE","Noch nicht alle übergebenen Themen wurden durch Lohn verarbeitet.");
   return prisma.$transaction(async tx=>{
+    await ensurePayrollProcessingStarted(tx,reconciliation,user);
     const updated=await tx.payrollReconciliation.update({where:{id:reconciliation.id},data:{payrollStatus:"Erledigt",completedAt:new Date()}});
     await addHistory(tx,reconciliation.id,user,"Abstimmung durch Lohn erledigt","Die Lohnabteilung hat die monatliche Abstimmung erledigt.",reconciliation.payrollStatus,"Erledigt");
     return updated;

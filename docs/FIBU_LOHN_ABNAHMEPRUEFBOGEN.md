@@ -15,7 +15,7 @@ Fehlerklassen:
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | 1 | Rechnungswesen | 92001 | dynamischer Vormonat | Übergabebereit | Abstimmung öffnen | Sechs Themen, drei Sachverhalte und drei Negativentscheidungen sichtbar |  | ☐ |  |  |  |
 | 2 | Rechnungswesen | 92001 | Vormonat | Übergabebereit | Gesamtübergabe bestätigen | Rechnungswesenstatus vollständig übergeben, Lohnstatus Neu |  | ☐ |  |  |  |
-| 3 | Lohn | 92002 | Vormonat/Folgemonat | Neu | Als gesehen markieren | Lohnstatus Gesehen, Rechnungswesenstatus unverändert |  | ☐ |  |  |  |
+| 3 | Lohn | 92002 | Vormonat/Folgemonat | Neu | Abstimmung öffnen | `firstViewedAt` und Benutzer einmalig gesetzt, Lohnstatus bleibt Neu, kein Gesehen-Button |  | ☐ |  |  |  |
 | 4 | Lohn | 92003 | Vormonat/Folgemonat | Rückfrage offen | Rückfrage prüfen | Richtige Themenkarte, Absender und Empfänger |  | ☐ |  |  |  |
 | 5 | Rechnungswesen | 92003 | Vormonat | abgeschlossen/übergeben | Rückfrage beantworten | Antwort gespeichert, Monatscheckliste bleibt geschlossen |  | ☐ |  |  |  |
 | 6 | Lohn | 92003 | Vormonat/Folgemonat | Beantwortet | Rückfrage schließen | Status Erledigt durch Lohn |  | ☐ |  |  |  |

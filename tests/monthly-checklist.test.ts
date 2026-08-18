@@ -6,6 +6,7 @@ import {
   createMonthlyPeriod,
   addMissingStandardTasks,
   customTaskMatches,
+  payrollServiceApplies,
   standardTaskMatches,
   updateChecklistTask,
 } from "@/lib/monthly-checklist-service";
@@ -140,7 +141,6 @@ describe("Perioden und Snapshots", () => {
       where: { id: clientId },
       data: { payrollPreparedByFirm: true, payrollUserId: payrollUser.id },
     });
-    await prisma.annualProfile.updateMany({ where: { clientId }, data: { hasPayroll: true } });
     const period = await createMonthlyPeriod(clientId, 2026, 1);
     const payrollTemplate = await createTask({
       taskId: "TEST-FIBU-LOHN-UEBERNAHME",
@@ -182,10 +182,29 @@ describe("Perioden und Snapshots", () => {
     expect(reconciliation.payrollYear).toBe(2026);
     expect(reconciliation.payrollMonth).toBe(2);
     expect(reconciliation.items).toHaveLength(6);
+    expect((await prisma.annualProfile.findFirstOrThrow({where:{clientId}})).hasPayroll).toBe(false);
+  });
+
+  it("steuert Kanzleilohn unabhängig vom Jahresprofil und mit optionalem Beginn",()=>{
+    expect(payrollServiceApplies({payrollPreparedByFirm:true,payrollServiceStart:null},2026,1)).toBe(true);
+    expect(payrollServiceApplies({payrollPreparedByFirm:false,payrollServiceStart:null},2026,1)).toBe(false);
+    expect(payrollServiceApplies({payrollPreparedByFirm:true,payrollServiceStart:new Date("2026-07-01T00:00:00.000Z")},2026,6)).toBe(false);
+    expect(payrollServiceApplies({payrollPreparedByFirm:true,payrollServiceStart:new Date("2026-07-01T00:00:00.000Z")},2026,7)).toBe(true);
   });
 });
 
 describe("Mandantenspezifische Aufgaben und Bearbeitung", () => {
+  it("beginnt die Bearbeitung erst mit der ersten tatsächlichen Änderung und protokolliert sie nur einmal",async()=>{
+    await createTask();
+    const period=await createMonthlyPeriod(clientId,2026,1);
+    const task=await prisma.checklistTask.findFirstOrThrow({where:{periodId:period.id}});
+    await updateChecklistTask(task.id,{status:"Offen",processingNote:"",processorInitials:"Test Person",notApplicableReason:""});
+    expect((await prisma.accountingPeriod.findUniqueOrThrow({where:{id:period.id}})).processingStatus).toBe("Offen");
+    await updateChecklistTask(task.id,{status:"In Bearbeitung",processingNote:"Künstliche Bearbeitung",processorInitials:"Test Person",notApplicableReason:""});
+    await updateChecklistTask(task.id,{status:"Erledigt",processingNote:"Künstliche Bearbeitung",processorInitials:"Test Person",notApplicableReason:""});
+    expect((await prisma.accountingPeriod.findUniqueOrThrow({where:{id:period.id}})).processingStatus).toBe("In Bearbeitung");
+    expect(await prisma.workflowHistory.count({where:{periodId:period.id,eventType:"Bearbeitung automatisch begonnen"}})).toBe(1);
+  });
   it("nimmt eine monatliche mandantenspezifische Aufgabe auf", async () => {
     const task = await customTask("Wiederkehrend monatlich");
     expect(customTaskMatches(task, "monatlich", 2026, 2)).toBe(true);

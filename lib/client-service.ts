@@ -38,11 +38,13 @@ function translatePrismaError(error: unknown): never {
   throw error;
 }
 
-export async function createClient(input: ClientInput, actor?:AuthUser) {
+export async function createClient(input: ClientInput, actor?:AuthUser,annualProfile?:AnnualProfileInput|null) {
   const parsed = clientSchema.safeParse(input);
   if (!parsed.success) {
     throw new DomainError(parsed.error.issues[0].message, "INVALID_INPUT");
   }
+  const parsedAnnual=annualProfile?annualProfileSchema.safeParse(annualProfile):null;
+  if(parsedAnnual&&!parsedAnnual.success)throw new DomainError(parsedAnnual.error.issues[0].message,"INVALID_INPUT");
   try {
     const data=await resolvedClientData(parsed.data);
     return await prisma.$transaction(async tx=>{
@@ -55,6 +57,7 @@ export async function createClient(input: ClientInput, actor?:AuthUser) {
           validUntil:data.payrollServiceEnd,note:data.payrollResponsibilityNote,changedByUserId:actor.id,
         }});
       }
+      if(parsedAnnual?.success)await tx.annualProfile.create({data:{...parsedAnnual.data,clientId:client.id}});
       return client;
     });
   } catch (error) {
@@ -70,7 +73,8 @@ export async function updateClient(id: number, input: ClientInput, actor?:AuthUs
   try {
     const existing=await prisma.client.findUnique({where:{id}});
     if(!existing)throw new DomainError("Der Mandant wurde nicht gefunden.","NOT_FOUND");
-    const data=await resolvedClientData(parsed.data);
+    const payrollServiceEnd=parsed.data.payrollPreparedByFirm?null:existing.payrollPreparedByFirm?new Date():existing.payrollServiceEnd;
+    const data=await resolvedClientData({...parsed.data,payrollServiceEnd});
     return await prisma.$transaction(async tx=>{
       const client=await tx.client.update({where:{id},data});
       const changed=existing.payrollPreparedByFirm!==data.payrollPreparedByFirm||existing.payrollUserId!==data.payrollUserId||

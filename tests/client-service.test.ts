@@ -80,6 +80,21 @@ describe("Mandantenregeln", () => {
 });
 
 describe("Jahresprofilregeln", () => {
+  it("legt Mandant und Jahresprofil in einem gemeinsamen Vorgang an",async()=>{
+    const client=await createClient(baseClient,undefined,baseProfile);
+    expect(await prisma.annualProfile.findUnique({where:{clientId_calendarYear:{clientId:client.id,calendarYear:baseProfile.calendarYear}}})).toMatchObject({legalFormGroup:baseProfile.legalFormGroup,profitDeterminationMethod:baseProfile.profitDeterminationMethod});
+  });
+
+  it("hinterlässt bei einem ungültigen direkten Jahresprofil keinen halbfertigen Mandanten",async()=>{
+    await expect(createClient(baseClient,undefined,{...baseProfile,legalFormGroup:"Kapitalgesellschaft",profitDeterminationMethod:"Einnahmenüberschussrechnung"})).rejects.toMatchObject({code:"INVALID_INPUT"});
+    expect(await prisma.client.count({where:{clientNumber:baseClient.clientNumber}})).toBe(0);
+  });
+
+  it("erlaubt die bewusste Mandantenanlage ohne Jahresprofil",async()=>{
+    const client=await createClient(baseClient);
+    expect(await prisma.annualProfile.count({where:{clientId:client.id}})).toBe(0);
+  });
+
   it("erlaubt pro Mandant und Kalenderjahr nur ein Jahresprofil", async () => {
     const client = await createClient(baseClient);
     await createAnnualProfile(client.id, baseProfile);

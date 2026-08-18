@@ -1,6 +1,6 @@
 import { rm } from "node:fs/promises";
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
-import { createClient } from "@/lib/client-service";
+import { createClient,updateClient } from "@/lib/client-service";
 import { createMonthlyPeriod } from "@/lib/monthly-checklist-service";
 import {
   archivePayrollDocument,
@@ -18,7 +18,7 @@ import {
   createPayrollReconciliationForChecklist,
   createPayrollTopic,
   markPayrollItemProcessed,
-  markPayrollReconciliationSeen,
+  recordPayrollReconciliationView,
   submitPayrollReconciliation,
   updatePayrollReconciliationItem,
   updatePayrollTopic,
@@ -165,6 +165,25 @@ describe("Mandantenkonfiguration und Snapshots",()=>{
     expect(await prisma.payrollReconciliation.count({where:{accountingPeriodId:period.id}})).toBe(0);
   });
 
+  it("berücksichtigt den optionalen Beginn monatsgenau",async()=>{
+    await prisma.client.update({where:{id:clientId},data:{payrollServiceStart:new Date("2026-07-01T00:00:00.000Z")}});
+    const june=await createMonthlyPeriod(clientId,2026,6,{administrativeException:true,actorName:management.fullName,reason:"Künstlicher Beginn-Test."});
+    expect(await prisma.payrollReconciliation.count({where:{accountingPeriodId:june.id}})).toBe(0);
+    const july=await createMonthlyPeriod(clientId,2026,7,{administrativeException:true,actorName:management.fullName,reason:"Künstlicher Beginn-Test."});
+    expect(await prisma.payrollReconciliation.count({where:{accountingPeriodId:july.id}})).toBe(1);
+  });
+
+  it("protokolliert Deaktivierung und Reaktivierung, ohne historische Abstimmungen zu löschen",async()=>{
+    const {reconciliation}=await periodAndReconciliation();
+    const base={clientNumber:"L-TEST",name:"Künstlicher FiBu-Lohn-Mandant",processor:processor.fullName,reviewer:reviewer.fullName,managementName:management.fullName,processorUserId:processor.id,reviewerUserId:reviewer.id,managementUserId:management.id,payrollUserId:payroll.id,payrollServiceStart:null,payrollServiceEnd:null,payrollResponsibilityNote:"Künstlicher Test",vatFilingPeriod:"Monatlich" as const,active:true,internalNote:null};
+    await updateClient(clientId,{...base,payrollPreparedByFirm:false},processor);
+    expect((await prisma.client.findUniqueOrThrow({where:{id:clientId}})).payrollServiceEnd).not.toBeNull();
+    expect(await prisma.payrollReconciliation.count({where:{id:reconciliation.id}})).toBe(1);
+    await updateClient(clientId,{...base,payrollPreparedByFirm:true},processor);
+    expect((await prisma.client.findUniqueOrThrow({where:{id:clientId}})).payrollServiceEnd).toBeNull();
+    expect(await prisma.clientPayrollResponsibilityHistory.count({where:{clientId}})).toBe(2);
+  });
+
   it("verlangt bei Kanzleilohn einen aktiven Lohnsachbearbeiter",async()=>{
     await expect(createClient({
       clientNumber:"L-FEHLT",name:"Künstlich ohne Lohnzuständigkeit",processor:null,reviewer:null,managementName:null,
@@ -201,6 +220,22 @@ describe("Mandantenkonfiguration und Snapshots",()=>{
 });
 
 describe("Rechnungswesen- und Lohnstatus",()=>{
+  it("protokolliert die Erstansicht einmalig ohne den fachlichen Status zu verändern und startet erst bei Bearbeitung",async()=>{
+    const {reconciliation}=await periodAndReconciliation();
+    await makeReady(reconciliation.id);
+    await submitPayrollReconciliation(reconciliation.id,processor);
+    await recordPayrollReconciliationView(reconciliation.id,payroll);
+    const viewed=await prisma.payrollReconciliation.findUniqueOrThrow({where:{id:reconciliation.id}});
+    expect(viewed).toMatchObject({payrollStatus:"Neu",firstViewedByUserId:payroll.id});
+    expect(viewed.firstViewedAt).not.toBeNull();
+    await recordPayrollReconciliationView(reconciliation.id,payroll);
+    const viewedAgain=await prisma.payrollReconciliation.findUniqueOrThrow({where:{id:reconciliation.id}});
+    expect(viewedAgain.firstViewedAt?.getTime()).toBe(viewed.firstViewedAt?.getTime());
+    expect(await prisma.payrollReconciliationHistory.count({where:{reconciliationId:reconciliation.id,action:"Erstansicht durch Lohn"}})).toBe(1);
+    await markPayrollItemProcessed(reconciliation.items[0].id,payroll);
+    expect((await prisma.payrollReconciliation.findUniqueOrThrow({where:{id:reconciliation.id}})).payrollStatus).toBe("In Bearbeitung");
+    expect(await prisma.payrollReconciliationHistory.count({where:{reconciliationId:reconciliation.id,action:"Lohnbearbeitung automatisch begonnen"}})).toBe(1);
+  });
   it("startet alle aktiven Themen ungeprüft und lässt archivierte Themen aus",async()=>{
     const {reconciliation}=await periodAndReconciliation();
     expect(reconciliation.items).toHaveLength(2);
@@ -239,7 +274,7 @@ describe("Rechnungswesen- und Lohnstatus",()=>{
     await submitPayrollReconciliation(reconciliation.id,processor);
     const periodStatusBefore=(await prisma.accountingPeriod.findUniqueOrThrow({where:{id:period.id}})).processingStatus;
     const taskBefore=await prisma.checklistTask.findUniqueOrThrow({where:{id:reconciliation.checklistTaskId}});
-    await markPayrollReconciliationSeen(reconciliation.id,payroll);
+    await recordPayrollReconciliationView(reconciliation.id,payroll);
     await completePayrollReconciliation(reconciliation.id,payroll);
     const periodAfter=await prisma.accountingPeriod.findUniqueOrThrow({where:{id:period.id}});
     const taskAfter=await prisma.checklistTask.findUniqueOrThrow({where:{id:reconciliation.checklistTaskId}});
@@ -273,7 +308,7 @@ describe("Berechtigungen, Fahrzeuge und Belege",()=>{
     expect(canReviewPayrollReconciliation(reviewer,reconciliation)).toBe(true);
     expect(canHandlePayrollReconciliation(payroll,reconciliation)).toBe(true);
     expect(canHandlePayrollReconciliation(administrator,reconciliation)).toBe(false);
-    await expect(markPayrollReconciliationSeen(reconciliation.id,processor)).rejects.toMatchObject({code:"NOT_ALLOWED"});
+    await expect(recordPayrollReconciliationView(reconciliation.id,processor)).rejects.toMatchObject({code:"NOT_ALLOWED"});
     await expect(updatePayrollReconciliationItem(reconciliation.items[0].id,{status:"Kein Sachverhalt"},payroll))
       .rejects.toMatchObject({code:"NOT_ALLOWED"});
   });

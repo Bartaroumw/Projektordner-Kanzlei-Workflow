@@ -3,11 +3,12 @@
 ## Regression Mandant 10000
 
 1. Mandant 10000, Checkliste Februar 2026 als Peter Prüfer öffnen.
-2. Prüfung beginnen und kontrollieren, dass jede Aufgabe zunächst `Nicht geprüft` ist.
-3. Eine Aufgabe ausdrücklich `In Ordnung` setzen und eine andere beanstanden.
-4. Kontrollieren, dass die Checkliste sofort in `Nachbearbeitung` wechselt und nicht abgeschlossen werden kann.
-5. Als Anna Bearbeiter die Beanstandung über das Dashboard öffnen, beantworten und erneut übergeben.
-6. Als Peter Prüfer die Aufgabe erneut ausdrücklich prüfen und erst danach abschließen.
+2. Kontrollieren, dass kein Startbutton vorhanden ist und jede Aufgabe zunächst `Nicht geprüft` bleibt.
+3. Eine erste gültige Prüfentscheidung speichern und den automatischen Wechsel von `Zur Prüfung` nach `In Prüfung` samt Verlauf prüfen.
+4. Eine Aufgabe ausdrücklich `In Ordnung` setzen und eine andere beanstanden.
+5. Kontrollieren, dass die Checkliste sofort in `Nachbearbeitung` wechselt und nicht abgeschlossen werden kann.
+6. Als Anna Bearbeiter die Beanstandung über das Dashboard öffnen, beantworten und erneut übergeben.
+7. Als Peter Prüfer die Aufgabe erneut ausdrücklich prüfen und erst danach abschließen.
 
 Bei einer langen Checkliste zusätzlich weit nach unten scrollen, Bearbeitungsdaten ändern und aufgabenbezogen speichern. Scrollposition, Fokus und die sichtbare Speicherrückmeldung müssen erhalten bleiben.
 

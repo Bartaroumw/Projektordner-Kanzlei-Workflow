@@ -89,31 +89,60 @@ export async function updateAnnualTask(taskId:number,input:{status:string;proces
   if(input.status==="Nicht zutreffend"&&!input.notApplicableReason.trim())throw new AnnualChecklistError("REASON_REQUIRED","Nicht zutreffend verlangt eine Begründung.");
   const processingNote=input.processingNote.trim();
   const nextReason=input.status==="Nicht zutreffend"?input.notApplicableReason.trim():task.notApplicableReason;
+  if(task.status===input.status&&(task.processingNote??"")===processingNote&&(task.notApplicableReason??"")===(nextReason??""))return task;
   const write=await prisma.annualChecklistTask.updateMany({where:{id:taskId,updatedAt:task.updatedAt},data:{status:input.status,processingNote:processingNote||null,notApplicableReason:nextReason,processedByName:user.fullName,processedAt:new Date()}});
   if(write.count!==1)throw new AnnualChecklistError("CONFLICT",`Die Aufgabe „${task.titleSnapshot}“ wurde zwischenzeitlich geändert. Ihre Eingaben wurden nicht überschrieben.`);
   const updated=await prisma.annualChecklistTask.findUniqueOrThrow({where:{id:taskId}});
-  if(task.annualChecklist.status==="Offen")await prisma.annualChecklist.update({where:{id:task.annualChecklistId},data:{status:"In Vorbereitung"}});
+  if(task.annualChecklist.status==="Offen"){
+    const started=await prisma.annualChecklist.updateMany({where:{id:task.annualChecklistId,status:"Offen"},data:{status:"In Vorbereitung"}});
+    if(started.count)await history(task.annualChecklistId,user,"Bearbeitung automatisch begonnen","Die Vorbereitung wurde mit der ersten erfolgreich gespeicherten fachlichen Änderung automatisch begonnen.","Offen","In Vorbereitung");
+  }
   await history(task.annualChecklistId,user,"Aufgabe bearbeitet",`${task.taskIdSnapshot} wurde bearbeitet.`,task.status,input.status,task.id);
   if((task.processingNote??"")!==processingNote)await history(task.annualChecklistId,user,"Bearbeitungsnotiz geändert",`Bearbeitungsnotiz zu ${task.taskIdSnapshot} wurde geändert.`,undefined,undefined,task.id);
   if((task.notApplicableReason??"")!==(nextReason??""))await history(task.annualChecklistId,user,"Begründung geändert",`Begründung für „Nicht zutreffend“ zu ${task.taskIdSnapshot} wurde geändert.`,undefined,undefined,task.id);
   return updated;
 }
 
-export async function reviewAnnualTask(taskId:number,input:{reviewStatus:string;reviewNote:string},user:AuthUser){
-  const task=await prisma.annualChecklistTask.findUnique({where:{id:taskId},include:{annualChecklist:true}});
+export async function ensureAnnualReviewStarted(checklistId:number,user:AuthUser){
+  const checklist=await prisma.annualChecklist.findUnique({where:{id:checklistId}});
+  if(!checklist)throw new AnnualChecklistError("INVALID_INPUT","Die Jahresabschlusscheckliste wurde nicht gefunden.");
+  if(checklist.reviewerUserId!==user.id)throw new AnnualChecklistError("NOT_ALLOWED","Nur der zugeordnete Prüfer darf die Prüfung bearbeiten.");
+  if(checklist.status==="In Prüfung")return checklist;
+  if(checklist.status!=="Zur Prüfung")throw new AnnualChecklistError("INVALID_TRANSITION","Prüfentscheidungen sind nur nach Übergabe zur Prüfung zulässig.");
+  const changed=await prisma.annualChecklist.updateMany({where:{id:checklistId,status:"Zur Prüfung"},data:{status:"In Prüfung",reviewStartedAt:new Date()}});
+  if(changed.count)await history(checklistId,user,"Prüfung automatisch begonnen","Die Prüfung wurde mit der ersten erfolgreich gespeicherten Prüfentscheidung automatisch begonnen.","Zur Prüfung","In Prüfung");
+  return prisma.annualChecklist.findUniqueOrThrow({where:{id:checklistId}});
+}
+
+export async function reviewAnnualTask(taskId:number,input:{reviewStatus:string;reviewNote:string;expectedUpdatedAt?:string},user:AuthUser,options:{deferChecklistTransition?:boolean}={}){
+  let task=await prisma.annualChecklistTask.findUnique({where:{id:taskId},include:{annualChecklist:true}});
   if(!task)throw new AnnualChecklistError("INVALID_INPUT","Die Aufgabe wurde nicht gefunden.");
+  if(input.expectedUpdatedAt&&task.updatedAt.toISOString()!==input.expectedUpdatedAt)throw new AnnualChecklistError("CONFLICT",`Die Aufgabe „${task.titleSnapshot}“ wurde zwischenzeitlich geändert. Ihre Prüfentscheidung wurde nicht überschrieben.`);
   if(task.annualChecklist.reviewerUserId!==user.id)throw new AnnualChecklistError("NOT_ALLOWED","Nur der zugeordnete Prüfer darf diese Aufgabe prüfen.");
-  if(task.annualChecklist.status!=="In Prüfung")throw new AnnualChecklistError("INVALID_TRANSITION","Aufgaben können nur im Status „In Prüfung“ geprüft werden.");
   const note=input.reviewNote.trim(),issue=["Rückfrage","Beanstandung"].includes(input.reviewStatus);
   if(!ANNUAL_REVIEW_STATUSES.includes(input.reviewStatus as never)||input.reviewStatus==="Nicht geprüft")throw new AnnualChecklistError("INVALID_INPUT","Der Prüfstatus ist ungültig.");
   if(issue&&!note)throw new AnnualChecklistError("REASON_REQUIRED","Rückfrage und Beanstandung verlangen eine Prüfnotiz.");
-  const updated=await prisma.annualChecklistTask.update({where:{id:taskId},data:{reviewStatus:input.reviewStatus,reviewNote:note||task.reviewNote,reviewedByName:user.fullName,reviewedAt:new Date(),reviewIssueCreatedAt:issue?new Date():task.reviewIssueCreatedAt}});
+  if(task.annualChecklist.status==="Zur Prüfung"){
+    await ensureAnnualReviewStarted(task.annualChecklistId,user);
+    task=await prisma.annualChecklistTask.findUniqueOrThrow({where:{id:taskId},include:{annualChecklist:true}});
+  }
+  if(task.annualChecklist.status!=="In Prüfung")throw new AnnualChecklistError("INVALID_TRANSITION","Aufgaben können nur im Status „In Prüfung“ geprüft werden.");
+  const write=await prisma.annualChecklistTask.updateMany({where:{id:taskId,updatedAt:task.updatedAt},data:{reviewStatus:input.reviewStatus,reviewNote:note||task.reviewNote,reviewedByName:user.fullName,reviewedAt:new Date(),reviewIssueCreatedAt:issue?new Date():task.reviewIssueCreatedAt}});
+  if(write.count!==1)throw new AnnualChecklistError("CONFLICT",`Die Aufgabe „${task.titleSnapshot}“ wurde zwischenzeitlich geändert. Ihre Prüfentscheidung wurde nicht überschrieben.`);
+  const updated=await prisma.annualChecklistTask.findUniqueOrThrow({where:{id:taskId}});
   await history(task.annualChecklistId,user,issue?input.reviewStatus:"Prüfstatus geändert",`${task.taskIdSnapshot}: Prüfstatus ${input.reviewStatus} durch ${user.fullName} in der Funktion Prüfer.`,task.reviewStatus,input.reviewStatus,task.id);
-  if(issue){
+  if(issue&&!options.deferChecklistTransition){
     await prisma.annualChecklist.update({where:{id:task.annualChecklistId},data:{status:"Nachbearbeitung",returnedAt:new Date()}});
     await history(task.annualChecklistId,user,"Zur Nachbearbeitung zurückgegeben",`${task.taskIdSnapshot} wurde wegen ${input.reviewStatus.toLocaleLowerCase("de-DE")} an den Bearbeiter zurückgegeben.`,task.annualChecklist.status,"Nachbearbeitung",task.id);
   }
   return updated;
+}
+
+export async function finishDeferredAnnualReviewBatch(checklistId:number,user:AuthUser,hasIssue:boolean){
+  if(!hasIssue)return;
+  const checklist=await prisma.annualChecklist.findUniqueOrThrow({where:{id:checklistId}});
+  await prisma.annualChecklist.update({where:{id:checklistId},data:{status:"Nachbearbeitung",returnedAt:new Date()}});
+  await history(checklistId,user,"Zur Nachbearbeitung zurückgegeben","Die Jahresabschlusscheckliste wurde nach der Sammelprüfung wegen offener Prüfpunkte zur Nachbearbeitung zurückgegeben.",checklist.status,"Nachbearbeitung");
 }
 
 export async function completeAnnualRework(taskId:number,response:string,user:AuthUser){

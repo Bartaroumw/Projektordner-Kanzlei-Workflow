@@ -6,7 +6,7 @@ Die neue Rolle `LOHNSACHBEARBEITER` darf ausschließlich zugeordnete Abstimmunge
 
 - sehen und öffnen,
 - Informationen und Belege lesen,
-- als gesehen markieren,
+- die technische Erstansicht automatisch protokollieren lassen,
 - Rückfragen stellen und nach einer Antwort erledigen,
 - übergebene Themen als verarbeitet kennzeichnen,
 - aus Sicht von Lohn als erledigt markieren,

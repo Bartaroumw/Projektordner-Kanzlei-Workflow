@@ -57,8 +57,8 @@ describe("geschützte Systemintegrationsumgebung", () => {
       .filter((entry) => entry.isDirectory())
       .map((entry) => entry.name)
       .sort();
-    expect(migrations).toHaveLength(18);
-    expect(migrations.at(-1)).toBe("20260805160000_ordo_campus_2_knowledge_platform");
+    expect(migrations).toHaveLength(19);
+    expect(migrations.at(-1)).toBe("20260818120000_workflow_simplification");
   });
 
   it("stellt eindeutige Reset-, Diagnose-, Entwicklungs- und Produktionsbefehle bereit", () => {

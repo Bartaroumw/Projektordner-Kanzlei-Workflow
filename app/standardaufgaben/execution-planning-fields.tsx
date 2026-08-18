@@ -43,14 +43,14 @@ export function ExecutionPlanningFields({
 
   return (
     <fieldset className="rounded-lg border border-[var(--color-border)] bg-[var(--color-background)] p-4">
-      <legend className="px-2 text-lg font-semibold">Ausführungsplanung</legend>
+      <legend className="px-2 text-lg font-semibold">Ausführungsrhythmus</legend>
       <div className="grid gap-5 md:grid-cols-2">
-        <label className="text-sm font-semibold">Rhythmus
+        {!annualOnly&&<label className="text-sm font-semibold">Ausführungsrhythmus
           <select className="input mt-1" name={rhythmName} value={rhythm} onChange={(event) => changeRhythm(event.target.value)} disabled={annualOnly}>
             {EXECUTION_RHYTHMS.map((value) => <option key={value}>{value}</option>)}
           </select>
-          {annualOnly && <input type="hidden" name={rhythmName} value="Jährlich" />}
-        </label>
+        </label>}
+        {annualOnly&&<div className="rounded border border-[var(--color-border)] bg-white px-3 py-2 text-sm"><strong>Jahresabschluss:</strong> einmal je Jahresabschluss; ein Monatsrhythmus ist hier nicht erforderlich.<input type="hidden" name={rhythmName} value="Jährlich" /></div>}
         <label className="text-sm font-semibold">Aufgabenbereich
           <select className="input mt-1" name={taskAreaName} defaultValue={initialArea ?? ""}>
             <option value="">Kein besonderer Aufgabenbereich</option>

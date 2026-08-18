@@ -1,166 +1,67 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useEffect,useMemo,useState } from "react";
 import { useRouter } from "next/navigation";
-import { updatePayrollItemAction } from "@/app/fibu-lohn/actions";
-import { duplicatePayrollPositionAction, removePayrollPositionAction, savePayrollPositionAction } from "@/app/fibu-lohn/actions";
-import type { PayrollFormState } from "@/app/fibu-lohn/actions";
+import { duplicatePayrollPositionAction,removePayrollPositionAction } from "@/app/fibu-lohn/actions";
+import { usePayrollBatch } from "@/app/components/payroll-batch-provider";
+import type { PayrollPositionDraft,PayrollTopicDraft } from "@/lib/payroll-batch";
 
-type ItemFormProps={
-  itemId:number;
-  topicKey:string;
-  status:string;
-  note:string|null;
-  detailsJson:string|null;
-  requiredFields:string[];
-  requiredDocuments:string[];
-  followUpAllowed:boolean;
-  documentToFollow:boolean;
-  followUpReason:string|null;
-  expectedFollowUpAt:string;
-  missingDocumentType:string|null;
-  editable:boolean;
-  positions:Array<{
-    id:number;positionType:string;title:string;caseCount:number;totalAmountCents:number|null;period:string|null;summary:string|null;
-    peopleJson:string|null;detailsJson:string|null;requiredListType:string|null;requiredListDocumentName:string|null;status:string;
-  }>;
-};
+type DetailFieldDefinition={name:string;label:string;type?:"text"|"date"|"number"|"textarea"|"select";options?:string[]};
+type Position={id:number;positionType:string;title:string;caseCount:number;totalAmountCents:number|null;period:string|null;summary:string|null;peopleJson:string|null;detailsJson:string|null;requiredListType:string|null;requiredListDocumentName:string|null;status:string;updatedAt:string};
+type ItemFormProps={itemId:number;updatedAt:string;topicKey:string;status:string;note:string|null;detailsJson:string|null;requiredFields:string[];requiredDocuments:string[];followUpAllowed:boolean;documentToFollow:boolean;followUpReason:string|null;expectedFollowUpAt:string;missingDocumentType:string|null;editable:boolean;positions:Position[];vehicles:Array<{id:number;referenceNumber:string|null;description:string;licensePlate:string|null}>};
 
-const topicFields:Record<string,Array<{name:string;label:string;type?:"text"|"date"|"number"|"textarea"|"select";options?:string[]}>>={
+const topicFields:Record<string,DetailFieldDefinition[]>={
   ARBEITNEHMER_VORTEILE:[
     {name:"Art des Sachverhalts",label:"Art des Sachverhalts",type:"select",options:["Geschenk","Aufmerksamkeit","Gutschein","Sachbezug","freiwillige soziale Aufwendung","Betriebsveranstaltung","Mitarbeiterverpflegung","Sonstiges"]},
-    {name:"Betroffene Arbeitnehmer oder Personengruppe",label:"Arbeitnehmer oder Personengruppe"},
-    {name:"Datum oder Zeitraum",label:"Datum oder Zeitraum"},{name:"Betrag",label:"Betrag",type:"number"},
-    {name:"Buchungskonto",label:"Buchungskonto (optional)"},{name:"Beschreibung",label:"Beschreibung",type:"textarea"},
-    {name:"Abrechnungsmonat",label:"Lohnabrechnungsmonat"},
-    {name:"Veranstaltungsdatum",label:"Veranstaltungsdatum (bei Betriebsveranstaltung)",type:"date"},
-    {name:"Bezeichnung der Veranstaltung",label:"Veranstaltungsbezeichnung"},{name:"Teilnehmerliste vorhanden",label:"Teilnehmerliste vorhanden"},
-    {name:"Anzahl Arbeitnehmer",label:"Anzahl Arbeitnehmer",type:"number"},{name:"Anzahl Begleitpersonen",label:"Anzahl Begleitpersonen",type:"number"},
-    {name:"Gesamtkosten",label:"Gesamtkosten",type:"number"},{name:"Weitere Veranstaltung bekannt",label:"Weitere Veranstaltung im Kalenderjahr bekannt"},
+    {name:"Betroffene Arbeitnehmer oder Personengruppe",label:"Arbeitnehmer oder Personengruppe"},{name:"Datum oder Zeitraum",label:"Datum oder Zeitraum"},{name:"Betrag",label:"Betrag",type:"number"},{name:"Buchungskonto",label:"Buchungskonto (optional)"},{name:"Beschreibung",label:"Beschreibung",type:"textarea"},{name:"Abrechnungsmonat",label:"Lohnabrechnungsmonat"},{name:"Veranstaltungsdatum",label:"Veranstaltungsdatum (bei Betriebsveranstaltung)",type:"date"},{name:"Bezeichnung der Veranstaltung",label:"Veranstaltungsbezeichnung"},{name:"Teilnehmerliste vorhanden",label:"Teilnehmerliste vorhanden"},{name:"Anzahl Arbeitnehmer",label:"Anzahl Arbeitnehmer",type:"number"},{name:"Anzahl Begleitpersonen",label:"Anzahl Begleitpersonen",type:"number"},{name:"Gesamtkosten",label:"Gesamtkosten",type:"number"},{name:"Weitere Veranstaltung bekannt",label:"Weitere Veranstaltung im Kalenderjahr bekannt"},
   ],
   REISEKOSTEN:[
-    {name:"Arbeitnehmer",label:"Arbeitnehmer"},{name:"Reisebeginn",label:"Reisebeginn",type:"date"},{name:"Reiseende",label:"Reiseende",type:"date"},
-    {name:"Art der Erstattung",label:"Art der Erstattung"},{name:"Fahrtkosten",label:"Fahrtkosten",type:"number"},
-    {name:"Verpflegungsmehraufwand",label:"Verpflegungsmehraufwand",type:"number"},{name:"Übernachtungskosten",label:"Übernachtungskosten",type:"number"},
-    {name:"Sonstige Kosten",label:"Sonstige Kosten",type:"number"},{name:"Gesamtbetrag",label:"Gesamtbetrag",type:"number"},
-    {name:"Zahlungsweg",label:"Auszahlung über",type:"select",options:["Bank","Kasse","Verrechnung","Sonstiges"]},
-    {name:"Buchungskonto",label:"Buchungskonto (optional)"},{name:"Abrechnungsmonat",label:"Lohnabrechnungsmonat"},
-    {name:"Beschreibung",label:"Besonderheiten",type:"textarea"},
+    {name:"Arbeitnehmer",label:"Arbeitnehmer"},{name:"Reisebeginn",label:"Reisebeginn",type:"date"},{name:"Reiseende",label:"Reiseende",type:"date"},{name:"Art der Erstattung",label:"Art der Erstattung"},{name:"Fahrtkosten",label:"Fahrtkosten",type:"number"},{name:"Verpflegungsmehraufwand",label:"Verpflegungsmehraufwand",type:"number"},{name:"Übernachtungskosten",label:"Übernachtungskosten",type:"number"},{name:"Sonstige Kosten",label:"Sonstige Kosten",type:"number"},{name:"Gesamtbetrag",label:"Gesamtbetrag",type:"number"},{name:"Zahlungsweg",label:"Auszahlung über",type:"select",options:["Bank","Kasse","Verrechnung","Sonstiges"]},{name:"Buchungskonto",label:"Buchungskonto (optional)"},{name:"Abrechnungsmonat",label:"Lohnabrechnungsmonat"},{name:"Beschreibung",label:"Besonderheiten",type:"textarea"},
   ],
-  FAHRZEUGE:[
-    {name:"Art der Änderung",label:"Vorgang",type:"select",options:["Keine Änderung","Neues Fahrzeug","Fahrzeug geändert","Nutzerwechsel","Fahrzeug beendet","Sonstiger Vorgang"]},
-    {name:"Fahrzeugbezug",label:"Fahrzeugbezug"},{name:"Nutzer",label:"Nutzer"},{name:"Gültig-ab-Datum",label:"Gültig ab",type:"date"},
-    {name:"Beschreibung",label:"Beschreibung",type:"textarea"},
-  ],
-  SCHEINSELBSTSTAENDIGKEIT:[
-    {name:"Betroffene Person oder Unternehmen",label:"Betroffene Person oder Unternehmen"},{name:"Leistungsart",label:"Leistungsart"},
-    {name:"Zeitraum",label:"Leistungszeitraum"},{name:"Rechnungsbetrag",label:"Rechnungsbetrag",type:"number"},
-    {name:"Auffällige Merkmale",label:"Auffälligkeiten (mehrere Angaben mit Semikolon trennen)",type:"textarea"},
-    {name:"Beschreibung",label:"Freitextbeschreibung",type:"textarea"},
-  ],
-  GESCHENKE_NICHTARBEITNEHMER:[
-    {name:"Empfänger oder Empfängergruppe",label:"Empfänger oder Empfängergruppe"},{name:"Art des Geschenks",label:"Art des Geschenks"},
-    {name:"Datum",label:"Datum",type:"date"},{name:"Wert",label:"Wert",type:"number"},{name:"Anlass",label:"Anlass"},
-    {name:"Hinweis zur möglichen Pauschalversteuerung",label:"Mögliche Pauschalversteuerung",type:"select",options:["noch zu prüfen","vorgesehen","nicht vorgesehen"]},
-    {name:"Buchungskonto",label:"Buchungskonto (optional)"},{name:"Beschreibung",label:"Beschreibung",type:"textarea"},
-  ],
-  KSK:[
-    {name:"Auftragnehmer oder Rechnungsteller",label:"Auftragnehmer oder Rechnungsteller"},{name:"Leistungsart",label:"Leistungsart"},
-    {name:"Rechnungsnummer",label:"Rechnungsnummer"},{name:"Rechnungsdatum",label:"Rechnungsdatum",type:"date"},
-    {name:"Relevanter Zeitraum",label:"Leistungszeitraum"},{name:"Rechnungsbetrag",label:"Rechnungsbetrag",type:"number"},
-    {name:"Beschreibung",label:"Beschreibung",type:"textarea"},{name:"Kennzeichnung Jahresmeldung",label:"Für spätere Jahresmeldung berücksichtigen"},
-    {name:"Meldejahr",label:"Meldejahr",type:"number"},
-  ],
+  FAHRZEUGE:[{name:"Art der Änderung",label:"Vorgang",type:"select",options:["Keine Änderung","Neues Fahrzeug","Fahrzeug geändert","Nutzerwechsel","Fahrzeug beendet","Sonstiger Vorgang"]},{name:"Fahrzeugbezug",label:"Fahrzeugbezug"},{name:"Nutzer",label:"Nutzer"},{name:"Gültig-ab-Datum",label:"Gültig ab",type:"date"},{name:"Beschreibung",label:"Beschreibung",type:"textarea"}],
+  SCHEINSELBSTAENDIGKEIT:[{name:"Betroffene Person oder Unternehmen",label:"Betroffene Person oder Unternehmen"},{name:"Leistungsart",label:"Leistungsart"},{name:"Zeitraum",label:"Leistungszeitraum"},{name:"Rechnungsbetrag",label:"Rechnungsbetrag",type:"number"},{name:"Auffällige Merkmale",label:"Auffälligkeiten (mehrere Angaben mit Semikolon trennen)",type:"textarea"},{name:"Beschreibung",label:"Freitextbeschreibung",type:"textarea"}],
+  GESCHENKE_NICHTARBEITNEHMER:[{name:"Empfänger oder Empfängergruppe",label:"Empfänger oder Empfängergruppe"},{name:"Art des Geschenks",label:"Art des Geschenks"},{name:"Datum",label:"Datum",type:"date"},{name:"Wert",label:"Wert",type:"number"},{name:"Anlass",label:"Anlass"},{name:"Hinweis zur möglichen Pauschalversteuerung",label:"Mögliche Pauschalversteuerung",type:"select",options:["noch zu prüfen","vorgesehen","nicht vorgesehen"]},{name:"Buchungskonto",label:"Buchungskonto (optional)"},{name:"Beschreibung",label:"Beschreibung",type:"textarea"}],
+  KSK:[{name:"Auftragnehmer oder Rechnungsteller",label:"Auftragnehmer oder Rechnungsteller"},{name:"Leistungsart",label:"Leistungsart"},{name:"Rechnungsnummer",label:"Rechnungsnummer"},{name:"Rechnungsdatum",label:"Rechnungsdatum",type:"date"},{name:"Relevanter Zeitraum",label:"Leistungszeitraum"},{name:"Rechnungsbetrag",label:"Rechnungsbetrag",type:"number"},{name:"Beschreibung",label:"Beschreibung",type:"textarea"},{name:"Kennzeichnung Jahresmeldung",label:"Für spätere Jahresmeldung berücksichtigen"},{name:"Meldejahr",label:"Meldejahr",type:"number"}],
 };
 
-export function ReconciliationItemForm(props:ItemFormProps){
-  const [state,action,pending]=useActionState(updatePayrollItemAction.bind(null,props.itemId),{} satisfies PayrollFormState);
-  if(!props.editable)return null;
-  return <><form action={action} className="mt-4 space-y-4 rounded-lg border border-[var(--color-border)] bg-[var(--color-background)] p-4">
-    {state.error&&<p role="alert" className="rounded border border-[var(--color-error)] bg-white p-3 text-sm text-[var(--color-error)]">{state.error}</p>}
-    {state.success&&<p role="status" className="rounded border border-[var(--color-success)] bg-white p-3 text-sm text-[var(--color-success)]">{state.success}</p>}
-    {props.topicKey==="SCHEINSELBSTAENDIGKEIT"&&<p className="rounded border border-[var(--color-warning)] bg-white p-3 text-sm"><strong>Hinweis:</strong> Ordo Caroli trifft keine rechtliche Einstufung. Der Sachverhalt wird lediglich zur weiteren fachlichen Prüfung übergeben.</p>}
-    <div className="grid gap-3 md:grid-cols-2">
-      <Field label="Themenentscheidung"><select className="input" name="decision" defaultValue={decisionForStatus(props.status)} required>
-        <option>Noch nicht geprüft</option><option>Kein relevanter Sachverhalt</option><option>Sachverhalt vorhanden</option>
-      </select></Field>
-      <Field label="Interne Notiz"><input className="input" name="note" defaultValue={props.note??""}/></Field>
-    </div>
-    {props.requiredDocuments.length>0&&<p className="text-xs text-[var(--color-text-muted)]">Erforderliche Belegarten: {props.requiredDocuments.join(" · ")}</p>}
-    {props.followUpAllowed&&<details className="rounded border border-[var(--color-border)] bg-white p-3" open={props.documentToFollow}>
-      <summary className="cursor-pointer font-semibold">Unterlage wird nachgereicht</summary>
-      <div className="mt-3 grid gap-3 md:grid-cols-3">
-        <label className="flex items-center gap-2 text-sm font-semibold"><input type="checkbox" name="documentToFollow" defaultChecked={props.documentToFollow}/> Nachreichung festhalten</label>
-        <Field label="Fehlende Belegart"><input className="input" name="missingDocumentType" defaultValue={props.missingDocumentType??""}/></Field>
-        <Field label="Erwartetes Datum"><input className="input" type="date" name="expectedFollowUpAt" defaultValue={props.expectedFollowUpAt}/></Field>
-        <div className="md:col-span-3"><Field label="Begründung"><textarea className="input" name="followUpReason" defaultValue={props.followUpReason??""}/></Field></div>
-      </div>
-    </details>}
-    <button className="button-primary" disabled={pending}>{pending?"Wird gespeichert …":"Thema speichern"}</button>
-  </form>{props.status!=="Kein Sachverhalt"&&<PositionSection {...props}/>}</>;
-}
+export function ReconciliationItemForm(props:ItemFormProps){if(!props.editable)return null;return <><TopicDraftForm {...props}/>{props.status!=="Kein Sachverhalt"&&<PositionSection {...props}/>}</>}
 
-function PositionSection(props:ItemFormProps){
-  const collectionAllowed=["ARBEITNEHMER_VORTEILE","REISEKOSTEN","GESCHENKE_NICHTARBEITNEHMER","KSK"].includes(props.topicKey);
-  const fields=mergeFields(topicFields[props.topicKey]??[],props.requiredFields);
-  return <section className="border-t border-[var(--color-border)] pt-4">
-    <div className="flex flex-wrap items-center justify-between gap-3"><div><h4 className="font-semibold">Sachverhaltspositionen · {props.positions.length}</h4><p className="text-xs text-[var(--color-text-muted)]">Mehrere Personen oder Vorgänge werden getrennt oder als fachlich zulässige Sammlung erfasst.</p></div></div>
-    <div className="mt-3 space-y-3">{props.positions.map(position=><article id={`position-${position.id}`} className="rounded border border-[var(--color-border)] bg-white p-3" key={position.id}>
-      <div className="flex flex-wrap items-start justify-between gap-3"><div><p className="font-semibold">{position.title}</p><p className="text-xs text-[var(--color-text-muted)]">{position.positionType} · {position.caseCount} Fall/Fälle · {position.status}{position.period?` · ${position.period}`:""}</p>{position.summary&&<p className="mt-2 text-sm">{position.summary}</p>}</div><span className="rounded-full bg-[var(--color-primary-light)] px-2 py-1 text-xs font-semibold">{position.status}</span></div>
-      <div className="mt-3 flex flex-wrap gap-2"><details className="w-full rounded border border-[var(--color-border)] p-3"><summary className="cursor-pointer font-semibold">Position bearbeiten</summary><PositionForm itemId={props.itemId} position={position} topicKey={props.topicKey} fields={fields} collectionAllowed={collectionAllowed}/></details><form action={duplicatePayrollPositionAction.bind(null,position.id,props.itemId)}><button className="button-secondary">Duplizieren</button></form><form action={removePayrollPositionAction.bind(null,position.id,props.itemId)}><button className="button-secondary">{position.status==="Entwurf"?"Entwurf löschen":"Archivieren"}</button></form></div>
-      <PayrollUploadForm itemId={props.itemId} positionId={position.id}/>
-    </article>)}</div>
-    <details className="mt-3 rounded border border-[var(--color-primary)] bg-white p-3"><summary className="cursor-pointer font-semibold text-[var(--color-primary-dark)]">Position hinzufügen</summary><PositionForm itemId={props.itemId} position={null} topicKey={props.topicKey} fields={fields} collectionAllowed={collectionAllowed}/></details>
+function TopicDraftForm(props:ItemFormProps){
+  const batch=usePayrollBatch(),{registerTopic,updateTopic,discard}=batch;const fields=mergeFields(topicFields[props.topicKey]??[],props.requiredFields);
+  const initial=useMemo<PayrollTopicDraft>(()=>({decision:decisionForStatus(props.status),note:props.note??"",details:stringDetails(props.detailsJson),documentToFollow:props.documentToFollow,followUpReason:props.followUpReason??"",expectedFollowUpAt:props.expectedFollowUpAt,missingDocumentType:props.missingDocumentType??""}),[props.detailsJson,props.documentToFollow,props.expectedFollowUpAt,props.followUpReason,props.missingDocumentType,props.note,props.status]);
+  useEffect(()=>registerTopic(props.itemId,props.topicKey,initial,props.updatedAt),[initial,props.itemId,props.topicKey,props.updatedAt,registerTopic]);
+  const entry=batch.topic(props.itemId),value=entry?.current??initial,set=(patch:Partial<PayrollTopicDraft>)=>updateTopic(props.itemId,{...value,...patch});const dirty=Boolean(entry&&!sameTopic(entry.baseline,entry.current));
+  return <section data-payroll-draft="true" className="mt-4 space-y-4 rounded-lg border border-[var(--color-border)] bg-[var(--color-background)] p-4">
+    {entry?.error&&<p role="alert" className="rounded border border-[var(--color-error)] bg-white p-3 text-sm text-[var(--color-error)]">{entry.error}{entry.conflict&&<span className="mt-1 block">Ihre Eingaben wurden nicht überschrieben.</span>}</p>}
+    {props.topicKey==="SCHEINSELBSTAENDIGKEIT"&&<p className="rounded border border-[var(--color-warning)] bg-white p-3 text-sm"><strong>Hinweis:</strong> Ordo Caroli trifft keine rechtliche Einstufung. Der Sachverhalt wird lediglich zur weiteren fachlichen Prüfung übergeben.</p>}
+    <div className="grid gap-3 md:grid-cols-2"><Field label="Themenentscheidung"><select className="input" value={value.decision} aria-invalid={Boolean(entry?.error)} onChange={event=>set({decision:event.target.value})}><option>Noch nicht geprüft</option><option>Kein relevanter Sachverhalt</option><option>Sachverhalt vorhanden</option></select></Field><Field label="Interne Notiz"><input className="input" value={value.note} onChange={event=>set({note:event.target.value})}/></Field></div>
+    {value.decision==="Sachverhalt vorhanden"&&<div className="grid gap-3 md:grid-cols-2">{fields.map(field=><DetailDraftField key={field.name} field={field} value={value.details[field.name]??""} vehicles={props.vehicles} vehicleTopic={props.topicKey==="FAHRZEUGE"} onChange={next=>set({details:{...value.details,[field.name]:next}})}/>)}</div>}
+    {props.requiredDocuments.length>0&&<p className="text-xs text-[var(--color-text-muted)]">Erforderliche Belegarten: {props.requiredDocuments.join(" · ")}</p>}
+    {props.followUpAllowed&&<details className="rounded border border-[var(--color-border)] bg-white p-3" open={value.documentToFollow}><summary className="cursor-pointer font-semibold">Unterlage wird nachgereicht</summary><div className="mt-3 grid gap-3 md:grid-cols-3"><label className="flex items-center gap-2 text-sm font-semibold"><input type="checkbox" checked={value.documentToFollow} onChange={event=>set({documentToFollow:event.target.checked})}/> Nachreichung festhalten</label><Field label="Fehlende Belegart"><input className="input" value={value.missingDocumentType} onChange={event=>set({missingDocumentType:event.target.value})}/></Field><Field label="Erwartetes Datum"><input className="input" type="date" value={value.expectedFollowUpAt} onChange={event=>set({expectedFollowUpAt:event.target.value})}/></Field><div className="md:col-span-3"><Field label="Begründung"><textarea className="input" value={value.followUpReason} onChange={event=>set({followUpReason:event.target.value})}/></Field></div></div></details>}
+    <div className="flex flex-wrap items-center gap-2 text-xs font-semibold text-[var(--color-text-muted)]"><span>{dirty?"● Ungespeicherte Änderung":"Gespeichert"}</span>{dirty&&<button type="button" className="button-secondary" onClick={()=>discard(`topic:${props.itemId}`)}>Themenänderung verwerfen</button>}</div>
   </section>;
 }
 
-function PositionForm({itemId,position,topicKey,fields,collectionAllowed}:{itemId:number;position:ItemFormProps["positions"][number]|null;topicKey:string;fields:Array<{name:string;label:string;type?:"text"|"date"|"number"|"textarea"|"select";options?:string[]}>;collectionAllowed:boolean}){
-  const details=readDetails(position?.detailsJson??null);
-  const people=readStringList(position?.peopleJson??null).join("\n");
-  const requiresList=topicKey==="GESCHENKE_NICHTARBEITNEHMER"?"Empfängerliste":topicKey==="KSK"?"Rechnungsliste":"";
-  return <form action={savePayrollPositionAction.bind(null,itemId,position?.id??null)} className="mt-3 grid gap-3 md:grid-cols-2">
-    <Field label="Positionsart"><select className="input" name="positionType" defaultValue={position?.positionType??"Einzelposition"}><option>Einzelposition</option>{collectionAllowed&&<option>Sammelposition</option>}</select></Field>
-    <Field label="Bezeichnung"><input className="input" name="title" defaultValue={position?.title??""} required/></Field>
-    <Field label="Anzahl Fälle"><input className="input" name="caseCount" type="number" min="1" defaultValue={position?.caseCount??1}/></Field>
-    <Field label="Gesamtbetrag (optional)"><input className="input" name="totalAmount" inputMode="decimal" defaultValue={position?.totalAmountCents!=null?(position.totalAmountCents/100).toFixed(2).replace(".",","):""}/></Field>
-    <Field label="Zeitraum"><input className="input" name="period" defaultValue={position?.period??""}/></Field>
-    <Field label="Personen / Empfänger, eine Zeile je Eintrag"><textarea className="input min-h-24" name="people" defaultValue={people}/></Field>
-    <div className="md:col-span-2"><Field label="Kurzbeschreibung"><textarea className="input min-h-20" name="summary" defaultValue={position?.summary??""}/></Field></div>
-    {fields.map(field=><DetailField key={field.name} field={field} value={details[field.name]}/>)}
-    {requiresList&&<><input type="hidden" name="requiredListType" value={requiresList}/><Field label={`${requiresList}: Anzeigename der bereitgestellten PDF-/XLSX-Datei`}><input className="input" name="requiredListDocumentName" defaultValue={position?.requiredListDocumentName??""}/></Field></>}
-    <div className="md:col-span-2 flex gap-2"><button className="button-primary">{position?"Position speichern":"Position anlegen"}</button></div>
-  </form>;
+function PositionSection(props:ItemFormProps){
+  const batch=usePayrollBatch(),collectionAllowed=["ARBEITNEHMER_VORTEILE","REISEKOSTEN","GESCHENKE_NICHTARBEITNEHMER","KSK"].includes(props.topicKey),fields=mergeFields(topicFields[props.topicKey]??[],props.requiredFields);const keys=[...new Set([...props.positions.map(position=>`position:${position.id}`),...batch.positionKeys(props.itemId)])];
+  return <section className="border-t border-[var(--color-border)] pt-4"><div><h4 className="font-semibold">Sachverhaltspositionen · {keys.length}</h4><p className="text-xs text-[var(--color-text-muted)]">Mehrere Personen oder Vorgänge werden getrennt oder als fachlich zulässige Sammlung erfasst.</p></div><div className="mt-3 space-y-3">{keys.map(key=><PositionEditor key={key} entryKey={key} itemId={props.itemId} position={props.positions.find(position=>`position:${position.id}`===key)??null} topicKey={props.topicKey} fields={fields} collectionAllowed={collectionAllowed}/>)}</div><button type="button" className="button-secondary mt-3" onClick={()=>batch.addPosition(props.itemId,blankPosition(props.itemId))}>Position hinzufügen</button></section>;
 }
 
-export function PayrollUploadForm({itemId,questionId,positionId}:{itemId:number;questionId?:number;positionId?:number}){
-  const router=useRouter();const [open,setOpen]=useState(false);const [pending,setPending]=useState(false);const [message,setMessage]=useState("");
-  async function upload(formData:FormData){
-    setPending(true);setMessage("");formData.set("itemId",String(itemId));if(questionId)formData.set("questionId",String(questionId));if(positionId)formData.set("positionId",String(positionId));
-    try{const response=await fetch("/api/fibu-lohn/belege",{method:"POST",body:formData});const body=await response.json();if(!response.ok)throw new Error(body.error);setMessage(body.message);setOpen(false);router.refresh()}
-    catch(error){setMessage(error instanceof Error?error.message:"Der Beleg konnte nicht gespeichert werden.")}
-    finally{setPending(false)}
-  }
-  return <div className="mt-3">
-    <button type="button" className="button-secondary" onClick={()=>setOpen(value=>!value)}>{open?"Upload schließen":"Beleg bereitstellen"}</button>
-    {message&&<p className="mt-2 text-sm font-semibold" role="status">{message}</p>}
-    {open&&<form action={upload} className="mt-3 grid gap-3 rounded border border-[var(--color-border)] bg-white p-3 md:grid-cols-2">
-      <Field label="Datei"><input className="input" name="file" type="file" accept=".pdf,.docx,.xlsx,.png,.jpg,.jpeg" required/></Field>
-      <Field label="Belegart"><input className="input" name="documentType" required/></Field>
-      <Field label="Anzeigename"><input className="input" name="displayName" required/></Field>
-      <Field label="Beschreibung"><input className="input" name="description"/></Field>
-      <div className="flex gap-2"><button className="button-primary" disabled={pending}>{pending?"Wird hochgeladen …":"Hochladen"}</button><button type="button" className="button-secondary" onClick={()=>setOpen(false)}>Abbrechen</button></div>
-    </form>}
-  </div>;
+function PositionEditor({entryKey,itemId,position,topicKey,fields,collectionAllowed}:{entryKey:string;itemId:number;position:Position|null;topicKey:string;fields:DetailFieldDefinition[];collectionAllowed:boolean}){
+  const batch=usePayrollBatch(),{registerPosition,updatePosition,discard,removeNewPosition}=batch;const initial=useMemo(()=>position?positionDraft(itemId,position):blankPosition(itemId),[itemId,position]);useEffect(()=>registerPosition(entryKey,position?.title??"Neue Position",initial,position?.updatedAt),[entryKey,initial,position?.title,position?.updatedAt,registerPosition]);const entry=batch.position(entryKey),value=entry?.current??initial,set=(patch:Partial<PayrollPositionDraft>)=>updatePosition(entryKey,{...value,...patch});const requiresList=topicKey==="GESCHENKE_NICHTARBEITNEHMER"?"Empfängerliste":topicKey==="KSK"?"Rechnungsliste":"",dirty=Boolean(entry&&!samePosition(entry.baseline,entry.current));
+  return <article id={entryKey.replace("position:","position-").replace(/:/g,"-")} className="rounded border border-[var(--color-border)] bg-white p-3"><div className="flex flex-wrap items-center justify-between gap-2"><strong>{value.title||"Neue Position"}</strong><span className="text-xs">{position?.status??"Ungespeicherter Entwurf"}</span></div>{entry?.error&&<p className="mt-2 rounded border border-[var(--color-error)] bg-red-50 p-2 text-sm text-[var(--color-error)]" role="alert">{entry.error}{entry.conflict&&<span className="block">Ihre Eingaben wurden nicht überschrieben.</span>}</p>}<div data-payroll-draft="true" className="mt-3 grid gap-3 md:grid-cols-2"><Field label="Positionsart"><select className="input" value={value.positionType} onChange={event=>set({positionType:event.target.value as PayrollPositionDraft["positionType"]})}><option>Einzelposition</option>{collectionAllowed&&<option>Sammelposition</option>}</select></Field><Field label="Bezeichnung"><input className="input" value={value.title} aria-invalid={Boolean(entry?.error)} onChange={event=>set({title:event.target.value})}/></Field><Field label="Anzahl Fälle"><input className="input" type="number" min="1" value={value.caseCount} onChange={event=>set({caseCount:Number(event.target.value)})}/></Field><Field label="Gesamtbetrag (optional)"><input className="input" inputMode="decimal" value={value.totalAmount} onChange={event=>set({totalAmount:event.target.value})}/></Field><Field label="Zeitraum"><input className="input" value={value.period} onChange={event=>set({period:event.target.value})}/></Field><Field label="Personen / Empfänger, eine Zeile je Eintrag"><textarea className="input min-h-24" value={value.people} onChange={event=>set({people:event.target.value})}/></Field><div className="md:col-span-2"><Field label="Kurzbeschreibung"><textarea className="input min-h-20" value={value.summary} onChange={event=>set({summary:event.target.value})}/></Field></div>{fields.map(field=><DetailDraftField key={field.name} field={field} value={value.details[field.name]??""} onChange={next=>set({details:{...value.details,[field.name]:next}})}/>)}{requiresList&&<Field label={`${requiresList}: Anzeigename der bereitgestellten PDF-/XLSX-Datei`}><input className="input" value={value.requiredListDocumentName} onChange={event=>set({requiredListType:requiresList,requiredListDocumentName:event.target.value})}/></Field>}</div><div className="mt-3 flex flex-wrap gap-2">{dirty&&<button type="button" className="button-secondary" onClick={()=>discard(entryKey)}>Positionsänderung verwerfen</button>}{position?<><form action={duplicatePayrollPositionAction.bind(null,position.id,itemId)}><button className="button-secondary">Duplizieren</button></form><form action={removePayrollPositionAction.bind(null,position.id,itemId)}><button className="button-secondary">{position.status==="Entwurf"?"Entwurf löschen":"Archivieren"}</button></form><PayrollUploadForm itemId={itemId} positionId={position.id}/></>:<button type="button" className="button-secondary" onClick={()=>removeNewPosition(entryKey)}>Entwurf entfernen</button>}</div></article>;
 }
 
-function readDetails(value:string|null){try{const parsed=JSON.parse(value??"{}");return parsed&&typeof parsed==="object"?parsed as Record<string,unknown>:{};}catch{return{}}}
-function readStringList(value:string|null){try{const parsed=JSON.parse(value??"[]");return Array.isArray(parsed)?parsed.filter((entry):entry is string=>typeof entry==="string"):[];}catch{return[]}}
+export function PayrollUploadForm({itemId,questionId,positionId}:{itemId:number;questionId?:number;positionId?:number}){const router=useRouter(),[open,setOpen]=useState(false),[pending,setPending]=useState(false),[message,setMessage]=useState("");async function upload(formData:FormData){setPending(true);setMessage("");formData.set("itemId",String(itemId));if(questionId)formData.set("questionId",String(questionId));if(positionId)formData.set("positionId",String(positionId));try{const response=await fetch("/api/fibu-lohn/belege",{method:"POST",body:formData}),body=await response.json();if(!response.ok)throw new Error(body.error);setMessage(body.message);setOpen(false);router.refresh()}catch(error){setMessage(error instanceof Error?error.message:"Der Beleg konnte nicht gespeichert werden.")}finally{setPending(false)}}return <div className="mt-3"><button type="button" className="button-secondary" onClick={()=>setOpen(value=>!value)}>{open?"Upload schließen":"Beleg bereitstellen"}</button>{message&&<p className="mt-2 text-sm font-semibold" role="status">{message}</p>}{open&&<form action={upload} className="mt-3 grid gap-3 rounded border border-[var(--color-border)] bg-white p-3 md:grid-cols-2"><Field label="Datei"><input className="input" name="file" type="file" accept=".pdf,.docx,.xlsx,.png,.jpg,.jpeg" required/></Field><Field label="Belegart"><input className="input" name="documentType" required/></Field><Field label="Anzeigename"><input className="input" name="displayName" required/></Field><Field label="Beschreibung"><input className="input" name="description"/></Field><div className="flex gap-2"><button className="button-primary" disabled={pending}>{pending?"Wird hochgeladen …":"Hochladen"}</button><button type="button" className="button-secondary" onClick={()=>setOpen(false)}>Abbrechen</button></div></form>}</div>}
+
+function blankPosition(itemId:number):PayrollPositionDraft{return{itemId,positionId:null,positionType:"Einzelposition",title:"",caseCount:1,totalAmount:"",period:"",summary:"",people:"",details:{},requiredListType:"",requiredListDocumentName:""}}
+function positionDraft(itemId:number,position:Position):PayrollPositionDraft{return{itemId,positionId:position.id,positionType:position.positionType as PayrollPositionDraft["positionType"],title:position.title,caseCount:position.caseCount,totalAmount:position.totalAmountCents==null?"":(position.totalAmountCents/100).toFixed(2).replace(".",","),period:position.period??"",summary:position.summary??"",people:readStringList(position.peopleJson).join("\n"),details:stringDetails(position.detailsJson),requiredListType:position.requiredListType??"",requiredListDocumentName:position.requiredListDocumentName??""}}
+function stringDetails(value:string|null){const details=readDetails(value);return Object.fromEntries(Object.entries(details).map(([key,entry])=>[key,String(entry??"")]))}
+function readDetails(value:string|null):Record<string,unknown>{try{const parsed=JSON.parse(value??"{}");return parsed&&typeof parsed==="object"&&!Array.isArray(parsed)?parsed:{}}catch{return{}}}
+function readStringList(value:string|null){try{const parsed=JSON.parse(value??"[]");return Array.isArray(parsed)?parsed.filter((entry):entry is string=>typeof entry==="string"):[]}catch{return[]}}
 function decisionForStatus(status:string){return status==="Kein Sachverhalt"?"Kein relevanter Sachverhalt":status==="Noch nicht geprüft"?"Noch nicht geprüft":"Sachverhalt vorhanden"}
-function mergeFields(fields:Array<{name:string;label:string;type?:"text"|"date"|"number"|"textarea"|"select";options?:string[]}>,required:string[]){
-  const result=[...fields];for(const name of required)if(!result.some(field=>field.name===name))result.push({name,label:name});return result;
-}
-function DetailField({field,value}:{field:{name:string;label:string;type?:"text"|"date"|"number"|"textarea"|"select";options?:string[]};value:unknown}){
-  const string=typeof value==="string"||typeof value==="number"?String(value):"";
-  return <Field label={field.label}>{field.type==="textarea"?<textarea className="input min-h-24" name={`detail.${field.name}`} defaultValue={string}/>:field.type==="select"?<select className="input" name={`detail.${field.name}`} defaultValue={string}><option value="">Bitte auswählen</option>{field.options?.map(option=><option key={option}>{option}</option>)}</select>:<input className="input" name={`detail.${field.name}`} type={field.type??"text"} step={field.type==="number"?"0.01":undefined} defaultValue={string}/>}</Field>
-}
+function mergeFields(fields:DetailFieldDefinition[],required:string[]){const result=[...fields];for(const name of required)if(!result.some(field=>field.name===name))result.push({name,label:name});return result}
+function sameTopic(left:PayrollTopicDraft,right:PayrollTopicDraft){return JSON.stringify(left)===JSON.stringify(right)}
+function samePosition(left:PayrollPositionDraft,right:PayrollPositionDraft){return JSON.stringify(left)===JSON.stringify(right)}
+function DetailDraftField({field,value,onChange,vehicles=[],vehicleTopic=false}:{field:DetailFieldDefinition;value:string;onChange:(value:string)=>void;vehicles?:ItemFormProps["vehicles"];vehicleTopic?:boolean}){if(vehicleTopic&&field.name==="Fahrzeugbezug")return <Field label={field.label}><select className="input" value={value} onChange={event=>onChange(event.target.value)}><option value="">Bitte auswählen</option>{vehicles.map(vehicle=><option key={vehicle.id} value={String(vehicle.id)}>{vehicle.referenceNumber?`${vehicle.referenceNumber} · `:""}{vehicle.description}{vehicle.licensePlate?` · ${vehicle.licensePlate}`:""}</option>)}</select></Field>;return <Field label={field.label}>{field.type==="textarea"?<textarea className="input min-h-24" value={value} onChange={event=>onChange(event.target.value)}/>:field.type==="select"?<select className="input" value={value} onChange={event=>onChange(event.target.value)}><option value="">Bitte auswählen</option>{field.options?.map(option=><option key={option}>{option}</option>)}</select>:<input className="input" value={value} type={field.type??"text"} step={field.type==="number"?"0.01":undefined} onChange={event=>onChange(event.target.value)}/>}</Field>}
 function Field({label,children}:{label:string;children:React.ReactNode}){return <label className="text-xs font-semibold"><span className="mb-1 block">{label}</span>{children}</label>}

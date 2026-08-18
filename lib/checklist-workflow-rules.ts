@@ -6,7 +6,7 @@ export type WorkflowTaskState = {
   reviewIssueStatus?: string | null;
 };
 
-const FINISHED_PROCESSING = new Set(["Erledigt", "Nicht zutreffend", "In Folgemonat übertragen"]);
+const FINISHED_PROCESSING = new Set(["Erledigt", "Nicht zutreffend", "Übertragung vorgeschlagen", "In Folgemonat übertragen"]);
 const FINAL_REVIEW = new Set(["In Ordnung"]);
 const OPEN_REVIEW = new Set(["Rückfrage", "Beanstandung", "Erledigt nach Nachbearbeitung", "In Prüfung", "Nicht geprüft"]);
 

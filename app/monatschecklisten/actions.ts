@@ -14,16 +14,19 @@ import {
   updateCustomClientTask,
   updatePeriod,
   updateChecklistRoles,
-  transferChecklistTask,
   addMissingStandardTasks,
   raiseChecklistQuestion,
   answerChecklistQuestion,
+  decideChecklistTaskTransfer,
+  finishDeferredMonthlyReviewBatch,
+  proposeChecklistTaskTransfer,
 } from "@/lib/monthly-checklist-service";
 import { requireRole, requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { canManageClients, canManageCustomTasks, canProcessPeriod, canReviewPeriod, canUseAdministrationException, canViewClient } from "@/lib/permissions";
 import { serializeExecutionMonths } from "@/lib/task-execution-planning";
 import type { ChecklistBatchSaveResult, ChecklistTaskChange, ChecklistTaskSaveResult } from "@/lib/checklist-batch";
+import type { ReviewBatchSaveResult,ReviewTaskChange,ReviewTaskSaveResult } from "@/lib/review-batch";
 
 async function processingUser(periodId:number){const user=await requireUser();const period=await prisma.accountingPeriod.findUniqueOrThrow({where:{id:periodId}});
   if(!canProcessPeriod(user,period))throw new Error("Sie dürfen diese Monatscheckliste nicht bearbeiten.");return {user,period};}
@@ -79,19 +82,28 @@ export async function updateChecklistRolesAction(periodId: number, formData: For
 export async function transferChecklistTaskAction(taskId: number, periodId: number, formData: FormData) {
   const {user}=await processingUser(periodId);
   try {
-    await transferChecklistTask(taskId, {
+    await proposeChecklistTaskTransfer(taskId, {
       reason: String(formData.get("transferReason") ?? ""),
-      actorName: user.fullName,
       targetYear: Number(formData.get("transferTargetYear")),
       targetMonth: Number(formData.get("transferTargetMonth")),
       expectedAction: String(formData.get("transferExpectedAction") ?? ""),
-    });
+      note:String(formData.get("transferNote")??""),
+    },user);
     revalidatePath(`/monatschecklisten/${periodId}`);
-    redirect(`/monatschecklisten/${periodId}?erfolg=uebertragen#aufgabe-${taskId}`);
+    redirect(`/monatschecklisten/${periodId}?erfolg=uebertrag-vorgeschlagen#aufgabe-${taskId}`);
   } catch (error) {
     if (isRedirect(error)) throw error;
     redirect(`/monatschecklisten/${periodId}?fehler=${encodeURIComponent(error instanceof Error ? error.message : "Die Aufgabe konnte nicht übertragen werden.")}#aufgabe-${taskId}`);
   }
+}
+
+export async function decideChecklistTaskTransferAction(taskId:number,periodId:number,decision:"APPROVE"|"REJECT",formData:FormData){
+  const {user}=await reviewingUser(periodId);
+  try{
+    await decideChecklistTaskTransfer(taskId,decision,String(formData.get("decisionReason")??""),user);
+    revalidatePath(`/monatschecklisten/${periodId}`);revalidatePath("/monatschecklisten");revalidatePath("/");
+    redirect(`/monatschecklisten/${periodId}?erfolg=${decision==="APPROVE"?"uebertrag-genehmigt":"uebertrag-abgelehnt"}#aufgabe-${taskId}`);
+  }catch(error){if(isRedirect(error))throw error;redirect(`/monatschecklisten/${periodId}?fehler=${encodeURIComponent(error instanceof Error?error.message:"Über den Vorschlag konnte nicht entschieden werden.")}#aufgabe-${taskId}`)}
 }
 
 export async function updateChecklistTaskAction(taskId: number, periodId: number, formData: FormData) {
@@ -221,13 +233,39 @@ export async function reviewTaskAction(taskId: number, periodId: number, formDat
       reviewStatus: String(formData.get("reviewStatus") ?? ""),
       reviewerInitials: user.fullName,
       reviewNote: String(formData.get("reviewNote") ?? ""),
-    });
+    },{reviewUser:user});
     revalidatePath(`/monatschecklisten/${periodId}`);
     redirect(`/monatschecklisten/${periodId}?erfolg=pruefung#aufgabe-${taskId}`);
   } catch (error) {
     if (isRedirect(error)) throw error;
     redirect(`/monatschecklisten/${periodId}?fehler=${encodeURIComponent(error instanceof Error ? error.message : "Die Prüfung konnte nicht gespeichert werden.")}#aufgabe-${taskId}`);
   }
+}
+
+export async function saveMonthlyReviewChangesAction(periodId:number,changes:ReviewTaskChange[]):Promise<ReviewBatchSaveResult>{
+  let user;
+  try{({user}=await reviewingUser(periodId))}catch(error){return{results:changes.map(({taskId})=>failedReviewResult(taskId,error,"FORBIDDEN"))}}
+  const results:ReviewTaskSaveResult[]=[];
+  for(const change of [...changes].sort((a,b)=>a.taskId-b.taskId)){
+    try{
+      const assignment=await prisma.checklistTask.findUnique({where:{id:change.taskId},select:{periodId:true}});
+      if(!assignment)throw new MonthlyChecklistError("TASK_NOT_FOUND","Die Checklistenaufgabe wurde nicht gefunden.");
+      if(assignment.periodId!==periodId)throw new Error("Diese Aufgabe gehört nicht zur ausgewählten Monatscheckliste.");
+      const updated=await reviewChecklistTask(change.taskId,{reviewStatus:change.reviewStatus,reviewNote:change.reviewNote,reviewerInitials:user.fullName,expectedUpdatedAt:change.expectedUpdatedAt},{deferPeriodTransition:true,reviewUser:user});
+      results.push({taskId:change.taskId,ok:true,code:"SAVED",message:"Gespeichert",saved:{reviewStatus:updated.reviewStatus,reviewNote:updated.reviewNote??"",updatedAt:updated.updatedAt.toISOString()}});
+    }catch(error){results.push(failedReviewResult(change.taskId,error))}
+  }
+  const savedIssues=results.filter(result=>result.ok).some(result=>["Rückfrage","Beanstandung"].includes(result.saved?.reviewStatus??""));
+  if(results.some(result=>result.ok)){
+    await finishDeferredMonthlyReviewBatch(periodId,user,savedIssues);
+    revalidatePath(`/monatschecklisten/${periodId}`);revalidatePath("/monatschecklisten");
+  }
+  return{results};
+}
+
+function failedReviewResult(taskId:number,error:unknown,fallback:ReviewTaskSaveResult["code"]="TECHNICAL"):ReviewTaskSaveResult{
+  const code="code" in (error as object??{})?String((error as {code?:unknown}).code):"";
+  return{taskId,ok:false,code:code==="CONFLICT"?"CONFLICT":code==="TASK_NOT_FOUND"?"NOT_FOUND":["INVALID_INPUT","REVIEW_NOTE_REQUIRED","INVALID_TRANSITION"].includes(code)?"VALIDATION":code==="NOT_ALLOWED"?"FORBIDDEN":fallback,message:error instanceof Error?error.message:"Die Prüfentscheidung konnte nicht gespeichert werden."};
 }
 
 export async function completeReworkAction(taskId: number, periodId: number, formData: FormData) {

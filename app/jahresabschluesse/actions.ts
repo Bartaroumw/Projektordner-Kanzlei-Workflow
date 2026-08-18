@@ -14,9 +14,11 @@ import {
   reviewAnnualTask,
   transitionAnnualChecklist,
   updateAnnualTask,
+  finishDeferredAnnualReviewBatch,
   type AnnualAction,
 } from "@/lib/annual-checklist-service";
 import type { ChecklistBatchSaveResult,ChecklistTaskChange,ChecklistTaskSaveResult } from "@/lib/checklist-batch";
+import type { ReviewBatchSaveResult,ReviewTaskChange,ReviewTaskSaveResult } from "@/lib/review-batch";
 
 const message=(error:unknown)=>encodeURIComponent(error instanceof Error?error.message:"Die Aktion konnte nicht ausgeführt werden.");
 const isRedirect=(error:unknown)=>typeof error==="object"&&error!==null&&"digest" in error&&String(error.digest).startsWith("NEXT_REDIRECT");
@@ -63,6 +65,28 @@ export async function reviewAnnualTaskAction(taskId:number,checklistId:number,fo
   const user=await requireUser();
   try{await reviewAnnualTask(taskId,{reviewStatus:String(formData.get("reviewStatus")??""),reviewNote:String(formData.get("reviewNote")??"")},user);revalidatePath(`/jahresabschluesse/${checklistId}`);redirect(`/jahresabschluesse/${checklistId}?erfolg=pruefung#aufgabe-${taskId}`)}
   catch(error){if(isRedirect(error))throw error;redirect(`/jahresabschluesse/${checklistId}?fehler=${message(error)}#aufgabe-${taskId}`)}
+}
+
+export async function saveAnnualReviewChangesAction(checklistId:number,changes:ReviewTaskChange[]):Promise<ReviewBatchSaveResult>{
+  const user=await requireUser();
+  const results:ReviewTaskSaveResult[]=[];
+  for(const change of [...changes].sort((a,b)=>a.taskId-b.taskId)){
+    try{
+      const assignment=await prisma.annualChecklistTask.findUnique({where:{id:change.taskId},select:{annualChecklistId:true}});
+      if(!assignment)throw new Error("Die Jahresabschlussaufgabe wurde nicht gefunden.");
+      if(assignment.annualChecklistId!==checklistId)throw new Error("Diese Aufgabe gehört nicht zur ausgewählten Jahresabschlusscheckliste.");
+      const updated=await reviewAnnualTask(change.taskId,{reviewStatus:change.reviewStatus,reviewNote:change.reviewNote,expectedUpdatedAt:change.expectedUpdatedAt},user,{deferChecklistTransition:true});
+      results.push({taskId:change.taskId,ok:true,code:"SAVED",message:"Gespeichert",saved:{reviewStatus:updated.reviewStatus,reviewNote:updated.reviewNote??"",updatedAt:updated.updatedAt.toISOString()}});
+    }catch(error){results.push(annualReviewFailure(change.taskId,error))}
+  }
+  const hasIssue=results.filter(result=>result.ok).some(result=>["Rückfrage","Beanstandung"].includes(result.saved?.reviewStatus??""));
+  if(results.some(result=>result.ok)){await finishDeferredAnnualReviewBatch(checklistId,user,hasIssue);revalidatePath(`/jahresabschluesse/${checklistId}`);revalidatePath("/jahresabschluesse")}
+  return{results};
+}
+
+function annualReviewFailure(taskId:number,error:unknown,fallback:ReviewTaskSaveResult["code"]="TECHNICAL"):ReviewTaskSaveResult{
+  const code="code" in (error as object??{})?String((error as {code?:unknown}).code):"";
+  return{taskId,ok:false,code:code==="CONFLICT"?"CONFLICT":["INVALID_INPUT","REASON_REQUIRED","INVALID_TRANSITION","LOCKED"].includes(code)?"VALIDATION":code==="NOT_ALLOWED"?"FORBIDDEN":fallback,message:error instanceof Error?error.message:"Die Prüfentscheidung konnte nicht gespeichert werden."};
 }
 
 export async function completeAnnualReworkAction(taskId:number,checklistId:number,formData:FormData){

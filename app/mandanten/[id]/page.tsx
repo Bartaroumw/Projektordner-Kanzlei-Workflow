@@ -58,6 +58,8 @@ export default async function ClientDetailPage({
   const actionLabel = next ? `Checkliste für ${new Intl.DateTimeFormat("de-DE",{month:"long"}).format(new Date(2026,next.month-1,1))} ${next.year} anlegen` : "Erste Monatscheckliste anlegen";
   const actionHref = next ? `/monatschecklisten/neu?clientId=${client.id}&year=${next.year}&month=${next.month}` : `/monatschecklisten/neu?clientId=${client.id}`;
   const latestProfile=client.annualProfiles[0];
+  const currentYear=new Date().getFullYear();
+  const currentProfile=client.annualProfiles.find(profile=>profile.calendarYear===currentYear);
   const statusYear=latest?.calendarYear??new Date().getFullYear();
   const status=buildClientAccountingStatus(client.periods.filter(period=>period.calendarYear===statusYear));
   const latestAnnual=client.annualChecklists[0];
@@ -88,6 +90,8 @@ export default async function ClientDetailPage({
       </header>
 
       <nav aria-label="Mandantenarbeitsbereich" className="mb-6 flex gap-1 overflow-x-auto rounded-lg border border-[var(--color-border)] bg-white p-1 shadow-sm">{tabs.map(tab=><Link key={tab.label} href={tab.href} className="shrink-0 rounded-md px-3 py-2 text-sm font-semibold text-[var(--color-primary-dark)] hover:bg-[var(--color-primary-light)]">{tab.label}</Link>)}</nav>
+
+      {!currentProfile&&canManageClients(user)&&<section className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950"><p><strong>Qualitätshinweis:</strong> Für das aktuelle Jahr {currentYear} ist noch kein Jahresprofil vorhanden.</p><Link className="button-secondary" href={`/mandanten/${client.id}/jahresprofile/neu?jahr=${currentYear}`}>Jahresprofil anlegen</Link></section>}
 
       <section id="uebersicht" className="scroll-mt-20 rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3"><h2 className="text-lg font-semibold">Mandantenarbeitsbereich</h2><span className={`rounded-full px-3 py-1 text-xs font-semibold ${client.active?"bg-green-100 text-green-900":"bg-slate-200 text-slate-700"}`}>{client.active?"Aktiv":"Inaktiv"}</span></div>

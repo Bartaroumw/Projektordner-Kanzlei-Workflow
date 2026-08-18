@@ -63,12 +63,14 @@ describe("Listen und Rollenanzeige",()=>{
 describe("Oberflächenregression",()=>{
   const monthly=readFileSync("app/monatschecklisten/[id]/page.tsx","utf8");
   const annual=readFileSync("app/jahresabschluesse/[id]/page.tsx","utf8");
+  const review=readFileSync("app/components/task-review-form.tsx","utf8");
   const processing=readFileSync("app/components/task-processing-form.tsx","utf8");
   it("setzt ungeprüfte Aufgaben in keiner Prüfmaske automatisch in Ordnung",()=>{
     expect(monthly).not.toContain('task.reviewStatus==="Nicht geprüft"?"In Ordnung"');
     expect(annual).not.toContain('task.reviewStatus==="Nicht geprüft"?"In Ordnung"');
-    expect(monthly).toContain("Bitte ausdrücklich auswählen");
-    expect(annual).toContain("Bitte ausdrücklich auswählen");
+    expect(monthly).toContain("TaskReviewForm");
+    expect(annual).toContain("TaskReviewForm");
+    expect(review).toContain("Bitte ausdrücklich auswählen");
   });
   it("speichert Aufgaben lokal asynchron mit sichtbarem Zustand",()=>{
     const batch=readFileSync("app/components/checklist-batch-provider.tsx","utf8");

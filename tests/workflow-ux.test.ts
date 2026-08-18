@@ -18,7 +18,7 @@ describe("Kompakte Workflow-Bedienung", () => {
   it("öffnet die Übertragung standardmäßig geschlossen", () => {
     expect(transfer).toContain("<details");
     expect(transfer).not.toContain("<details open");
-    expect(transfer).toContain("Aufgabe übertragen");
+    expect(transfer).toContain("Übertragung vorschlagen");
     expect(transfer).toContain("Abbrechen");
     expect(transfer).toContain("disabled={pending}");
   });

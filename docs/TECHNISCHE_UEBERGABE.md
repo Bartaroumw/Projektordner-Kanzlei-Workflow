@@ -1,10 +1,10 @@
 # Technische Übergabe nach PC-Übertragung
 
-Stand: 04.08.2026
+Stand: 18.08.2026
 Projektpfad: `C:\Projekte\Kanzlei-Workflow`
 Branch bei Übernahme: `feature/fibu-lohn-grundlage`
 Ausgangscommit: `c9ad6faf69bca18ee4d47676f26b82418faf8eb5`
-Aktueller technischer Branch: `codex/schema-drift-bereinigung`
+Aktueller technischer Branch: `codex/fachliche-gesamtpruefung`
 Sicherungscommit vor Migration 16: `3bf35266fcb7d3494535ce103d5b4b617cfe7d4d`
 
 ## Zweck dieser Sicherung
@@ -181,3 +181,21 @@ Kontrolliertes `prisma migrate deploy` ist gegen `dev.db` nach vollständiger ge
 Migration 18 `20260805160000_ordo_campus_2_knowledge_platform` ergänzt die unabhängigen Wissensinhalte, Wissensgebiete, Lernpfade, Mehrfachverknüpfungen, Tags und den persönlichen freiwilligen Lesefortschritt. Alle alten Campus-Tabellen bleiben unverändert erhalten. Eindeutige `legacy*Id`-Felder ordnen jeden Inhalt, Link, Anhang und Verlauf exakt seiner Herkunft zu; physische Dateien werden nicht dupliziert.
 
 Der Kopientest gegen eine bytegenaue Fassung von `dev.db` bestätigte 8 von 8 übernommenen Inhalten, 7 von 7 Links, 8 von 8 Altverläufen, 8 Aufgaben- und 6 Rechnungswesen–Lohn-Themenverknüpfungen. Alle 36 vorherigen Tabellen und deren Datenhashes blieben unverändert; zweiter Deploy, SQLite-Prüfungen und bytegenaue Wiederherstellung waren erfolgreich. Fachkonzept, Modell, Migration und Bedienung stehen in `docs/ORDO_CAMPUS_2_*.md`.
+
+## Workflowvereinfachung und Migration 19
+
+Migration `20260818120000_workflow_simplification` ist additiv. Sie ergänzt sieben Felder und einen Index für Übertragungsvorschläge an `ChecklistTask` sowie drei technische Ansichtszeitpunkte und einen Index an `PayrollReconciliation`. Bestehende 18 Migrationen bleiben unverändert. Der Legacy-Lohnstatus `Gesehen` wird nach `In Bearbeitung` überführt; sonstige Fachdaten bleiben unverändert.
+
+Der reproduzierbare Kopientest lautet:
+
+```powershell
+npm.cmd run test:migration:workflow-simplification-copy
+```
+
+Er erstellt ausschließlich unter `tmp/workflow-simplification-migration-copy` eine bytegenaue Kopie, prüft Quell- und Speicher-Hashes, 49 bestehende Tabellen, Datenhashes, Migrationseinträge, `quick_check`, `foreign_key_check`, zweiten Deploy und bytegenaue Wiederherstellung. Die Systemintegration wird anschließend aus allen 19 Migrationen neu aufgebaut. Gegen `prisma/dev.db` ist ein Deploy erst nach sauberem Git-Stand, vollständigem gemeinsamen Backup und erfolgreichem Statuscheck erlaubt.
+
+Der dafür bestimmte gemeinsame Sicherungssatz wurde am 18.08.2026 unter `backups/2026-08-18_14-03-52_full_local_backup` erzeugt. Die Datenbankkopie ist bytegenau (`SHA-256 8f7a2cb5a23f41e411fe7281537c46a1c033e01c8d1c161c36c3596a430328f7`); das Manifest erfasst zusätzlich `.env`, `storage/ordo-campus`, `storage/fibu-lohn` und `storage/profile-images`. Ein Rollback erfolgt ausschließlich durch gemeinsame Wiederherstellung dieses vollständigen Satzes bei gestopptem Anwendungsprozess.
+
+Der kontrollierte Deploy gegen `prisma/dev.db` war erfolgreich. Prisma erkennt alle 19 Migrationen als aktuell, `quick_check` ist `ok`, `foreign_key_check` enthält keinen Befund und kein Datensatz verwendet mehr den abgeschafften Legacy-Status `Gesehen`. Der anschließende Datenbankhash lautet `bb275ed6d7eea3c676ed75395fab5380cdcb791cdbc96d8d63c39b5b3d9e71f9`; der normale Entwicklungsstart lieferte danach HTTP 200. Für ein Rollback ist stets der vollständige gemeinsame Sicherungssatz wiederherzustellen.
+
+Die fachliche Umsetzung umfasst zentrale Prüf- und Rechnungswesen–Lohn-Sammelspeicherung, automatische Bearbeitungs-/Prüf-/Lohnstarts, prüferpflichtige Aufgabenüberträge, atomare Mandanten-/Jahresprofilanlage, getrennte Darstellung von Einsatzbereich/Rhythmus und eine vom Jahresprofil unabhängige Kanzleilohnsteuerung. Die Detailregeln stehen in `WORKFLOW_AUTOMATISCHE_STATUSWECHSEL.md`, `AUFGABENUEBERTRAG_PRUEFERFREIGABE.md`, `LOHNBETREUUNG_MANDANT.md` und `MANDANTENANLAGE_JAHRESPROFIL.md`.
